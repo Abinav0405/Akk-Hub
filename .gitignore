@@ -1,28 +1,68 @@
 # Dependencies & build
 node_modules/
 dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
 
 # Env / secrets (keep example templates only)
 .env
 .env.*
 !.env.example
 .env.qa.local
+.envrc
 fcm-secrets.env
 *firebase-adminsdk*.json
-
-# Android / signing secrets
-android/app/google-services.json
-android/app/release
-*.keystore
-*.jks
-keystore*
+*.pem
+*.p8
+*.p12
 
 # Local QA screenshots (may show real data)
 qa-shots/
 
+# Android / Capacitor — build artifacts & generated sync output
+android/.gradle/
+android/build/
+android/app/build/
+android/app/release/
+android/app/debug/
+android/local.properties
+android/captures/
+android/.cxx/
+android/.externalNativeBuild/
+android/.idea/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/app/src/main/assets/capacitor.plugins.json
+android/app/src/main/res/xml/config.xml
+android/capacitor-cordova-android-plugins/
+
+# Android / signing secrets
+android/app/google-services.json
+google-services.json
+*.apk
+*.aab
+*.ap_
+*.aar
+*.dex
+*.hprof
+*.keystore
+*.jks
+keystore*
+
 # Editor / OS
 .DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+.idea/
 .vscode/*
 !.vscode/extensions.json
+*.swp
+*.swo
+*.iml
 *.log
 .claude/
+.cursor/
