@@ -1,0 +1,722 @@
+/*
+ * iOS-style biometric prompt — system material, system colors, SF typography.
+ * Light by default; dark via the OS setting or a `.dark` ancestor.
+ */
+.akk-bio {
+    --bio-blue: #007aff;
+    --bio-green: #34c759;
+    --bio-red: #ff3b30;
+    --bio-label: rgba(0, 0, 0, 0.88);
+    --bio-secondary: rgba(60, 60, 67, 0.62);
+    --bio-material: rgba(242, 242, 247, 0.72);
+    --bio-fill: rgba(120, 120, 128, 0.12);
+    --bio-hairline: rgba(60, 60, 67, 0.18);
+
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: max(1.5rem, env(safe-area-inset-top)) 1.5rem max(1.5rem, env(safe-area-inset-bottom));
+    background: var(--bio-material);
+    -webkit-backdrop-filter: blur(30px) saturate(180%);
+    backdrop-filter: blur(30px) saturate(180%);
+    color: var(--bio-label);
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', system-ui, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    .akk-bio {
+        --bio-blue: #0a84ff;
+        --bio-green: #30d158;
+        --bio-red: #ff453a;
+        --bio-label: rgba(255, 255, 255, 0.92);
+        --bio-secondary: rgba(235, 235, 245, 0.6);
+        --bio-material: rgba(28, 28, 30, 0.62);
+        --bio-fill: rgba(120, 120, 128, 0.24);
+        --bio-hairline: rgba(84, 84, 88, 0.6);
+    }
+}
+
+.dark .akk-bio {
+    --bio-blue: #0a84ff;
+    --bio-green: #30d158;
+    --bio-red: #ff453a;
+    --bio-label: rgba(255, 255, 255, 0.92);
+    --bio-secondary: rgba(235, 235, 245, 0.6);
+    --bio-material: rgba(28, 28, 30, 0.62);
+    --bio-fill: rgba(120, 120, 128, 0.24);
+    --bio-hairline: rgba(84, 84, 88, 0.6);
+}
+
+/* Glyph sits above centre so it stays visible above the Android system prompt sheet. */
+.akk-bio__stage {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 22rem;
+    padding-bottom: 18vh;
+}
+
+.akk-bio__glyph {
+    width: 5.75rem; /* ≈ 92pt */
+    height: 5.75rem;
+    overflow: visible;
+    will-change: transform;
+}
+
+.akk-bio__glyph * {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.akk-bio__glyph [data-tone] {
+    transition: stroke 240ms ease;
+}
+
+.akk-bio__title {
+    margin-top: 1.5rem;
+    font-size: 1.0625rem; /* 17pt */
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    text-align: center;
+}
+
+.akk-bio__subtitle {
+    margin-top: 0.25rem;
+    min-height: 2.6em;
+    font-size: 0.9375rem; /* 15pt */
+    line-height: 1.33;
+    color: var(--bio-secondary);
+    text-align: center;
+}
+
+/* Dynamic Type inside WKWebView. */
+@supports (font: -apple-system-body) {
+    .akk-bio__title {
+        font: -apple-system-headline;
+        font-weight: 500;
+    }
+    .akk-bio__subtitle {
+        font: -apple-system-subheadline;
+    }
+}
+
+/* Fixed-height slot so the glyph doesn't jump when buttons appear. */
+.akk-bio__actions {
+    width: 100%;
+    max-width: 20rem;
+    margin-top: 1.75rem;
+    min-height: 7.25rem;
+}
+
+.akk-bio__action-list {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+}
+
+.akk-bio__btn {
+    width: 100%;
+    min-height: 3.125rem;
+    border-radius: 0.875rem;
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    cursor: pointer;
+    transition: opacity 150ms ease, transform 150ms ease;
+}
+
+.akk-bio__btn:active {
+    opacity: 0.7;
+    transform: scale(0.98);
+}
+
+.akk-bio__btn:focus-visible,
+.akk-bio__link:focus-visible,
+.akk-bio__cancel:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--bio-blue) 45%, transparent);
+    outline-offset: 2px;
+}
+
+.akk-bio__btn--primary {
+    border: 0;
+    background: var(--bio-blue);
+    color: #fff;
+}
+
+.akk-bio__link {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 400;
+    color: var(--bio-blue);
+    cursor: pointer;
+}
+
+.akk-bio__link:active {
+    opacity: 0.5;
+}
+
+.akk-bio__cancel {
+    align-self: flex-start;
+    min-height: 2.75rem;
+    padding: 0 0.25rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.0625rem;
+    color: var(--bio-blue);
+    cursor: pointer;
+}
+
+/* Spinner — a thin arc that rotates (transform only). */
+@keyframes akk-bio-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.akk-bio__spinner {
+    animation: akk-bio-spin 0.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .akk-bio__spinner {
+        animation-duration: 2.4s;
+    }
+    .akk-bio__btn,
+    .akk-bio__btn:active {
+        transform: none;
+    }
+}
+
+/* ===========================================================================
+ * Camera face check (FaceMatchPrompt) — "AKK Face Login Flow" design.
+ * Dark camera screen (glyph chip, title, dotted ring, glass hint pill) and a light
+ * "Set up Face Login" intro. Phone-first flex layout with the app's safe-area vars;
+ * on a desktop browser the whole thing becomes a centred card.
+ * The camera layer never sits under a backdrop-filter (some WebViews stop painting <video>).
+ * ======================================================================== */
+.akk-face {
+    --face-brand: #dc6b2f; /* AKK brand orange */
+    --face-brand-pressed: #c85a23;
+    --face-green: #34c759;
+    --face-red: #ff453a;
+    --face-safe-top: var(--akk-safe-top, env(safe-area-inset-top, 0px));
+    --face-safe-bottom: var(--akk-safe-bottom, env(safe-area-inset-bottom, 0px));
+    /* Glyph tokens (it sits on a white chip, so use the light-mode system colours). */
+    --bio-blue: #007aff;
+    --bio-green: #1f9d48;
+    --bio-red: #e5352b;
+
+    position: fixed;
+    inset: 0;
+    z-index: 300;
+    overflow: hidden;
+    color: #fff;
+    font-family: var(--akk-font, Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+    touch-action: none;
+    overscroll-behavior: contain;
+}
+
+/* The panel holds everything: the whole screen on phones, a card on desktop. */
+.akk-face__panel {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    container-type: size;
+    background: radial-gradient(120% 70% at 50% 32%, #434b57 0%, #252b33 48%, #0c0f13 100%);
+}
+
+.akk-face--light .akk-face__panel {
+    background: #f2f4f8;
+    color: #0f172a;
+}
+
+/* Desktop website: centred card over a dimmed page. */
+.akk-face--card {
+    --face-safe-top: 0px;
+    --face-safe-bottom: 0px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.akk-face--card .akk-face__panel {
+    position: relative;
+    inset: auto;
+    width: min(26rem, 100%);
+    height: min(46rem, 100%);
+    border-radius: 1.75rem;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+/* ---- camera layer ------------------------------------------------------- */
+.akk-face__stage {
+    position: absolute;
+    inset: 0;
+}
+
+.akk-face__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transform: scaleX(-1); /* mirror, like a selfie camera */
+    opacity: 0;
+    transition: opacity 400ms ease;
+}
+
+.akk-face__video.is-live {
+    opacity: 1;
+}
+
+/* Top/bottom darkening so the white text and controls stay readable. */
+.akk-face__shade {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        to bottom,
+        rgba(8, 10, 14, 0.7) 0%,
+        rgba(8, 10, 14, 0) 34%,
+        rgba(8, 10, 14, 0) 66%,
+        rgba(8, 10, 14, 0.75) 100%
+    );
+    pointer-events: none;
+}
+
+/* ---- layout ---------------------------------------------------------------- */
+.akk-face__layout {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--face-safe-top) 0 var(--face-safe-bottom);
+}
+
+.akk-face__top,
+.akk-face__bottom {
+    position: relative;
+    z-index: 2; /* above the ring's dimmed surround */
+}
+
+.akk-face__top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 1.5rem;
+    text-align: center;
+}
+
+.akk-face__topbar {
+    align-self: stretch;
+    display: flex;
+    min-height: 3rem;
+    padding: 0.25rem 0.25rem 0;
+}
+
+.akk-face__cancel {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+    padding: 0 0.5rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.0625rem;
+    color: #fff;
+    cursor: pointer;
+}
+
+.akk-face__cancel--light {
+    color: #475569;
+}
+
+.akk-face__glyph-chip {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 5rem;
+    height: 5rem;
+    margin-top: 0.5rem;
+    border-radius: 1.4rem;
+    background: #f6f7f9;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+
+.akk-face__glyph-chip--raised {
+    width: 5.75rem;
+    height: 5.75rem;
+    border-radius: 1.6rem;
+    background: #fff;
+    box-shadow: 0 18px 40px -18px rgba(15, 23, 42, 0.35), 0 2px 6px rgba(15, 23, 42, 0.05);
+}
+
+.akk-face__glyph-chip .akk-bio__glyph {
+    width: 3.1rem;
+    height: 3.1rem;
+}
+
+.akk-face__glyph-chip--raised .akk-bio__glyph {
+    width: 3.4rem;
+    height: 3.4rem;
+}
+
+.akk-face__glyph-chip .akk-bio__glyph * {
+    transform-box: fill-box;
+    transform-origin: center;
+}
+
+.akk-face__title {
+    margin-top: 1rem;
+    font-size: 1.375rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+.akk-face__subtitle {
+    max-width: 22rem;
+    min-height: 1.4em;
+    margin-top: 0.25rem;
+    font-size: 1.0625rem;
+    line-height: 1.4;
+    color: rgba(255, 255, 255, 0.86);
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+
+/* ---- dotted ring ------------------------------------------------------------ */
+.akk-face__middle {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem 0;
+}
+
+/* Fits the space between header and pill on any phone (container units when available). */
+.akk-face__frame {
+    position: relative;
+    width: clamp(10rem, min(76vw, calc((100vh - 23rem) * 0.77)), 23rem);
+    width: clamp(10rem, min(76vw, calc((100dvh - 23rem) * 0.77)), 23rem);
+    width: clamp(10rem, min(76cqw, calc((100cqh - 23rem) * 0.77)), 23rem);
+    aspect-ratio: 300 / 390;
+    will-change: transform;
+}
+
+/* Elliptical cut-out: darkens everything outside the ring so your face stands out. */
+.akk-face__mask {
+    position: absolute;
+    inset: 11% 11% 11% 11%;
+    border-radius: 50%;
+    box-shadow: 0 0 0 200vmax rgba(10, 12, 16, 0.5);
+    pointer-events: none;
+}
+
+.akk-face__ring {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.akk-face__ring ellipse {
+    fill: none;
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-dasharray: 9 11;
+    transition: stroke 260ms ease;
+}
+
+.akk-face__ring-base {
+    stroke: rgba(255, 255, 255, 0.42);
+}
+
+.akk-face__ring-lit {
+    stroke: #fff;
+}
+
+.akk-face__ring[data-tone='success'] .akk-face__ring-base,
+.akk-face__ring[data-tone='success'] .akk-face__ring-lit {
+    stroke: var(--face-green);
+}
+
+.akk-face__ring[data-tone='failure'] .akk-face__ring-base,
+.akk-face__ring[data-tone='failure'] .akk-face__ring-lit {
+    stroke: var(--face-red);
+}
+
+/* ---- bottom: hint pill / actions ---------------------------------------------- */
+.akk-face__bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 7.5rem;
+    padding: 0.5rem 1.5rem 1.5rem;
+}
+
+/* Glass pill (solid translucent fill — no backdrop-filter over the camera). */
+.akk-face__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    min-height: 3rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 10px 30px rgba(0, 0, 0, 0.25);
+    font-size: 1rem;
+    font-weight: 600;
+    color: #fff;
+    text-align: center;
+}
+
+
+
+.akk-face__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    width: min(100%, 22rem);
+}
+
+.akk-face__btn {
+    width: 100%;
+    min-height: 3.25rem;
+    border: 0;
+    border-radius: 1rem;
+    background: #fff;
+    color: #0f172a;
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.akk-face__link {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 600;
+    color: #fff;
+    cursor: pointer;
+}
+
+/* ---- intro: "Set up Face Login" (light) ------------------------------------------- */
+.akk-face__intro {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--face-safe-top) 1.5rem calc(var(--face-safe-bottom) + 1.25rem);
+    overflow-y: auto;
+    touch-action: pan-y;
+}
+
+.akk-face__intro .akk-face__topbar {
+    padding: 0.25rem 0 0;
+}
+
+.akk-face__intro-body {
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    align-items: center;
+    padding-top: 0.75rem;
+    text-align: center;
+}
+
+.akk-face__intro-title {
+    margin-top: 1.75rem;
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+    color: #0f172a;
+}
+
+.akk-face__intro-text {
+    max-width: 20rem;
+    margin-top: 0.75rem;
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    color: #64748b;
+}
+
+.akk-face__points {
+    width: 100%;
+    max-width: 24rem;
+    margin: 1.5rem 0 0;
+    padding: 0.25rem 1.25rem;
+    list-style: none;
+    border-radius: 1.25rem;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px -16px rgba(15, 23, 42, 0.2);
+    text-align: left;
+}
+
+.akk-face__points li {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1rem 0;
+    font-size: 1rem;
+    line-height: 1.4;
+    color: #1e293b;
+}
+
+.akk-face__points li + li {
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.akk-face__points svg {
+    width: 1.375rem;
+    height: 1.375rem;
+    flex-shrink: 0;
+    color: #16a34a;
+}
+
+.akk-face__intro-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    width: 100%;
+    max-width: 24rem;
+    margin: 1.75rem auto 0;
+}
+
+.akk-face__primary {
+    width: 100%;
+    min-height: 3.375rem;
+    border: 0;
+    border-radius: 1rem;
+    background: var(--face-brand);
+    color: #fff;
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    box-shadow: 0 10px 22px -12px rgba(220, 107, 47, 0.7);
+    cursor: pointer;
+    transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.akk-face__primary:active {
+    background: var(--face-brand-pressed);
+}
+
+.akk-face__text-btn {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 1.0625rem;
+    font-weight: 700;
+    color: #0f172a;
+    cursor: pointer;
+}
+
+.akk-face__privacy {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #64748b;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+/* ---- press + focus ----------------------------------------------------------------- */
+.akk-face__btn:active,
+.akk-face__primary:active {
+    transform: scale(0.98);
+}
+
+.akk-face__link:active,
+.akk-face__cancel:active,
+.akk-face__text-btn:active {
+    opacity: 0.55;
+}
+
+.akk-face__btn:focus-visible,
+.akk-face__link:focus-visible,
+.akk-face__cancel:focus-visible,
+.akk-face__primary:focus-visible,
+.akk-face__text-btn:focus-visible,
+.akk-face__privacy:focus-visible {
+    outline: 3px solid rgba(220, 107, 47, 0.55);
+    outline-offset: 2px;
+}
+
+/* Short screens (small phones, split screen): tighter header. */
+@container (max-height: 620px) {
+    .akk-face__glyph-chip {
+        width: 4rem;
+        height: 4rem;
+        border-radius: 1.1rem;
+    }
+    .akk-face__glyph-chip .akk-bio__glyph {
+        width: 2.5rem;
+        height: 2.5rem;
+    }
+    .akk-face__title {
+        margin-top: 0.625rem;
+        font-size: 1.1875rem;
+    }
+    .akk-face__intro-title {
+        margin-top: 1rem;
+        font-size: 1.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .akk-face__video {
+        transition: none;
+    }
+    .akk-face__btn:active,
+    .akk-face__primary:active {
+        transform: none;
+    }
+}
+
+/* Login curtain on desktop (card): deepen the dim so the portal loading underneath stays hidden
+   until the curtain fades out. Starts at the card's own backdrop, so the swap is invisible. */
+.akk-face--curtain.akk-face--card {
+    animation: akk-face-curtain-dim 320ms ease forwards;
+}
+
+@keyframes akk-face-curtain-dim {
+    from {
+        background: rgba(15, 23, 42, 0.55);
+    }
+    to {
+        background: rgba(15, 23, 42, 0.94);
+    }
+}

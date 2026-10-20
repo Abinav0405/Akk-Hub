@@ -1,0 +1,79 @@
+{
+  "name": "Transaction",
+  "type": "object",
+  "properties": {
+    "worker_name": {
+      "type": "string",
+      "description": "Name of the worker"
+    },
+    "worker_id": {
+      "type": "string",
+      "description": "Worker's ID number"
+    },
+    "transaction_type": {
+      "type": "string",
+      "enum": [
+        "take",
+        "return"
+      ],
+      "description": "Whether materials are being taken or returned"
+    },
+    "transaction_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of the transaction"
+    },
+    "transaction_time": {
+      "type": "string",
+      "description": "Time of the transaction"
+    },
+    "materials": {
+      "type": "array",
+      "description": "List of materials",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "unit": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes"
+    },
+    "approval_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "declined"
+      ],
+      "default": "pending",
+      "description": "Approval status of the request"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Admin who approved/declined the request"
+    },
+    "approval_date": {
+      "type": "string",
+      "description": "Date when the request was approved/declined"
+    }
+  },
+  "required": [
+    "worker_name",
+    "worker_id",
+    "transaction_type",
+    "transaction_date",
+    "transaction_time",
+    "materials"
+  ]
+}

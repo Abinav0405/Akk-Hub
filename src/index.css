@@ -1,0 +1,67 @@
+@import './ui/styles/glass.css';
+@import './ui/styles/timesheet-web.css';
+@import './ui/styles/timesheet-app.css';
+@import './ui/styles/home.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply text-foreground;
+  }
+}
+
+/* Utilities the source apps relied on (safe-area padding, dvh). */
+@layer utilities {
+  .min-h-dvh-safe {
+    min-height: 100dvh;
+    min-height: 100svh;
+  }
+  .px-safe {
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+  .pl-safe {
+    padding-left: env(safe-area-inset-left, 0px);
+  }
+  .pr-safe {
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe-header {
+    padding-top: max(0.875rem, env(safe-area-inset-top, 0px));
+  }
+  .pb-safe-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+  .app-shell {
+    min-height: 100dvh;
+    min-height: 100svh;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: max(1rem, env(safe-area-inset-left, 0px));
+    padding-right: max(1rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Leaflet (vehicle live map) */
+.vehicle-map-marker {
+  background: transparent;
+  border: none;
+}
+
+.leaflet-container {
+  z-index: 0;
+  font-family: inherit;
+}

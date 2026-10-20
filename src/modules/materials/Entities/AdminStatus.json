@@ -1,0 +1,22 @@
+{
+  "name": "AdminStatus",
+  "type": "object",
+  "properties": {
+    "admin_email": {
+      "type": "string",
+      "description": "Email of the currently online admin"
+    },
+    "last_seen": {
+      "type": "string",
+      "description": "Last activity timestamp"
+    },
+    "is_online": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether admin is currently online"
+    }
+  },
+  "required": [
+    "admin_email"
+  ]
+}

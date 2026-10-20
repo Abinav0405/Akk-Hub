@@ -1,0 +1,1835 @@
+/*
+ * Timesheet Manager native-app design (AKK-Timesheet-Manager-main/src/native/native-app.css),
+ * copied for the AKK Hub app version of Home, sign-in, quick login and the ported Timesheet
+ * screens. Everything stays scoped to html.akk-native (set in the Capacitor app, or by the
+ * ?app=1 preview switch in a browser). Sections kept: tokens/base, native components,
+ * portal home, quick login, login, welcome, worker/admin chrome, keyframes.
+ */
+/* ================================================================== */
+/* 1. Tokens                                                          */
+/* ================================================================== */
+
+html.akk-native {
+    /* Brand */
+    --akk-brand: #dc6b2f;
+    --akk-brand-600: #c85a23;
+    --akk-brand-700: #a94a1b;
+    --akk-brand-tint: rgba(220, 107, 47, 0.1);
+    --akk-brand-tint-strong: rgba(220, 107, 47, 0.16);
+    --akk-on-brand: #ffffff;
+
+    /* Role accents (existing portal colours) */
+    --akk-admin: #1e293b;
+    --akk-admin-tint: rgba(30, 41, 59, 0.08);
+    --akk-manage: #047857;
+    --akk-manage-solid: #059669;
+    --akk-manage-tint: rgba(5, 150, 105, 0.1);
+
+    /* Neutrals */
+    --akk-canvas: #f3f2ef;
+    --akk-surface: #ffffff;
+    --akk-surface-muted: #f8f7f5;
+    --akk-surface-sunken: #eceae6;
+    --akk-fill: rgba(118, 118, 128, 0.12);
+    --akk-fill-strong: rgba(118, 118, 128, 0.2);
+    --akk-hairline: rgba(15, 23, 42, 0.08);
+    --akk-hairline-strong: rgba(15, 23, 42, 0.14);
+    --akk-separator: rgba(60, 60, 67, 0.12);
+
+    /* Glass (chrome only) */
+    --akk-glass: rgba(250, 249, 247, 0.78);
+    --akk-glass-strong: rgba(255, 255, 255, 0.9);
+    --akk-glass-edge: rgba(255, 255, 255, 0.7);
+    --akk-glass-fallback: #faf9f7;
+    --akk-blur: 18px;
+    --akk-saturate: 170%;
+
+    /* Text */
+    --akk-text: #111827;
+    --akk-text-2: #374151;
+    --akk-text-3: #6b7280;
+    --akk-text-4: #9ca3af;
+
+    /* Semantic */
+    --akk-success: #15803d;
+    --akk-success-solid: #16a34a;
+    --akk-success-tint: rgba(22, 163, 74, 0.12);
+    --akk-warning: #b45309;
+    --akk-warning-solid: #d97706;
+    --akk-warning-tint: rgba(217, 119, 6, 0.13);
+    --akk-danger: #b91c1c;
+    --akk-danger-solid: #dc2626;
+    --akk-danger-tint: rgba(220, 38, 38, 0.1);
+    --akk-info: #0369a1;
+    --akk-info-solid: #0284c7;
+    --akk-info-tint: rgba(2, 132, 199, 0.11);
+
+    /* Type */
+    --akk-font: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --akk-font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+    --akk-fs-large: 30px;
+    --akk-fs-title: 22px;
+    --akk-fs-headline: 17px;
+    --akk-fs-body: 16px;
+    --akk-fs-callout: 15px;
+    --akk-fs-subhead: 14px;
+    --akk-fs-footnote: 13px;
+    --akk-fs-caption: 12px;
+    --akk-fs-micro: 11px;
+
+    /* Spacing (4pt grid) */
+    --akk-s-1: 4px;
+    --akk-s-2: 8px;
+    --akk-s-3: 12px;
+    --akk-s-4: 16px;
+    --akk-s-5: 20px;
+    --akk-s-6: 24px;
+    --akk-s-8: 32px;
+    --akk-gutter: 16px;
+
+    /* Radii */
+    --akk-r-xs: 8px;
+    --akk-r-sm: 10px;
+    --akk-r-md: 12px;
+    --akk-r-lg: 16px;
+    --akk-r-xl: 20px;
+    --akk-r-2xl: 26px;
+    --akk-r-pill: 999px;
+
+    /* Elevation (static — never animated) */
+    --akk-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.05);
+    --akk-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px -8px rgba(15, 23, 42, 0.12);
+    --akk-shadow-raised: 0 2px 8px rgba(15, 23, 42, 0.06), 0 16px 36px -18px rgba(15, 23, 42, 0.28);
+    --akk-shadow-sheet: 0 -10px 36px -18px rgba(15, 23, 42, 0.32);
+    --akk-shadow-brand: 0 8px 18px -10px rgba(220, 107, 47, 0.6);
+
+    /* Motion */
+    --akk-dur-press: 110ms;
+    --akk-dur-fast: 170ms;
+    --akk-dur-base: 240ms;
+    --akk-dur-sheet: 320ms;
+    --akk-ease: cubic-bezier(0.22, 1, 0.36, 1);
+    --akk-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --akk-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+
+    /* Sizing */
+    --akk-touch: 44px;
+    --akk-touch-lg: 52px;
+    --akk-nav-h: 52px;
+    --akk-tabbar-h: 56px;
+
+    /* Safe areas — env() on WebView 140+, Capacitor-injected vars on older WebViews */
+    --akk-safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
+    --akk-safe-bottom: max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px));
+    --akk-safe-left: max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+    --akk-safe-right: max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px));
+    --akk-kb: 0px;
+
+    /* Focus */
+    --akk-focus-ring: 0 0 0 3px rgba(220, 107, 47, 0.32);
+
+    color-scheme: light;
+    background-color: var(--akk-canvas);
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ================================================================== */
+/* 2. Base                                                            */
+/* ================================================================== */
+
+html.akk-native body {
+    background-color: var(--akk-canvas);
+    color: var(--akk-text);
+    font-family: var(--akk-font);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+html.akk-native .font-calibri,
+html.akk-native .font-aptos,
+html.akk-native .akk-toast-shell {
+    font-family: var(--akk-font);
+}
+
+html.akk-native ::selection {
+    background: rgba(220, 107, 47, 0.22);
+}
+
+html.akk-native :focus-visible {
+    outline: 2px solid var(--akk-brand);
+    outline-offset: 2px;
+}
+
+/* Decorative drifting orbs loop forever (22–26s) — never on native. */
+html.akk-native .home-backdrop {
+    display: none !important;
+}
+
+/* Page roots on the warm canvas */
+html.akk-native .bg-\[\#f8fafc\],
+html.akk-native .bg-\[\#F8FAFC\],
+html.akk-native .admin-app-ui,
+html.akk-native .admin-app-ui.bg-slate-100 {
+    background-color: var(--akk-canvas);
+}
+
+/* Translucent whites were tuned for blurred glass over the orb backdrop. With the backdrop
+   gone (and blur off for content) they read as muddy — use the solid surface instead. */
+html.akk-native .bg-white\/45,
+html.akk-native .bg-white\/50,
+html.akk-native .bg-white\/55,
+html.akk-native .bg-white\/60,
+html.akk-native .bg-white\/65,
+html.akk-native .bg-white\/70,
+html.akk-native .bg-white\/75,
+html.akk-native .bg-white\/80,
+html.akk-native .bg-white\/85,
+html.akk-native .bg-white\/90,
+html.akk-native .bg-white\/95 {
+    background-color: var(--akk-surface);
+}
+
+html.akk-native .border-white\/60,
+html.akk-native .border-white\/70 {
+    border-color: var(--akk-hairline);
+}
+
+/* Shared glass panel (PortalShell.glassPanel / WorkerPortal) → solid grouped card */
+html.akk-native .akk-glass {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: var(--akk-shadow-card);
+    border-radius: var(--akk-r-xl);
+}
+
+html.akk-native .akk-glass.border-white\/70 {
+    border-color: var(--akk-hairline);
+}
+
+/* Too-small captions → readable minimum */
+html.akk-native .text-\[10px\] {
+    font-size: 11px;
+}
+
+html.akk-native .rounded-2xl.border-dashed {
+    border-radius: var(--akk-r-xl);
+}
+
+/* Screen entrance (opacity + transform only). Applied to the content, never the screen root:
+   a transform on the root would become the containing block of fixed bars (dock / tab bar).
+   `backwards` fill so nothing stays "in effect" once the entrance has played. */
+html.akk-native .akk-screen {
+    min-height: 100dvh;
+    background-color: var(--akk-canvas);
+}
+
+html.akk-native .akk-screen > main,
+html.akk-native .akk-home > * {
+    animation: akk-screen-in var(--akk-dur-base) var(--akk-ease) backwards;
+}
+
+html.akk-native .akk-content {
+    padding: var(--akk-s-4) max(var(--akk-gutter), var(--akk-safe-right)) calc(var(--akk-s-8) + var(--akk-safe-bottom)) max(var(--akk-gutter), var(--akk-safe-left));
+}
+
+/* ================================================================== */
+/* 4. Native components (src/Components/native/*)                     */
+/* ================================================================== */
+
+/* --- Nav bar (glass) --- */
+html.akk-native .akk-navbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding-top: var(--akk-safe-top);
+    background-color: var(--akk-glass);
+    -webkit-backdrop-filter: saturate(var(--akk-saturate)) blur(var(--akk-blur));
+    backdrop-filter: saturate(var(--akk-saturate)) blur(var(--akk-blur));
+    border-bottom: 0.5px solid var(--akk-hairline-strong);
+}
+
+html.akk-native .akk-navbar__bar {
+    display: flex;
+    min-height: var(--akk-nav-h);
+    align-items: center;
+    gap: 8px;
+    padding: 6px max(12px, var(--akk-safe-right)) 6px max(12px, var(--akk-safe-left));
+}
+
+html.akk-native .akk-navbar__titles {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+html.akk-native .akk-navbar__eyebrow {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--akk-fs-micro);
+    font-weight: 600;
+    line-height: 14px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--akk-brand-600);
+}
+
+html.akk-native .akk-navbar__eyebrow[data-tone='manage'] {
+    color: var(--akk-manage);
+}
+
+html.akk-native .akk-navbar__eyebrow[data-tone='admin'] {
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-navbar__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--akk-fs-headline);
+    font-weight: 600;
+    line-height: 22px;
+    letter-spacing: -0.014em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-navbar__subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--akk-fs-caption);
+    line-height: 16px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-navbar__trailing {
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+}
+
+html.akk-native .akk-navbar__accessory {
+    padding: 0 max(var(--akk-gutter), var(--akk-safe-right)) 10px max(var(--akk-gutter), var(--akk-safe-left));
+}
+
+html.akk-native .akk-navbar__logo {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: #fff;
+    object-fit: contain;
+    padding: 2px;
+    box-shadow: 0 0 0 0.5px var(--akk-hairline-strong);
+}
+
+html.akk-native .akk-navbar--plain {
+    background-color: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    border-bottom-color: transparent;
+}
+
+/* --- Icon buttons --- */
+html.akk-native .akk-icon-btn {
+    position: relative;
+    display: inline-flex;
+    width: var(--akk-touch);
+    height: var(--akk-touch);
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--akk-r-pill);
+    background-color: var(--akk-fill);
+    color: var(--akk-text);
+    touch-action: manipulation;
+    transition:
+        transform var(--akk-dur-press) var(--akk-ease),
+        background-color var(--akk-dur-fast) var(--akk-ease);
+}
+
+html.akk-native .akk-icon-btn:active {
+    transform: scale(0.92);
+    background-color: var(--akk-fill-strong);
+}
+
+html.akk-native .akk-icon-btn--plain {
+    background-color: transparent;
+    color: var(--akk-brand-600);
+    margin-left: -6px;
+}
+
+html.akk-native .akk-icon-btn--plain:active {
+    background-color: var(--akk-fill);
+}
+
+html.akk-native .akk-icon-btn--danger {
+    color: var(--akk-danger);
+    background-color: var(--akk-danger-tint);
+}
+
+html.akk-native .akk-icon-btn--brand {
+    color: var(--akk-brand-700);
+    background-color: var(--akk-brand-tint);
+}
+
+html.akk-native .akk-icon-btn:focus-visible {
+    outline: none;
+    box-shadow: var(--akk-focus-ring);
+}
+
+html.akk-native .akk-icon-btn svg {
+    width: 20px;
+    height: 20px;
+}
+
+/* --- Large title block (root screens) --- */
+html.akk-native .akk-hero {
+    padding: 18px 2px 6px;
+}
+
+html.akk-native .akk-hero__kicker {
+    font-size: var(--akk-fs-subhead);
+    line-height: 19px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-hero__title {
+    margin-top: 2px;
+    font-size: var(--akk-fs-large);
+    line-height: 36px;
+    font-weight: 600;
+    letter-spacing: -0.024em;
+    color: var(--akk-text);
+    overflow-wrap: anywhere;
+}
+
+html.akk-native .akk-hero__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+/* Section that should read as a plain group on native (no card-in-card) */
+html.akk-native .akk-flat {
+    background-color: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    border-radius: 0;
+}
+
+html.akk-native .akk-flat > .akk-section-title svg {
+    display: none;
+}
+
+html.akk-native .akk-list-card + .akk-list-card,
+html.akk-native .space-y-4 > .akk-list-card + .akk-list-card {
+    margin-top: 10px;
+}
+
+/* --- Chips / status pills --- */
+html.akk-native .akk-chip {
+    display: inline-flex;
+    min-height: 26px;
+    align-items: center;
+    gap: 5px;
+    border-radius: var(--akk-r-pill);
+    padding: 3px 10px;
+    font-size: var(--akk-fs-caption);
+    font-weight: 600;
+    line-height: 16px;
+    background-color: var(--akk-surface);
+    color: var(--akk-text-2);
+    box-shadow: 0 0 0 0.5px var(--akk-hairline-strong);
+}
+
+html.akk-native .akk-chip--mono {
+    font-family: var(--akk-font-mono);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+}
+
+html.akk-native .akk-chip svg {
+    width: 13px;
+    height: 13px;
+}
+
+html.akk-native .akk-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--akk-r-pill);
+    padding: 4px 10px 4px 8px;
+    font-size: var(--akk-fs-footnote);
+    font-weight: 600;
+    line-height: 18px;
+    background-color: var(--akk-fill);
+    color: var(--akk-text-2);
+}
+
+html.akk-native .akk-pill::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background-color: currentColor;
+}
+
+html.akk-native .akk-pill[data-tone='success'] { background-color: var(--akk-success-tint); color: var(--akk-success); }
+html.akk-native .akk-pill[data-tone='info'] { background-color: var(--akk-info-tint); color: var(--akk-info); }
+html.akk-native .akk-pill[data-tone='warning'] { background-color: var(--akk-warning-tint); color: var(--akk-warning); }
+html.akk-native .akk-pill[data-tone='danger'] { background-color: var(--akk-danger-tint); color: var(--akk-danger); }
+html.akk-native .akk-pill[data-tone='brand'] { background-color: var(--akk-brand-tint); color: var(--akk-brand-700); }
+
+/* --- Section titles + grouped lists --- */
+html.akk-native .akk-section-title {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    margin: 22px 4px 8px;
+    font-size: var(--akk-fs-footnote);
+    font-weight: 600;
+    line-height: 18px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-section-title:first-child {
+    margin-top: 6px;
+}
+
+html.akk-native .akk-surface,
+html.akk-native .akk-group {
+    overflow: hidden;
+    border-radius: var(--akk-r-xl);
+    background-color: var(--akk-surface);
+    box-shadow: var(--akk-shadow-card);
+    border: 0.5px solid var(--akk-hairline);
+}
+
+html.akk-native .akk-group > * + * {
+    border-top: 0.5px solid var(--akk-separator);
+}
+
+html.akk-native .akk-group.divide-y > * + * {
+    border-top-width: 0.5px;
+    border-color: var(--akk-separator);
+}
+
+html.akk-native .akk-row {
+    position: relative;
+    display: flex;
+    width: 100%;
+    min-height: 56px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    text-align: left;
+    background-color: transparent;
+    transition: background-color var(--akk-dur-fast) var(--akk-ease);
+}
+
+html.akk-native .akk-row:active {
+    background-color: var(--akk-surface-sunken);
+}
+
+html.akk-native .akk-row:hover {
+    background-color: transparent;
+}
+
+html.akk-native .akk-row:active:hover {
+    background-color: var(--akk-surface-sunken);
+}
+
+html.akk-native .akk-row__icon {
+    position: relative;
+    display: flex;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+}
+
+html.akk-native .akk-row__icon svg {
+    width: 19px;
+    height: 19px;
+}
+
+html.akk-native .akk-row__title {
+    display: block;
+    font-size: var(--akk-fs-callout);
+    font-weight: 600;
+    line-height: 20px;
+    letter-spacing: -0.008em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-row__hint {
+    display: block;
+    margin-top: 1px;
+    font-size: var(--akk-fs-footnote);
+    line-height: 17px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-row__chevron {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: rgba(60, 60, 67, 0.3);
+}
+
+/* --- Segmented control (filters) --- */
+html.akk-native .akk-segmented {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 2px;
+    border-radius: var(--akk-r-md);
+    background-color: var(--akk-fill);
+    padding: 3px;
+}
+
+html.akk-native .akk-segmented__item {
+    min-height: 36px;
+    overflow: hidden;
+    border-radius: 9px;
+    padding: 4px 8px;
+    font-size: var(--akk-fs-footnote);
+    font-weight: 600;
+    line-height: 16px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--akk-text-2);
+    transition:
+        background-color var(--akk-dur-fast) var(--akk-ease),
+        color var(--akk-dur-fast) var(--akk-ease);
+}
+
+html.akk-native .akk-segmented__item[aria-checked='true'] {
+    background-color: var(--akk-surface);
+    color: var(--akk-text);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12), 0 0 0 0.5px rgba(15, 23, 42, 0.04);
+}
+
+html.akk-native .akk-segmented__item:focus-visible {
+    outline: none;
+    box-shadow: var(--akk-focus-ring);
+}
+
+/* --- Stat tiles --- */
+html.akk-native .akk-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+html.akk-native .akk-stats--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+html.akk-native .akk-stat {
+    min-width: 0;
+    border-radius: var(--akk-r-lg);
+    background-color: var(--akk-surface);
+    padding: 12px;
+    box-shadow: var(--akk-shadow-card);
+    border: 0.5px solid var(--akk-hairline);
+}
+
+html.akk-native .akk-stat__value {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 28px;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-stat__label {
+    margin-top: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: var(--akk-fs-caption);
+    font-weight: 500;
+    line-height: 15px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-stat__hint {
+    margin-top: 2px;
+    font-size: var(--akk-fs-micro);
+    line-height: 14px;
+    color: var(--akk-text-4);
+}
+
+html.akk-native .akk-stat[data-tone='brand'] .akk-stat__value { color: var(--akk-brand-700); }
+html.akk-native .akk-stat[data-tone='success'] .akk-stat__value { color: var(--akk-success); }
+html.akk-native .akk-stat[data-tone='info'] .akk-stat__value { color: var(--akk-info); }
+html.akk-native .akk-stat[data-tone='warning'] .akk-stat__value { color: var(--akk-warning); }
+html.akk-native .akk-stat[data-tone='violet'] .akk-stat__value { color: #6d28d9; }
+html.akk-native .akk-stat[data-tone='teal'] .akk-stat__value { color: #0f766e; }
+
+/* --- Banners (inline notices) --- */
+html.akk-native .akk-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    border-radius: var(--akk-r-lg);
+    padding: 12px 14px;
+    font-size: var(--akk-fs-subhead);
+    line-height: 19px;
+    background-color: var(--akk-info-tint);
+    color: var(--akk-info);
+}
+
+html.akk-native .akk-banner svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+html.akk-native .akk-banner[data-tone='danger'] { background-color: var(--akk-danger-tint); color: var(--akk-danger); }
+html.akk-native .akk-banner[data-tone='warning'] { background-color: var(--akk-warning-tint); color: var(--akk-warning); }
+html.akk-native .akk-banner[data-tone='success'] { background-color: var(--akk-success-tint); color: var(--akk-success); }
+
+/* --- Primary call-to-action --- */
+html.akk-native .akk-cta {
+    display: inline-flex;
+    width: 100%;
+    min-height: var(--akk-touch-lg);
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: var(--akk-r-lg);
+    padding: 0 20px;
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -0.012em;
+    color: var(--akk-on-brand);
+    background-color: var(--akk-brand);
+    box-shadow: var(--akk-shadow-brand);
+    touch-action: manipulation;
+    transition:
+        transform var(--akk-dur-press) var(--akk-ease),
+        opacity var(--akk-dur-fast) var(--akk-ease),
+        background-color var(--akk-dur-fast) var(--akk-ease);
+}
+
+html.akk-native .akk-cta[data-tone='admin'] {
+    background-color: var(--akk-admin);
+    box-shadow: 0 8px 18px -10px rgba(30, 41, 59, 0.6);
+}
+
+html.akk-native .akk-cta[data-tone='manage'] {
+    background-color: var(--akk-manage-solid);
+    box-shadow: 0 8px 18px -10px rgba(5, 150, 105, 0.6);
+}
+
+html.akk-native .akk-cta[data-tone='danger'] {
+    background-color: var(--akk-danger-solid);
+    box-shadow: 0 8px 18px -10px rgba(220, 38, 38, 0.55);
+}
+
+html.akk-native .akk-cta--plain {
+    background-color: transparent;
+    color: var(--akk-text-2);
+    box-shadow: none;
+}
+
+html.akk-native .akk-cta--plain:active:not(:disabled) {
+    background-color: var(--akk-fill);
+}
+
+html.akk-native .akk-cta--soft {
+    background-color: var(--akk-surface);
+    color: var(--akk-text);
+    box-shadow: 0 0 0 0.5px var(--akk-hairline-strong), var(--akk-shadow-1);
+}
+
+html.akk-native .akk-cta:active:not(:disabled) {
+    transform: scale(0.98);
+    opacity: 0.92;
+}
+
+html.akk-native .akk-cta:disabled:not([aria-busy='true']) {
+    background-color: var(--akk-fill-strong);
+    color: var(--akk-text-3);
+    box-shadow: none;
+}
+
+html.akk-native .akk-cta--plain:disabled:not([aria-busy='true']) {
+    background-color: transparent;
+    opacity: 0.5;
+}
+
+html.akk-native .akk-cta[aria-busy='true'] {
+    opacity: 0.86;
+}
+
+html.akk-native .akk-cta:focus-visible {
+    outline: none;
+    box-shadow: var(--akk-focus-ring);
+}
+
+/* Spinner that only appears if the wait is long enough to notice (no flash on fast responses) */
+html.akk-native .akk-delayed-spinner {
+    opacity: 0;
+    animation:
+        akk-reveal 1ms linear 220ms forwards,
+        spin 0.8s linear infinite;
+}
+
+/* --- Skeletons --- */
+html.akk-native .akk-skel {
+    display: block;
+    border-radius: 7px;
+    background-color: var(--akk-surface-sunken);
+    animation: akk-skel-pulse 1.6s ease-in-out infinite;
+}
+
+html.akk-native .akk-skel-card {
+    border-radius: var(--akk-r-xl);
+    background-color: var(--akk-surface);
+    padding: 16px;
+    box-shadow: var(--akk-shadow-card);
+    border: 0.5px solid var(--akk-hairline);
+}
+
+html.akk-native .akk-skel-card + .akk-skel-card {
+    margin-top: 10px;
+}
+
+/* --- Empty / error states --- */
+html.akk-native .akk-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 24px;
+    text-align: center;
+    border-radius: var(--akk-r-xl);
+    background-color: var(--akk-surface);
+    border: 0.5px solid var(--akk-hairline);
+    box-shadow: var(--akk-shadow-card);
+}
+
+html.akk-native .akk-state__icon {
+    display: flex;
+    width: 52px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 16px;
+    background-color: var(--akk-fill);
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-state[data-tone='danger'] .akk-state__icon {
+    background-color: var(--akk-danger-tint);
+    color: var(--akk-danger);
+}
+
+html.akk-native .akk-state__icon svg {
+    width: 26px;
+    height: 26px;
+}
+
+html.akk-native .akk-state__title {
+    margin-top: 14px;
+    font-size: var(--akk-fs-headline);
+    font-weight: 600;
+    line-height: 22px;
+    letter-spacing: -0.012em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-state__message {
+    margin-top: 4px;
+    max-width: 18rem;
+    font-size: var(--akk-fs-subhead);
+    line-height: 20px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-state__action {
+    margin-top: 18px;
+    display: inline-flex;
+    min-height: var(--akk-touch);
+    align-items: center;
+    gap: 8px;
+    border-radius: var(--akk-r-pill);
+    padding: 0 18px;
+    font-size: var(--akk-fs-callout);
+    font-weight: 600;
+    background-color: var(--akk-brand-tint);
+    color: var(--akk-brand-700);
+    transition: transform var(--akk-dur-press) var(--akk-ease);
+}
+
+html.akk-native .akk-state__action:active:not(:disabled) {
+    transform: scale(0.96);
+}
+
+html.akk-native .akk-state__action:disabled {
+    opacity: 0.55;
+}
+
+html.akk-native .akk-state__action svg {
+    width: 17px;
+    height: 17px;
+}
+
+/* --- Full-screen loading (session check, lazy routes) --- */
+html.akk-native .akk-loading-screen {
+    display: flex;
+    min-height: 100dvh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    background-color: var(--akk-canvas);
+    padding: var(--akk-safe-top) 24px var(--akk-safe-bottom);
+}
+
+html.akk-native .akk-loading-screen--inline {
+    min-height: 50vh;
+    background-color: transparent;
+}
+
+html.akk-native .akk-loading-screen__logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: #fff;
+    object-fit: contain;
+    padding: 4px;
+    box-shadow: var(--akk-shadow-card), 0 0 0 0.5px var(--akk-hairline);
+}
+
+html.akk-native .akk-loading-screen__status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--akk-fs-subhead);
+    color: var(--akk-text-3);
+    opacity: 0;
+    animation: akk-reveal 1ms linear 350ms forwards;
+}
+
+html.akk-native .akk-loading-screen__status svg {
+    width: 16px;
+    height: 16px;
+    animation: spin 0.8s linear infinite;
+    color: var(--akk-brand);
+}
+
+/* --- Tab bar (admin) + attendance dock (worker) — floating glass --- */
+html.akk-native .akk-tabbar,
+html.akk-native .akk-dock {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    padding: 6px max(10px, var(--akk-safe-right)) calc(6px + var(--akk-safe-bottom)) max(10px, var(--akk-safe-left));
+    background-color: var(--akk-glass);
+    -webkit-backdrop-filter: saturate(var(--akk-saturate)) blur(var(--akk-blur));
+    backdrop-filter: saturate(var(--akk-saturate)) blur(var(--akk-blur));
+    border-top: 0.5px solid var(--akk-hairline-strong);
+}
+
+html.akk-native .akk-tabbar__grid {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: column;
+    gap: 2px;
+    max-width: 560px;
+    margin: 0 auto;
+}
+
+html.akk-native .akk-tabbar__item {
+    position: relative;
+    display: flex;
+    min-height: 50px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: 14px;
+    font-size: var(--akk-fs-micro);
+    font-weight: 600;
+    line-height: 13px;
+    letter-spacing: 0.01em;
+    color: var(--akk-text-3);
+    touch-action: manipulation;
+    transition:
+        color var(--akk-dur-fast) var(--akk-ease),
+        background-color var(--akk-dur-fast) var(--akk-ease),
+        transform var(--akk-dur-press) var(--akk-ease);
+}
+
+html.akk-native .akk-tabbar__item svg {
+    width: 22px;
+    height: 22px;
+}
+
+html.akk-native .akk-tabbar__item:active {
+    transform: scale(0.94);
+}
+
+html.akk-native .akk-tabbar__item[data-active='true'] {
+    color: var(--akk-brand-600);
+    background-color: var(--akk-brand-tint);
+}
+
+html.akk-native .akk-tabbar__item:focus-visible {
+    outline: none;
+    box-shadow: var(--akk-focus-ring);
+}
+
+html.akk-native .akk-tabbar__badge {
+    position: absolute;
+    top: 3px;
+    left: calc(50% + 6px);
+    min-width: 18px;
+    height: 18px;
+    border-radius: var(--akk-r-pill);
+    padding: 0 5px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    color: #fff;
+    background-color: var(--akk-danger-solid);
+    box-shadow: 0 0 0 2px var(--akk-glass-fallback);
+}
+
+html.akk-native .akk-dock__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    max-width: 560px;
+    margin: 0 auto;
+    padding-top: 2px;
+}
+
+html.akk-native .akk-dock__btn {
+    display: flex;
+    min-height: 56px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    border-radius: var(--akk-r-lg);
+    font-size: var(--akk-fs-caption);
+    font-weight: 600;
+    line-height: 15px;
+    touch-action: manipulation;
+    transition:
+        transform var(--akk-dur-press) var(--akk-ease),
+        background-color var(--akk-dur-base) var(--akk-ease),
+        color var(--akk-dur-base) var(--akk-ease);
+}
+
+html.akk-native .akk-dock__btn:active:not(:disabled) {
+    transform: scale(0.95);
+}
+
+html.akk-native .akk-dock__btn:disabled {
+    background-color: var(--akk-fill) !important;
+    color: var(--akk-text-4) !important;
+    box-shadow: none !important;
+}
+
+html.akk-native .akk-dock__btn svg {
+    width: 22px;
+    height: 22px;
+}
+
+/* Bottom chrome gets out of the way while typing */
+html.akk-native.akk-kb-open .akk-hide-on-kb {
+    display: none !important;
+}
+
+/* Generic native sheet (custom, non-Radix — e.g. admin "More") */
+html.akk-native .akk-sheet {
+    border-radius: var(--akk-r-2xl) var(--akk-r-2xl) 0 0;
+    background-color: var(--akk-surface);
+    box-shadow: var(--akk-shadow-sheet);
+}
+
+html.akk-native .akk-sheet--enter {
+    animation: akk-sheet-in var(--akk-dur-sheet) var(--akk-ease) backwards;
+}
+
+html.akk-native .akk-scrim {
+    background-color: rgba(17, 24, 39, 0.36);
+    animation: akk-fade-in var(--akk-dur-base) var(--akk-ease) backwards;
+}
+
+html.akk-native .akk-sheet__grabber {
+    width: 36px;
+    height: 5px;
+    margin: 8px auto 0;
+    border-radius: var(--akk-r-pill);
+    background-color: rgba(60, 60, 67, 0.22);
+}
+
+/* --- Portal chooser (AppHome) --- */
+html.akk-native .akk-home {
+    display: flex;
+    min-height: 100dvh;
+    flex-direction: column;
+    padding: calc(var(--akk-safe-top) + 8px) max(20px, var(--akk-safe-right)) calc(16px + var(--akk-safe-bottom)) max(20px, var(--akk-safe-left));
+    background:
+        radial-gradient(120% 60% at 50% -10%, rgba(220, 107, 47, 0.1), transparent 60%),
+        var(--akk-canvas);
+}
+
+html.akk-native .akk-home__brand {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 8px 4px 20px;
+}
+
+html.akk-native .akk-home__logo,
+html.akk-native .akk-login__logo {
+    width: 64px;
+    height: 64px;
+    border-radius: 18px;
+    background: #fff;
+    object-fit: contain;
+    padding: 5px;
+    box-shadow: var(--akk-shadow-card), 0 0 0 0.5px var(--akk-hairline);
+}
+
+html.akk-native .akk-home__eyebrow {
+    margin-top: 20px;
+    font-size: var(--akk-fs-caption);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--akk-brand-600);
+}
+
+html.akk-native .akk-home__title {
+    margin-top: 4px;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 40px;
+    letter-spacing: -0.028em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-home__subtitle {
+    margin-top: 6px;
+    max-width: 20rem;
+    font-size: var(--akk-fs-callout);
+    line-height: 21px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-home__rows .akk-row {
+    min-height: 72px;
+    padding: 14px 16px;
+}
+
+html.akk-native .akk-home__rows .akk-row__icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 13px;
+}
+
+/* --- Portal cards (AppHome): Employee card with QR hint + Face ID / Fingerprint --- */
+html.akk-native .akk-portal,
+html.akk-native .akk-portal-row {
+    border-radius: var(--akk-r-2xl);
+    background-color: var(--akk-surface);
+    box-shadow: var(--akk-shadow-card), 0 0 0 0.5px var(--akk-hairline);
+}
+
+html.akk-native .akk-portal {
+    padding: 18px 16px 16px;
+}
+
+html.akk-native .akk-portal__head {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+html.akk-native .akk-portal__icon {
+    display: inline-flex;
+    flex-shrink: 0;
+    width: 52px;
+    height: 52px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 15px;
+}
+
+html.akk-native .akk-portal__icon svg {
+    width: 24px;
+    height: 24px;
+}
+
+html.akk-native .akk-portal__title {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 26px;
+    letter-spacing: -0.02em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-portal__hint {
+    margin-top: 2px;
+    font-size: var(--akk-fs-footnote);
+    line-height: 18px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-portal__qr {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 16px;
+    padding: 14px;
+    border-radius: var(--akk-r-xl);
+    background-color: var(--akk-brand-tint);
+}
+
+html.akk-native .akk-portal__qr p {
+    font-size: var(--akk-fs-subhead);
+    line-height: 20px;
+    color: var(--akk-text-2);
+}
+
+html.akk-native .akk-portal__qr-art {
+    display: block;
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    aspect-ratio: 1;
+}
+
+html.akk-native .akk-portal__qr-code {
+    color: #1f2937;
+}
+
+html.akk-native .akk-portal__qr-brackets {
+    stroke: var(--akk-brand);
+}
+
+html.akk-native .akk-portal__cta {
+    margin-top: 16px;
+}
+
+html.akk-native .akk-portal__quick {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+}
+
+html.akk-native .akk-portal__quick--single {
+    grid-template-columns: 1fr;
+}
+
+/* Secondary outline button (Face ID / Fingerprint, Use password) */
+html.akk-native .akk-home-btn {
+    display: inline-flex;
+    width: 100%;
+    min-height: var(--akk-touch-lg);
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: var(--akk-r-lg);
+    padding: 0 14px;
+    font-size: var(--akk-fs-body);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--akk-text);
+    background-color: var(--akk-surface);
+    box-shadow: inset 0 0 0 1px var(--akk-hairline-strong);
+    touch-action: manipulation;
+    transition:
+        transform var(--akk-dur-press) var(--akk-ease),
+        background-color var(--akk-dur-fast) var(--akk-ease);
+}
+
+html.akk-native .akk-home-btn:active {
+    transform: scale(0.98);
+    background-color: var(--akk-surface-sunken);
+}
+
+html.akk-native .akk-home-btn__icon {
+    width: 22px;
+    height: 22px;
+    color: var(--akk-brand-600);
+}
+
+html.akk-native .akk-home__portals {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+html.akk-native .akk-portal-row {
+    min-height: 76px;
+    padding: 14px 16px;
+    overflow: hidden;
+}
+
+html.akk-native .akk-portal-row .akk-row__icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+}
+
+/* --- Quick login (WorkerQuickLogin): "Welcome back" on a remembered phone --- */
+html.akk-native .akk-quick__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px max(24px, var(--akk-safe-right)) calc(32px + var(--akk-safe-bottom)) max(24px, var(--akk-safe-left));
+    text-align: center;
+}
+
+html.akk-native .akk-quick__glyph {
+    display: inline-flex;
+    width: 88px;
+    height: 88px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 26px;
+    color: var(--akk-brand-600);
+    background-color: var(--akk-brand-tint);
+}
+
+html.akk-native .akk-quick__glyph svg {
+    width: 48px;
+    height: 48px;
+}
+
+html.akk-native .akk-quick__eyebrow {
+    margin-top: 22px;
+    font-size: var(--akk-fs-caption);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--akk-brand-600);
+}
+
+html.akk-native .akk-quick__name {
+    margin-top: 4px;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 34px;
+    letter-spacing: -0.024em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-quick__meta {
+    margin-top: 4px;
+    font-size: var(--akk-fs-subhead);
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-quick__actions {
+    display: flex;
+    width: 100%;
+    max-width: 22rem;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 32px;
+}
+
+html.akk-native .akk-quick__link {
+    min-height: var(--akk-touch);
+    font-size: var(--akk-fs-subhead);
+    font-weight: 500;
+    color: var(--akk-brand-600);
+}
+
+html.akk-native .akk-home__rows .akk-row__icon svg {
+    width: 22px;
+    height: 22px;
+}
+
+html.akk-native .akk-home__rows .akk-row__title {
+    font-size: var(--akk-fs-headline);
+    line-height: 22px;
+}
+
+html.akk-native .akk-home__footer {
+    margin-top: auto;
+    padding-top: 28px;
+    text-align: center;
+    font-size: var(--akk-fs-micro);
+    line-height: 16px;
+    color: var(--akk-text-4);
+}
+
+html.akk-native .akk-tone-brand { background-color: var(--akk-brand-tint); color: var(--akk-brand-700); }
+html.akk-native .akk-tone-admin { background-color: var(--akk-admin-tint); color: var(--akk-admin); }
+html.akk-native .akk-tone-manage { background-color: var(--akk-manage-tint); color: var(--akk-manage); }
+html.akk-native .akk-tone-client { background-color: rgb(15 118 110 / 0.14); color: #0f766e; }
+
+/* --- Login --- */
+html.akk-native .akk-login {
+    display: flex;
+    height: 100dvh;
+    flex-direction: column;
+    background:
+        radial-gradient(120% 50% at 50% -12%, rgba(220, 107, 47, 0.09), transparent 62%),
+        var(--akk-canvas);
+}
+
+html.akk-native .akk-login[data-tone='admin'] {
+    background:
+        radial-gradient(120% 50% at 50% -12%, rgba(30, 41, 59, 0.08), transparent 62%),
+        var(--akk-canvas);
+}
+
+html.akk-native .akk-login[data-tone='manage'] {
+    background:
+        radial-gradient(120% 50% at 50% -12%, rgba(5, 150, 105, 0.09), transparent 62%),
+        var(--akk-canvas);
+}
+
+html.akk-native .akk-login__scroll {
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    padding: 4px max(20px, var(--akk-safe-right)) 12px max(20px, var(--akk-safe-left));
+}
+
+html.akk-native .akk-login__brand {
+    padding: 8px 2px 22px;
+}
+
+html.akk-native .akk-login__logo {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+}
+
+html.akk-native .akk-login__title {
+    margin-top: 18px;
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 34px;
+    letter-spacing: -0.024em;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-login__subtitle {
+    margin-top: 4px;
+    font-size: var(--akk-fs-callout);
+    line-height: 21px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-login__step {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-radius: var(--akk-r-pill);
+    padding: 3px 10px;
+    font-size: var(--akk-fs-caption);
+    font-weight: 600;
+    background-color: var(--akk-fill);
+    color: var(--akk-text-2);
+}
+
+html.akk-native .akk-login__form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+html.akk-native .akk-login__label {
+    display: block;
+    margin: 0 4px 6px;
+    font-size: var(--akk-fs-footnote);
+    font-weight: 600;
+    line-height: 18px;
+    color: var(--akk-text-2);
+}
+
+html.akk-native .akk-login .akk-input {
+    min-height: 52px;
+    border-radius: 14px;
+    padding-left: 16px;
+    padding-right: 16px;
+    font-size: 17px;
+    background-color: var(--akk-surface);
+    box-shadow: var(--akk-shadow-1);
+}
+
+html.akk-native .akk-login .akk-input.pr-12 {
+    padding-right: 56px;
+}
+
+html.akk-native .akk-login__actions {
+    flex-shrink: 0;
+    padding: 10px max(20px, var(--akk-safe-right)) calc(14px + var(--akk-safe-bottom)) max(20px, var(--akk-safe-left));
+    margin-bottom: var(--akk-kb);
+}
+
+html.akk-native.akk-kb-open .akk-login__actions {
+    padding-bottom: 10px;
+}
+
+html.akk-native .akk-login__footer {
+    margin-top: 18px;
+    text-align: center;
+    font-size: var(--akk-fs-footnote);
+    line-height: 18px;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-login__footer button {
+    min-height: var(--akk-touch);
+    padding: 0 12px;
+    font-weight: 600;
+    color: var(--akk-brand-600);
+    text-decoration: none;
+}
+
+html.akk-native .akk-login[data-tone='admin'] .akk-login__footer button {
+    color: var(--akk-admin);
+}
+
+html.akk-native .akk-login__footer p + p {
+    margin-top: 4px;
+}
+
+html.akk-native.akk-kb-open .akk-login__brand {
+    padding-bottom: 14px;
+}
+
+html.akk-native.akk-kb-open .akk-login__logo {
+    display: none;
+}
+
+html.akk-native.akk-kb-open .akk-login__title {
+    margin-top: 4px;
+    font-size: 24px;
+    line-height: 30px;
+}
+
+/* Password reveal toggle — 44px target, visible focus */
+html.akk-native .akk-password-toggle {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    right: 4px !important;
+    border-radius: var(--akk-r-pill);
+    color: var(--akk-text-3);
+}
+
+html.akk-native .akk-password-toggle:active {
+    background-color: var(--akk-fill);
+}
+
+html.akk-native .akk-password-toggle:focus-visible {
+    outline: none;
+    box-shadow: var(--akk-focus-ring);
+}
+
+html.akk-native .akk-confirm .akk-dialog-close {
+    display: none;
+}
+
+/* Worker type / management role toggles → segmented control */
+html.akk-native .akk-role-toggle {
+    margin-bottom: 18px;
+    border-radius: var(--akk-r-md);
+    background-color: var(--akk-fill);
+    padding: 3px;
+}
+
+html.akk-native .akk-role-toggle > button {
+    min-height: 40px;
+    border-radius: 9px;
+    font-weight: 600;
+    color: var(--akk-text-2);
+}
+
+html.akk-native .akk-role-toggle > button > span:first-child[class*='absolute'] {
+    border-radius: 9px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12), 0 0 0 0.5px rgba(15, 23, 42, 0.04);
+}
+
+/* --- Post-login welcome --- */
+html.akk-native .login-welcome-screen {
+    background-color: var(--akk-canvas);
+    padding: max(1.5rem, var(--akk-safe-top)) 1.5rem max(1.5rem, var(--akk-safe-bottom));
+}
+
+html.akk-native .login-welcome-tick-wrap {
+    width: 76px;
+    height: 76px;
+    margin-bottom: 1.25rem;
+}
+
+html.akk-native .login-welcome-tick-core {
+    background-color: var(--akk-success-solid);
+    box-shadow: 0 10px 24px -12px rgba(22, 163, 74, 0.7);
+}
+
+html.akk-native .login-welcome-copy p {
+    font-size: var(--akk-fs-callout);
+    font-weight: 500;
+    color: var(--akk-text-3);
+}
+
+html.akk-native .login-welcome-copy h2 {
+    font-size: 28px;
+    line-height: 34px;
+    letter-spacing: -0.024em;
+    color: var(--akk-text);
+}
+
+html.akk-native .login-welcome-loader {
+    animation-delay: 0.3s;
+}
+
+html.akk-native .login-welcome-spinner {
+    border-color: var(--akk-surface-sunken);
+    border-top-color: var(--akk-brand);
+}
+
+/* --- Worker portal --- */
+html.akk-native .akk-worker-status .akk-badge {
+    font-size: 12px;
+}
+
+html.akk-native .akk-worker-status {
+    border-radius: var(--akk-r-xl);
+}
+
+html.akk-native .akk-clock {
+    font-family: var(--akk-font);
+    font-size: 20px;
+    font-weight: 600;
+    line-height: 24px;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    color: var(--akk-text);
+}
+
+html.akk-native .akk-worker-portal details > summary {
+    min-height: 40px;
+    display: flex;
+    align-items: center;
+}
+
+/* Worker announcements and forms */
+html.akk-native .akk-worker-portal .bg-amber-50.border-amber-200\/80 {
+    border-radius: var(--akk-r-xl);
+    border-color: rgba(217, 119, 6, 0.22);
+    background-color: #fff8eb;
+}
+
+/* --- Shift / leave cards in lists --- */
+html.akk-native .akk-list-card {
+    border-radius: var(--akk-r-xl);
+    border-color: var(--akk-hairline);
+    background-color: var(--akk-surface);
+    box-shadow: var(--akk-shadow-card);
+}
+
+html.akk-native .akk-list-card.border-red-200 {
+    border-color: rgba(220, 38, 38, 0.2);
+    background-color: #fff6f5;
+}
+
+/* --- Admin (native chrome lives in AdminNavChrome.jsx) --- */
+html.akk-native .admin-app-ui .admin-app-sheet {
+    transition: transform var(--akk-dur-sheet) var(--akk-ease);
+}
+
+html.akk-native .admin-nav-backdrop {
+    transition: opacity var(--akk-dur-base) var(--akk-ease);
+}
+
+/* The old rule painted every blurred element solid white on native admin screens; our own
+   chrome uses .akk-navbar / .akk-tabbar which are not matched by it. */
+html.akk-native .admin-app-ui [class*='backdrop-blur'] {
+    background-color: var(--akk-surface) !important;
+}
+
+html.akk-native .admin-app-ui table {
+    font-size: 13px;
+}
+
+/* ================================================================== */
+/* 8. Keyframes, fallbacks, reduced motion                            */
+/* ================================================================== */
+
+@keyframes akk-screen-in {
+    from { opacity: 0; transform: translate3d(0, 8px, 0); }
+    to { opacity: 1; transform: none; }
+}
+
+@keyframes akk-sheet-in {
+    from { transform: translate3d(0, 100%, 0); }
+    to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes akk-sheet-out {
+    from { transform: translate3d(0, 0, 0); }
+    to { transform: translate3d(0, 100%, 0); }
+}
+
+@keyframes akk-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes akk-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes akk-reveal {
+    to { opacity: 1; }
+}
+
+@keyframes akk-skel-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
+@keyframes akk-splash-in {
+    from { opacity: 0; transform: translate3d(0, 6px, 0) scale(0.98); }
+    to { opacity: 1; transform: none; }
+}
+
+/* Solid chrome where blur is unsupported or the user asked for less transparency */
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    html.akk-native .akk-navbar:not(.akk-navbar--plain),
+    html.akk-native .akk-tabbar,
+    html.akk-native .akk-dock {
+        background-color: var(--akk-glass-fallback);
+    }
+
+    html.akk-native [data-sonner-toast][data-styled='true'] {
+        background: var(--akk-surface) !important;
+    }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+    html.akk-native .akk-navbar:not(.akk-navbar--plain),
+    html.akk-native .akk-tabbar,
+    html.akk-native .akk-dock {
+        background-color: var(--akk-glass-fallback);
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html.akk-native *,
+    html.akk-native *::before,
+    html.akk-native *::after {
+        animation-duration: 1ms !important;
+        animation-delay: 0ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 1ms !important;
+        scroll-behavior: auto !important;
+    }
+
+    /* Progress indicators keep spinning — they communicate state, not decoration. */
+    html.akk-native .animate-spin,
+    html.akk-native .login-welcome-spinner,
+    html.akk-native .akk-loading-screen__status svg {
+        animation-duration: 0.9s !important;
+        animation-iteration-count: infinite !important;
+    }
+
+    html.akk-native .akk-delayed-spinner {
+        opacity: 1;
+        animation: spin 0.9s linear infinite !important;
+    }
+
+    html.akk-native .akk-loading-screen__status {
+        opacity: 1;
+    }
+
+    html.akk-native .akk-skel {
+        animation: none !important;
+    }
+
+    html.akk-native .akk-cinematic-splash__shine {
+        display: none;
+    }
+
+    html.akk-native .akk-btn:active:not(:disabled),
+    html.akk-native .akk-cta:active:not(:disabled),
+    html.akk-native .akk-icon-btn:active,
+    html.akk-native .akk-row:active,
+    html.akk-native .akk-dock__btn:active:not(:disabled),
+    html.akk-native .akk-tabbar__item:active {
+        transform: none;
+    }
+}
+
+/* Small phones (≤ 360dp) */
+@media (max-width: 360px) {
+    html.akk-native {
+        --akk-gutter: 12px;
+        --akk-fs-large: 26px;
+    }
+
+    html.akk-native .akk-home__title {
+        font-size: 30px;
+        line-height: 36px;
+    }
+
+    html.akk-native .akk-dock__btn {
+        min-height: 52px;
+        font-size: 11px;
+    }
+}
+
+/* Tablets / large phones in landscape: keep reading width comfortable */
+@media (min-width: 720px) {
+    html.akk-native .akk-home,
+    html.akk-native .akk-login__scroll > *,
+    html.akk-native .akk-login__actions > * {
+        max-width: 520px;
+        margin-left: auto;
+        margin-right: auto;
+        width: 100%;
+    }
+
+    html.akk-native .akk-home {
+        max-width: none;
+        align-items: center;
+    }
+
+    html.akk-native .akk-home > * {
+        width: 100%;
+        max-width: 520px;
+    }
+}

@@ -1,0 +1,28 @@
+# Dependencies & build
+node_modules/
+dist/
+
+# Env / secrets (keep example templates only)
+.env
+.env.*
+!.env.example
+.env.qa.local
+fcm-secrets.env
+*firebase-adminsdk*.json
+
+# Android / signing secrets
+android/app/google-services.json
+android/app/release
+*.keystore
+*.jks
+keystore*
+
+# Local QA screenshots (may show real data)
+qa-shots/
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log
+.claude/
