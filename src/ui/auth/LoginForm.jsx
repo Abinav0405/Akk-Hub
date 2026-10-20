@@ -7,7 +7,7 @@ import { Input } from '@/ui/input';
 import PasswordInput from '@/ui/auth/PasswordInput';
 import { AlertCircle, ArrowLeft, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
 import { NativeNavBar } from '@/ui/auth/AkkChrome';
-import { motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useSheetLayout } from '@/core/platform';
 import { sheetSpring, easeSoft } from '@/core/platform';
 import LanguageSwitcher from '@/core-i18n/LanguageSwitcher';
@@ -347,9 +347,11 @@ export default function LoginForm({
     const glass = variant === 'glass';
     const app = variant === 'app';
     const sheetLayout = useSheetLayout();
+    const reduceMotion = useReducedMotion();
     const exitSent = useRef(false);
 
-    const sheetTransition = sheetSpring;
+    const sheetTransition = reduceMotion ? { duration: 0 } : sheetSpring;
+    const fadeTransition = reduceMotion ? { duration: 0 } : easeSoft;
 
     const notifySheetExit = () => {
         if (exitSent.current) return;
@@ -362,12 +364,12 @@ export default function LoginForm({
             exitSent.current = false;
             return;
         }
-        // The native screen has no sheet to animate out, so continue straight away.
-        if (!sheetLayout || app) {
+        // Native / reduced-motion: no sheet exit to wait on — continue straight away.
+        if (!sheetLayout || app || reduceMotion) {
             notifySheetExit();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sheetOpen, sheetLayout, app]);
+    }, [sheetOpen, sheetLayout, app, reduceMotion]);
 
     const handleBack = (event) => {
         if (!sheetLayout || !onRequestClose) return;
@@ -445,19 +447,22 @@ export default function LoginForm({
                     </div>
                 </header>
 
-                {sheetLayout && sheetOpen ? (
-                <motion.button
-                    type="button"
-                    aria-label="Close login"
-                    className="fixed inset-0 z-30 bg-slate-900/25"
-                    tabIndex={-1}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={easeSoft}
-                    onClick={onRequestClose}
-                />
-                ) : null}
+                <AnimatePresence>
+                    {sheetLayout && sheetOpen ? (
+                        <motion.button
+                            key="login-sheet-scrim"
+                            type="button"
+                            aria-label="Close login"
+                            className="fixed inset-0 z-30 bg-slate-900/25"
+                            tabIndex={-1}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={fadeTransition}
+                            onClick={onRequestClose}
+                        />
+                    ) : null}
+                </AnimatePresence>
 
                 {/* Desktop: never scroll the main stage (justify-center + overflow-y
                     auto caused empty-space scrollbars on taller employee/manager cards).
@@ -473,13 +478,19 @@ export default function LoginForm({
                     </Link>
 
                     <motion.div
-                        initial={sheetLayout ? { y: '100%' } : { opacity: 0, y: 14 }}
+                        initial={
+                            reduceMotion
+                                ? false
+                                : sheetLayout
+                                  ? { y: '100%' }
+                                  : { opacity: 0, y: 14 }
+                        }
                         animate={
                             sheetLayout
                                 ? { y: sheetOpen ? 0 : '100%' }
                                 : { opacity: 1, y: 0 }
                         }
-                        transition={sheetLayout ? sheetTransition : easeSoft}
+                        transition={sheetLayout ? sheetTransition : fadeTransition}
                         onAnimationComplete={() => {
                             if (sheetLayout && !sheetOpen) notifySheetExit();
                         }}

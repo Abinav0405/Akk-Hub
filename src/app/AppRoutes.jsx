@@ -81,9 +81,18 @@ const ClientLogin = lazy(() => import('@/pages/login/ClientLogin'));
 const ClientPortal = lazy(() => import('@/pages/client/ClientPortal'));
 
 
+/** Soft enter for signed-out routes (home / login / verify) — matches in-shell g-view-enter. */
+function ViewEnter({ children }) {
+    return <div className="g-view-enter">{children}</div>;
+}
+
 /** Public screens (Verify a photo, privacy): plain page, no tab bar — they have their own back button. */
 function PublicScreen({ children }) {
-    return <div className="g-page">{children}</div>;
+    return (
+        <ViewEnter>
+            <div className="g-page">{children}</div>
+        </ViewEnter>
+    );
 }
 
 /**
@@ -112,16 +121,16 @@ export default function AppRoutes() {
         <Suspense fallback={<LoadingScreen />}>
             <Routes>
                 {/* Public */}
-                <Route path="/" element={<Home />} />
-                <Route path="/login" element={<LoginPage />} />
-                <Route path="/login/quick" element={<QuickLogin />} />
+                <Route path="/" element={<ViewEnter><Home /></ViewEnter>} />
+                <Route path="/login" element={<ViewEnter><LoginPage /></ViewEnter>} />
+                <Route path="/login/quick" element={<ViewEnter><QuickLogin /></ViewEnter>} />
                 <Route path="/verify" element={<PublicScreen><PhotoVerification /></PublicScreen>} />
                 <Route path="/privacy" element={<PublicScreen><LegalNotice /></PublicScreen>} />
                 <Route path="/legal" element={<Navigate to="/privacy" replace />} />
                 <Route path="/Home" element={<Navigate to="/" replace />} />
                 {/* Clients (Export Only) — no hub Timesheet identity; own exporter session via useRoleGuard */}
-                <Route path="/progress/client/login" element={<ClientLogin />} />
-                <Route path="/progress/client" element={<ClientPortal />} />
+                <Route path="/progress/client/login" element={<ViewEnter><ClientLogin /></ViewEnter>} />
+                <Route path="/progress/client" element={<ViewEnter><ClientPortal /></ViewEnter>} />
                 <Route path="/progress/client/account" element={<Navigate to="/progress/client?tab=account" replace />} />
                 <Route path="/ExporterLogin" element={<Navigate to="/progress/client/login" replace />} />
                 <Route path="/ExporterDashboard" element={<Navigate to="/progress/client" replace />} />

@@ -16,7 +16,13 @@
     </style>
 
 
+    <!-- Launch: plain brand crimson, no icon — identical to the in-app intro's first frame. -->
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
-        <item name="android:background">@drawable/splash</item>
+        <item name="windowSplashScreenBackground">@color/akk_intro_base</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/akk_launch_blank</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
+        <item name="android:background">@color/akk_intro_base</item>
+        <item name="android:statusBarColor">@color/akk_intro_base</item>
+        <item name="android:navigationBarColor">@color/akk_intro_base</item>
     </style>
 </resources>

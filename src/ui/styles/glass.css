@@ -103,9 +103,10 @@
   --g-fs-footnote: 0.8125rem;
   --g-fs-caption: 0.75rem;
 
-  /* Motion */
+  /* Motion — short polish (200–350ms); opacity/transform only for WebView */
   --g-dur-fast: 160ms;
   --g-dur: 220ms;
+  --g-dur-page: 280ms;
   --g-dur-sheet: 300ms;
   --g-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
   --g-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
@@ -1201,7 +1202,9 @@ button.g-row:hover {
     bottom: 0 !important;
     width: 100% !important;
     max-width: none !important;
-    transform: none !important;
+    /* Cancel desktop centering without killing slide-in/out (was transform: none !important). */
+    --tw-translate-x: 0px !important;
+    --tw-translate-y: 0px !important;
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
     padding-bottom: calc(1.25rem + var(--g-safe-bottom)) !important;
@@ -1664,13 +1667,23 @@ button.g-row:hover {
 }
 
 @keyframes g-rise {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+/* In-shell route / tab content enter (AnimatedOutlet). Opacity + translate only. */
+@keyframes g-view-enter {
+  from { opacity: 0; transform: translate3d(0, 8px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+
+.g-view-enter {
+  animation: g-view-enter var(--g-dur-page) var(--g-ease-out) both;
 }
 
 /* Entrance motion is kept short so switching screens never feels like waiting. */
 .g-rise {
-  animation: g-rise 0.22s var(--g-ease-out) both;
+  animation: g-rise var(--g-dur) var(--g-ease-out) both;
 }
 
 .g-rise-1 { animation-delay: 20ms; }
@@ -1680,9 +1693,12 @@ button.g-row:hover {
 
 @media (prefers-reduced-motion: reduce) {
   .g-rise,
+  .g-view-enter,
   .login-welcome-tick-core,
   .login-welcome-copy,
-  .login-welcome-loader {
+  .login-welcome-loader,
+  [data-ui='dialog'],
+  [data-ui='overlay'] {
     animation: none !important;
     opacity: 1;
     transform: none;
@@ -1690,7 +1706,9 @@ button.g-row:hover {
   .g-tabbar__item,
   .g-tabbar__item::before,
   .g-tile,
-  .g-btn {
+  .g-btn,
+  [data-ui='dialog'],
+  [data-ui='overlay'] {
     transition: none;
   }
 }

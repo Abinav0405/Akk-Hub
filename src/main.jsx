@@ -7,10 +7,11 @@ import '@/index.css';
 import { LanguageProvider } from '@/core/i18n';
 import { initNativeShell, hideNativeCapacitorSplash } from '@/core/nativeShell';
 import { runNativeFirstLaunchPermissionsIfNeeded } from '@/core/permissions';
-import { isNativeApp } from '@/core/platform';
+import { isAppUI, isNativeApp } from '@/core/platform';
 import AppRoutes from '@/app/AppRoutes';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import LoginCurtain from '@/ui/LoginCurtain';
+import AppIntro from '@/ui/intro/AppIntro';
 import { NativeConfirmHost } from '@/ui/native/NativeConfirm';
 
 const queryClient = new QueryClient({
@@ -33,6 +34,8 @@ function App() {
                     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                         <AppRoutes />
                         <LoginCurtain />
+                        {/* App only (native, or ?app=1 preview): brand intro over the first screen. */}
+                        <AppIntro enabled={isAppUI()} />
                         <NativeConfirmHost />
                         <Toaster
                             position={isNativeApp() ? 'top-center' : 'bottom-right'}

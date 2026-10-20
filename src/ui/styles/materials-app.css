@@ -1,0 +1,2349 @@
+/*
+ * Materials native-app design (AKK-Material-Tracker-main/src/native-glass.css),
+ * copied for the AKK Hub Capacitor / ?app=1 Materials screens. Every selector is
+ * scoped to html.akk-native (set by core/nativeShell.js). Website stays unstyled
+ * by this file unless akk-native is present.
+ *
+ * Glass (backdrop-filter) is reserved for floating chrome — the navigation bar,
+ * tab bar, sheets, menus, toasts and the login card. Content surfaces (cards,
+ * list groups, transaction cards) are solid so long lists scroll smoothly on
+ * mid-range Android phones.
+ *
+ * Contents
+ *   1. Tokens            6. Lists, rows, stats       11. States (skeleton, empty, error)
+ *   2. Base              7. Buttons & fields          12. Forms
+ *   3. Shared primitives 8. Auth                      13. Legacy content in native
+ *   4. Navigation bar    9. Home                      14. Motion
+ *   5. Tab bar          10. Transactions & filters    15. Fallbacks
+ */
+
+/* ======================================================================== */
+/* 1. Tokens                                                                 */
+/* ======================================================================== */
+
+html.akk-native {
+  /* Brand + roles (existing AKK identity) */
+  --n-brand: #dc6b2f;
+  --n-brand-press: #c55d28;
+  --n-brand-text: #b4511b;          /* AA on white for small text */
+  --n-brand-soft: rgb(220 107 47 / 0.12);
+  --n-manager: #1d4ed8;
+  --n-manager-soft: rgb(29 78 216 / 0.1);
+  --n-admin: #334155;
+  --n-admin-soft: rgb(51 65 85 / 0.1);
+
+  /* Semantic */
+  --n-success: #15803d;
+  --n-success-soft: rgb(22 163 74 / 0.12);
+  --n-warning: #b45309;
+  --n-warning-soft: rgb(217 119 6 / 0.13);
+  --n-danger: #dc2626;
+  --n-danger-text: #b91c1c;
+  --n-danger-soft: rgb(220 38 38 / 0.1);
+  --n-info: #1d4ed8;
+  --n-info-soft: rgb(29 78 216 / 0.1);
+
+  /* Neutrals */
+  --n-bg: #f3f4f7;
+  --n-surface: #ffffff;
+  --n-surface-2: #f7f8fa;
+  --n-fill: rgb(116 120 132 / 0.12);
+  --n-fill-2: rgb(116 120 132 / 0.08);
+  --n-fill-press: rgb(116 120 132 / 0.18);
+  --n-separator: rgb(15 23 42 / 0.08);
+  --n-hairline: 0.5px;
+  --n-text: #0f172a;
+  --n-text-2: #3f4856;
+  --n-text-3: #5d6573;              /* ≥ 4.5:1 on white and on --n-bg */
+  --n-text-4: #8a919c;              /* placeholders / disabled only */
+
+  /* Glass */
+  --n-glass: rgb(255 255 255 / 0.78);
+  --n-glass-strong: rgb(252 252 254 / 0.88);
+  --n-glass-border: rgb(255 255 255 / 0.7);
+  --n-glass-edge: rgb(15 23 42 / 0.07);
+  --n-glass-highlight: inset 0 0.5px 0 rgb(255 255 255 / 0.95);
+  --n-blur: blur(20px) saturate(180%);
+  --n-blur-strong: blur(28px) saturate(180%);
+
+  /* Typography */
+  --n-font: 'DM Sans', system-ui, -apple-system, Roboto, 'Segoe UI', sans-serif;
+  --n-fs-large: 1.875rem;           /* 30 — large titles */
+  --n-fs-title: 1.375rem;           /* 22 — screen / sheet titles */
+  --n-fs-headline: 1.0625rem;       /* 17 — row titles, buttons */
+  --n-fs-body: 1rem;                /* 16 — body, inputs (no zoom) */
+  --n-fs-callout: 0.9375rem;        /* 15 */
+  --n-fs-footnote: 0.8125rem;       /* 13 */
+  --n-fs-caption: 0.75rem;          /* 12 */
+  --n-fs-stat: 1.625rem;            /* 26 — numeric values */
+
+  /* Spacing (4pt grid) */
+  --n-1: 4px;
+  --n-2: 8px;
+  --n-3: 12px;
+  --n-4: 16px;
+  --n-5: 20px;
+  --n-6: 24px;
+  --n-8: 32px;
+  --n-gutter: max(16px, env(safe-area-inset-left, 0px));
+
+  /* Radii */
+  --n-r-xs: 8px;
+  --n-r-sm: 12px;
+  --n-r-md: 16px;
+  --n-r-lg: 20px;
+  --n-r-xl: 26px;
+  --n-r-pill: 999px;
+
+  /* Elevation */
+  --n-shadow-1: 0 1px 2px rgb(15 23 42 / 0.04), 0 1px 1px rgb(15 23 42 / 0.03);
+  --n-shadow-2: 0 1px 2px rgb(15 23 42 / 0.05), 0 8px 24px -14px rgb(15 23 42 / 0.22);
+  --n-shadow-float: 0 2px 6px rgb(15 23 42 / 0.06), 0 16px 36px -14px rgb(15 23 42 / 0.32);
+
+  /* Motion */
+  --n-dur-press: 110ms;
+  --n-dur-fast: 160ms;
+  --n-dur: 220ms;
+  --n-dur-sheet: 300ms;
+  --n-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --n-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Chrome dimensions */
+  --n-touch: 44px;
+  --n-navbar-h: 52px;
+  --n-tabbar-h: 60px;
+  --n-tabbar-gap: 10px;
+  --n-safe-top: env(safe-area-inset-top, 0px);
+  --n-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --n-tabbar-space: calc(var(--n-tabbar-h) + var(--n-tabbar-gap) + var(--n-safe-bottom) + 20px);
+
+  /* Focus */
+  --n-focus: 0 0 0 3px rgb(220 107 47 / 0.38);
+
+  /* Re-theme the shared shadcn tokens inside the app only */
+  --background: 228 16% 96%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --popover: 0 0% 100%;
+  --secondary: 228 14% 93%;
+  --muted: 228 16% 95%;
+  --muted-foreground: 219 10% 40%;
+  --accent: 22 85% 95%;
+  --border: 225 14% 90%;
+  --input: 225 13% 86%;
+  --ring: 21 71% 52%;
+  --radius: 0.875rem;
+  --shadow-xs: 0 1px 1px rgb(15 23 42 / 0.04);
+  --shadow-sm: var(--n-shadow-1);
+  --shadow-md: var(--n-shadow-2);
+
+  /* tailwindcss-animate enter/exit defaults used by dialogs & menus */
+  --tw-enter-duration: 200ms;
+  --tw-exit-duration: 160ms;
+
+  background-color: var(--n-bg);
+  color-scheme: light;
+}
+
+/* ======================================================================== */
+/* 2. Base                                                                   */
+/* ======================================================================== */
+
+html.akk-native body {
+  background-color: var(--n-bg);
+  color: var(--n-text);
+  font-family: var(--n-font);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* A single, fixed, static wash behind everything — never repaints on scroll. */
+html.akk-native body::before {
+  content: '';
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 340px;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 0% 0%, rgb(220 107 47 / 0.1), transparent 60%),
+    radial-gradient(90% 80% at 100% 0%, rgb(59 130 246 / 0.06), transparent 62%);
+}
+
+html.akk-native ::selection {
+  background: rgb(220 107 47 / 0.22);
+}
+
+html.akk-native :focus-visible {
+  outline: none;
+  box-shadow: var(--n-focus);
+}
+
+html.akk-native .akk-app,
+html.akk-native .akk-app.bg-background {
+  background: transparent;
+  font-family: var(--n-font);
+}
+
+/*
+ * overflow-x:hidden turns body / #root / .akk-app into scroll containers that never
+ * scroll, which silently disables position:sticky (nav bar, filter bar,
+ * submit bar). clip prevents sideways overflow without that side effect.
+ */
+html.akk-native.akk-android body,
+html.akk-native.akk-android #root,
+html.akk-native body,
+html.akk-native #root,
+html.akk-native .akk-app {
+  overflow-x: clip !important;
+  overflow-y: visible !important;
+}
+
+html.akk-native .tabular,
+html.akk-native .n-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================================== */
+/* 3. Shared primitives (data-ui hooks on src/Components/ui/*)               */
+/*    Only shape, rhythm and states are set here. Colours come from the       */
+/*    re-themed tokens above, so page-specific colour classes still win.      */
+/* ======================================================================== */
+
+/* Cards — solid, soft, rounded */
+html.akk-native [data-ui='card'] {
+  border-radius: var(--n-r-lg);
+  border-width: var(--n-hairline);
+  border-color: var(--n-separator);
+  box-shadow: var(--n-shadow-1);
+}
+
+html.akk-native [data-ui='card'].border-dashed {
+  border-width: 1px;
+  border-color: rgb(15 23 42 / 0.12);
+  box-shadow: none;
+  background: transparent;
+}
+
+html.akk-native [data-ui='card-header'] {
+  padding: var(--n-4) var(--n-4) var(--n-3);
+}
+
+html.akk-native [data-ui='card-content'] {
+  padding: 0 var(--n-4) var(--n-4);
+}
+
+html.akk-native [data-ui='card-content'].p-0 {
+  padding: 0;
+}
+
+html.akk-native [data-ui='card-title'] {
+  font-size: var(--n-fs-headline);
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+}
+
+/* Buttons */
+html.akk-native [data-ui='button'] {
+  border-radius: var(--n-r-sm);
+  font-size: var(--n-fs-callout);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  gap: 0.15rem;
+  transition:
+    transform var(--n-dur-press) var(--n-ease),
+    background-color var(--n-dur-fast) var(--n-ease),
+    box-shadow var(--n-dur-fast) var(--n-ease),
+    opacity var(--n-dur-fast) var(--n-ease);
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.akk-native [data-ui='button']:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+html.akk-native [data-ui='button'][data-variant='default'],
+html.akk-native [data-ui='button'][data-variant='destructive'] {
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.14), rgb(255 255 255 / 0) 60%);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.35), 0 1px 2px rgb(15 23 42 / 0.12);
+}
+
+html.akk-native [data-ui='button'][data-variant='outline'] {
+  border-color: transparent;
+}
+
+html.akk-native [data-ui='button'][data-variant='outline'].bg-background {
+  background-color: var(--n-fill-2);
+}
+
+html.akk-native [data-ui='button'][data-variant='outline']:not(:disabled):active,
+html.akk-native [data-ui='button'][data-variant='ghost']:not(:disabled):active {
+  background-color: var(--n-fill-press);
+}
+
+html.akk-native [data-ui='button'][data-variant='ghost'] {
+  color: inherit;
+}
+
+html.akk-native [data-ui='button'][data-size='icon'] {
+  border-radius: var(--n-r-pill);
+}
+
+html.akk-native [data-ui='button']:disabled {
+  opacity: 0.45;
+}
+
+/* Text fields */
+html.akk-native [data-ui='input'] {
+  min-height: 46px;
+  border-radius: var(--n-r-sm);
+  font-size: var(--n-fs-body);
+  border-width: 1px;
+  transition:
+    border-color var(--n-dur-fast) var(--n-ease),
+    box-shadow var(--n-dur-fast) var(--n-ease),
+    background-color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native textarea[data-ui='input'] {
+  min-height: 96px;
+  line-height: 1.45;
+}
+
+html.akk-native [data-ui='input'].bg-background {
+  background-color: var(--n-surface);
+}
+
+html.akk-native [data-ui='card'] [data-ui='input'].bg-background,
+html.akk-native [data-ui='sheet'] [data-ui='input'].bg-background {
+  background-color: var(--n-surface-2);
+}
+
+html.akk-native [data-ui='input'].border-input,
+html.akk-native [data-ui='select-trigger'].border-input {
+  border-color: rgb(15 23 42 / 0.1);
+}
+
+html.akk-native [data-ui='input']::placeholder {
+  color: var(--n-text-4);
+}
+
+html.akk-native [data-ui='input']:focus,
+html.akk-native [data-ui='input']:focus-visible,
+html.akk-native [data-ui='select-trigger']:focus,
+html.akk-native [data-ui='select-trigger']:focus-visible {
+  outline: none;
+  border-color: rgb(220 107 47 / 0.7);
+  box-shadow: var(--n-focus);
+  --tw-ring-shadow: 0 0 #0000;
+  --tw-ring-offset-shadow: 0 0 #0000;
+}
+
+html.akk-native [data-ui='input'][readonly] {
+  color: var(--n-text-2);
+  box-shadow: none;
+}
+
+html.akk-native [data-ui='input'][aria-invalid='true'] {
+  border-color: rgb(220 38 38 / 0.6);
+}
+
+html.akk-native [data-ui='select-trigger'] {
+  min-height: 46px;
+  border-radius: var(--n-r-sm);
+  font-size: var(--n-fs-body);
+}
+
+html.akk-native [data-ui='select-trigger'].bg-background {
+  background-color: var(--n-surface);
+}
+
+html.akk-native [data-ui='card'] [data-ui='select-trigger'].bg-background {
+  background-color: var(--n-surface-2);
+}
+
+/* Menus / select popovers — glass */
+html.akk-native [data-ui='select-content'] {
+  border-radius: var(--n-r-md);
+  border: var(--n-hairline) solid var(--n-glass-edge);
+  background-color: var(--n-glass-strong);
+  -webkit-backdrop-filter: var(--n-blur);
+  backdrop-filter: var(--n-blur);
+  box-shadow: var(--n-glass-highlight), var(--n-shadow-float);
+  max-height: min(55vh, 24rem);
+}
+
+html.akk-native [data-ui='select-item'] {
+  min-height: var(--n-touch);
+  border-radius: var(--n-r-xs);
+  font-size: var(--n-fs-body);
+}
+
+/* Segmented controls (Tabs) */
+html.akk-native [data-ui='tabs-list'] {
+  border-radius: 11px;
+  padding: 2px;
+  background-color: var(--n-fill);
+  border: 0;
+  box-shadow: none;
+  gap: 2px;
+}
+
+html.akk-native [data-ui='tabs-trigger'] {
+  min-height: 36px;
+  border-radius: 9px;
+  padding: 0 0.85rem;
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  color: var(--n-text-2);
+  transition: background-color var(--n-dur-fast) var(--n-ease), color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native [data-ui='tabs-trigger'][data-state='active'] {
+  background: var(--n-surface);
+  color: var(--n-text);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 3px 8px -2px rgb(15 23 42 / 0.12);
+}
+
+/* Badges → capsules */
+html.akk-native [data-ui='badge'] {
+  border-radius: var(--n-r-pill);
+  padding: 0.18rem 0.55rem;
+  font-size: var(--n-fs-caption);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  line-height: 1.3;
+}
+
+/* Tables — let the page scroll vertically; keep sideways scroll for wide data */
+html.akk-native [data-ui='table-wrap'] {
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+
+html.akk-native [data-ui='table-header'] {
+  position: static;
+  background: var(--n-surface-2);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html.akk-native [data-ui='table-header'] th {
+  font-size: var(--n-fs-caption);
+  letter-spacing: 0.04em;
+  color: var(--n-text-3);
+}
+
+html.akk-native [data-ui='table-row'] {
+  border-color: var(--n-separator);
+}
+
+html.akk-native [data-ui='table-row']:active {
+  background-color: var(--n-fill-2);
+}
+
+html.akk-native .rounded-md.border:has(> [data-ui='table-wrap']) {
+  border-radius: var(--n-r-md);
+  border-color: var(--n-separator);
+  overflow: hidden;
+}
+
+/* Sheets (Dialog on native) — the only full-height glass surface */
+html.akk-native [data-ui='overlay'] {
+  background-color: rgb(15 23 42 / 0.32);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+html.akk-native [data-ui='sheet'] {
+  max-height: min(92dvh, calc(100dvh - var(--n-safe-top) - 12px));
+  padding: 6px var(--n-5) max(var(--n-5), calc(var(--n-safe-bottom) + 12px));
+  border: var(--n-hairline) solid var(--n-glass-edge);
+  border-bottom: 0;
+  border-radius: var(--n-r-xl) var(--n-r-xl) 0 0;
+  background-color: var(--n-glass-strong);
+  -webkit-backdrop-filter: var(--n-blur-strong);
+  backdrop-filter: var(--n-blur-strong);
+  box-shadow: var(--n-glass-highlight), 0 -12px 40px -16px rgb(15 23 42 / 0.32);
+  animation-duration: var(--n-dur-sheet);
+  animation-timing-function: var(--n-ease-out);
+  contain: layout paint;
+}
+
+html.akk-native [data-ui='sheet'][data-state='closed'] {
+  animation-duration: 200ms;
+}
+
+html.akk-native .n-sheet__grabber {
+  width: 36px;
+  height: 5px;
+  margin: 2px auto 4px;
+  border-radius: var(--n-r-pill);
+  background: rgb(15 23 42 / 0.16);
+}
+
+html.akk-native .n-sheet__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--n-r-pill);
+  color: var(--n-text-3);
+  background: var(--n-fill);
+  transition: transform var(--n-dur-press) var(--n-ease), background-color var(--n-dur-fast) var(--n-ease);
+}
+
+/* Bigger hit area without a bigger visual */
+html.akk-native .n-sheet__close::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+html.akk-native .n-sheet__close:active {
+  transform: scale(0.92);
+  background: var(--n-fill-press);
+}
+
+html.akk-native [data-ui='sheet'] h2 {
+  font-size: var(--n-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  padding-right: 2.5rem;
+}
+
+/* Toasts — compact glass capsules */
+html.akk-native [data-sonner-toaster] {
+  --width: min(100vw - 32px, 420px);
+}
+
+html.akk-native [data-sonner-toast][data-styled='true'] {
+  background: var(--n-glass-strong) !important;
+  -webkit-backdrop-filter: var(--n-blur) !important;
+  backdrop-filter: var(--n-blur) !important;
+  border: var(--n-hairline) solid var(--n-glass-edge) !important;
+  border-left-width: var(--n-hairline) !important;
+  border-radius: var(--n-r-md) !important;
+  box-shadow: var(--n-glass-highlight), var(--n-shadow-float) !important;
+  padding: 12px 14px !important;
+  font-family: var(--n-font);
+}
+
+html.akk-native [data-sonner-toast] [data-title] {
+  font-size: var(--n-fs-callout);
+  font-weight: 600;
+}
+
+html.akk-native [data-sonner-toast][data-type] {
+  background-image: none !important;
+}
+
+/* ======================================================================== */
+/* 4. Navigation bar + large title                                          */
+/* ======================================================================== */
+
+html.akk-native .n-navbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding-top: var(--n-safe-top);
+  background: transparent;
+  border-bottom: var(--n-hairline) solid transparent;
+  transition:
+    background-color var(--n-dur) var(--n-ease),
+    border-color var(--n-dur) var(--n-ease);
+}
+
+html.akk-native .n-navbar[data-condensed='true'] {
+  background: var(--n-glass);
+  -webkit-backdrop-filter: var(--n-blur);
+  backdrop-filter: var(--n-blur);
+  border-bottom-color: var(--n-glass-edge);
+}
+
+html.akk-native .n-navbar__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--n-2);
+  min-height: var(--n-navbar-h);
+  padding: 0 calc(var(--n-gutter) - 6px);
+}
+
+html.akk-native .n-navbar__lead {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-start;
+}
+
+html.akk-native .n-navbar__trail {
+  display: flex;
+  min-width: 0;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+
+html.akk-native .n-navbar__title {
+  max-width: 52vw;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--n-fs-headline);
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--n-dur) var(--n-ease), transform var(--n-dur) var(--n-ease);
+}
+
+html.akk-native .n-navbar[data-condensed='true'] .n-navbar__title {
+  opacity: 1;
+  transform: none;
+}
+
+html.akk-native .n-navbar__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: var(--n-touch);
+  max-width: 100%;
+  padding: 0 10px 0 4px;
+  border-radius: var(--n-r-pill);
+  color: var(--n-brand-text);
+  font-size: var(--n-fs-headline);
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--n-dur-press) var(--n-ease), background-color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-navbar__back span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.akk-native .n-navbar__back:active {
+  opacity: 0.55;
+}
+
+html.akk-native [data-tone='admin'] .n-navbar__back,
+html.akk-native [data-tone='manager'] .n-navbar__back {
+  color: var(--n-manager);
+}
+
+html.akk-native .n-largetitle {
+  padding: 2px var(--n-gutter) var(--n-4);
+}
+
+html.akk-native .n-largetitle__eyebrow {
+  margin-bottom: 2px;
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-largetitle__text {
+  font-size: var(--n-fs-large);
+  font-weight: 750;
+  line-height: 1.12;
+  letter-spacing: -0.026em;
+  color: var(--n-text);
+  overflow-wrap: anywhere;
+}
+
+html.akk-native .n-largetitle__sub {
+  margin-top: 4px;
+  font-size: var(--n-fs-callout);
+  line-height: 1.4;
+  color: var(--n-text-3);
+}
+
+/* Round icon buttons used in bars */
+html.akk-native .n-iconbtn {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--n-r-pill);
+  color: var(--n-text-2);
+  background: var(--n-glass);
+  border: var(--n-hairline) solid var(--n-glass-edge);
+  box-shadow: var(--n-glass-highlight), 0 1px 2px rgb(15 23 42 / 0.05);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--n-dur-press) var(--n-ease), background-color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-iconbtn::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+}
+
+html.akk-native .n-iconbtn:active {
+  transform: scale(0.92);
+  background: var(--n-fill-press);
+}
+
+html.akk-native .n-iconbtn[data-tone='danger'] {
+  color: var(--n-danger-text);
+}
+
+html.akk-native .n-iconbtn__badge,
+html.akk-native .n-tab__badge {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: var(--n-r-pill);
+  border: 2px solid var(--n-surface);
+  background: var(--n-danger);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 14px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Header pill (e.g. "3 pending") */
+html.akk-native .n-headpill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: var(--n-r-pill);
+  background: var(--n-warning-soft);
+  color: var(--n-warning);
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Content area under the bars */
+html.akk-native .akk-app > main {
+  padding-top: 0;
+  padding-left: var(--n-gutter);
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ======================================================================== */
+/* 5. Tab bar — one floating glass capsule                                   */
+/* ======================================================================== */
+
+html.akk-native .n-tabbar {
+  position: fixed;
+  left: max(12px, env(safe-area-inset-left, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  bottom: calc(var(--n-safe-bottom) + var(--n-tabbar-gap));
+  z-index: 40;
+  margin: 0 auto;
+  max-width: 560px;
+  border-radius: var(--n-r-pill);
+  border: var(--n-hairline) solid var(--n-glass-border);
+  background: var(--n-glass);
+  -webkit-backdrop-filter: var(--n-blur);
+  backdrop-filter: var(--n-blur);
+  box-shadow: var(--n-glass-highlight), 0 0 0 var(--n-hairline) var(--n-glass-edge), var(--n-shadow-float);
+  transform: translateZ(0);
+}
+
+html.akk-native .n-tabbar[data-hidden='true'] {
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+html.akk-native .n-tabbar {
+  transition: opacity var(--n-dur-fast) var(--n-ease), transform var(--n-dur) var(--n-ease), visibility 0s linear;
+}
+
+html.akk-native .n-tabbar[data-hidden='true'] {
+  transition: opacity var(--n-dur-fast) var(--n-ease), transform var(--n-dur) var(--n-ease), visibility 0s linear var(--n-dur);
+}
+
+html.akk-native .n-tabbar__inner {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: var(--n-tabbar-h);
+  padding: 5px;
+}
+
+html.akk-native .n-tab {
+  position: relative;
+  z-index: 0;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: var(--n-r-pill);
+  color: var(--n-text-3);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--n-dur-fast) var(--n-ease), transform var(--n-dur-press) var(--n-ease);
+}
+
+html.akk-native .n-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: rgb(220 107 47 / 0.13);
+  opacity: 0;
+  transform: scale(0.86);
+  transition: opacity var(--n-dur-fast) var(--n-ease), transform var(--n-dur) var(--n-ease-out);
+}
+
+html.akk-native .n-tab[data-active='true'],
+html.akk-native .n-tab[aria-current='page'] {
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-tab[data-active='true']::before,
+html.akk-native .n-tab[aria-current='page']::before {
+  opacity: 1;
+  transform: none;
+}
+
+html.akk-native .n-tab:active {
+  transform: scale(0.94);
+}
+
+html.akk-native .n-tab__icon {
+  position: relative;
+  display: grid;
+  place-items: center;
+  height: 24px;
+}
+
+html.akk-native .n-tab__label {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.akk-native .n-tab__badge {
+  top: -5px;
+  right: -11px;
+}
+
+/* ======================================================================== */
+/* 6. Sections, grouped lists, rows, stats                                   */
+/* ======================================================================== */
+
+html.akk-native .n-section + .n-section {
+  margin-top: var(--n-6);
+}
+
+html.akk-native .n-section__title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--n-3);
+  margin: 0 4px var(--n-2);
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-section__title a,
+html.akk-native .n-section__title button {
+  min-height: 32px;
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-section__foot {
+  margin: var(--n-2) 4px 0;
+  font-size: var(--n-fs-footnote);
+  line-height: 1.45;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-group {
+  overflow: hidden;
+  border-radius: var(--n-r-lg);
+  background: var(--n-surface);
+  border: var(--n-hairline) solid var(--n-separator);
+  box-shadow: var(--n-shadow-1);
+}
+
+html.akk-native .n-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--n-3);
+  width: 100%;
+  min-height: 64px;
+  padding: 10px var(--n-4);
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--n-dur-press) var(--n-ease);
+}
+
+html.akk-native .n-row + .n-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: calc(var(--n-4) + 40px + var(--n-3));
+  height: var(--n-hairline);
+  background: var(--n-separator);
+}
+
+html.akk-native .n-row:active {
+  background-color: var(--n-fill-2);
+}
+
+html.akk-native .n-row--compact {
+  min-height: 52px;
+}
+
+html.akk-native .n-row__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--n-r-sm);
+  background: var(--n-fill-2);
+  color: var(--n-text-2);
+}
+
+html.akk-native .n-row__icon[data-tone='brand'] { background: var(--n-brand-soft); color: var(--n-brand-text); }
+html.akk-native .n-row__icon[data-tone='success'] { background: var(--n-success-soft); color: var(--n-success); }
+html.akk-native .n-row__icon[data-tone='info'] { background: var(--n-info-soft); color: var(--n-info); }
+html.akk-native .n-row__icon[data-tone='slate'] { background: var(--n-admin-soft); color: var(--n-admin); }
+html.akk-native .n-row__icon[data-tone='danger'] { background: var(--n-danger-soft); color: var(--n-danger-text); }
+html.akk-native .n-row__icon[data-tone='warning'] { background: var(--n-warning-soft); color: var(--n-warning); }
+
+html.akk-native .n-row__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+html.akk-native .n-row__title {
+  display: block;
+  font-size: var(--n-fs-headline);
+  font-weight: 600;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  color: var(--n-text);
+}
+
+html.akk-native .n-row__title[data-tone='danger'] {
+  color: var(--n-danger-text);
+}
+
+html.akk-native .n-row__sub {
+  display: block;
+  margin-top: 1px;
+  font-size: var(--n-fs-footnote);
+  line-height: 1.38;
+  color: var(--n-text-3);
+}
+
+/* One-line summary rows (details live one tap away) */
+html.akk-native .n-row--summary .n-row__title,
+html.akk-native .n-row--summary .n-row__sub {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+html.akk-native .n-row__trail {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  color: rgb(15 23 42 / 0.28);
+}
+
+html.akk-native .n-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: var(--n-r-pill);
+  background: var(--n-fill);
+  color: var(--n-text-2);
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+html.akk-native .n-count[data-tone='brand'] { background: var(--n-brand-soft); color: var(--n-brand-text); }
+html.akk-native .n-count[data-tone='danger'] { background: var(--n-danger); color: #fff; }
+
+/* Stat tiles */
+html.akk-native .n-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+html.akk-native .n-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 84px;
+  padding: 12px 12px 11px;
+  border-radius: var(--n-r-lg);
+  background: var(--n-surface);
+  border: var(--n-hairline) solid var(--n-separator);
+  box-shadow: var(--n-shadow-1);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--n-dur-press) var(--n-ease);
+}
+
+html.akk-native button.n-stat:active {
+  transform: scale(0.97);
+}
+
+html.akk-native .n-stat__value {
+  font-size: var(--n-fs-stat);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--n-text);
+}
+
+html.akk-native .n-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: auto;
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-stat__dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+html.akk-native .n-stat[data-tone='warning'] .n-stat__dot { color: #d97706; }
+html.akk-native .n-stat[data-tone='success'] .n-stat__dot { color: #16a34a; }
+html.akk-native .n-stat[data-tone='brand'] .n-stat__dot { color: var(--n-brand); }
+html.akk-native .n-stat[data-tone='danger'] .n-stat__dot { color: var(--n-danger); }
+
+/* Status capsules (icon + text, never colour alone) */
+html.akk-native .n-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px 0 7px;
+  border-radius: var(--n-r-pill);
+  font-size: var(--n-fs-caption);
+  font-weight: 650;
+  white-space: nowrap;
+  background: var(--n-fill);
+  color: var(--n-text-2);
+}
+
+html.akk-native .n-pill[data-tone='warning'] { background: var(--n-warning-soft); color: var(--n-warning); }
+html.akk-native .n-pill[data-tone='success'] { background: var(--n-success-soft); color: var(--n-success); }
+html.akk-native .n-pill[data-tone='danger'] { background: var(--n-danger-soft); color: var(--n-danger-text); }
+html.akk-native .n-pill[data-tone='brand'] { background: var(--n-brand-soft); color: var(--n-brand-text); }
+html.akk-native .n-pill[data-tone='info'] { background: var(--n-info-soft); color: var(--n-info); }
+
+html.akk-native .n-ref {
+  font-family: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, monospace;
+  font-size: var(--n-fs-caption);
+  font-weight: 600;
+  color: var(--n-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ======================================================================== */
+/* 7. Buttons & fields for native components                                 */
+/* ======================================================================== */
+
+html.akk-native .n-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 50px;
+  padding: 0 var(--n-5);
+  border-radius: var(--n-r-md);
+  font-size: var(--n-fs-headline);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: #fff;
+  background-color: var(--n-brand);
+  background-image: linear-gradient(180deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 60%);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.4), 0 6px 16px -8px rgb(220 107 47 / 0.75);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--n-dur-press) var(--n-ease),
+    background-color var(--n-dur-fast) var(--n-ease),
+    opacity var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-btn svg,
+html.akk-native .n-row svg,
+html.akk-native .n-chip svg {
+  flex: none;
+}
+
+html.akk-native .n-btn:not(:disabled):active {
+  transform: scale(0.975);
+  background-color: var(--n-brand-press);
+}
+
+html.akk-native .n-btn:disabled {
+  opacity: 0.45;
+}
+
+html.akk-native .n-btn[data-loading='true'] {
+  opacity: 1;
+}
+
+html.akk-native .n-btn--block {
+  width: 100%;
+}
+
+html.akk-native .n-btn--sm {
+  min-height: 40px;
+  padding: 0 14px;
+  border-radius: var(--n-r-sm);
+  font-size: var(--n-fs-callout);
+}
+
+html.akk-native .n-btn[data-tone='manager'] {
+  background-color: var(--n-manager);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.4), 0 6px 16px -8px rgb(29 78 216 / 0.7);
+}
+
+html.akk-native .n-btn[data-tone='manager']:not(:disabled):active { background-color: #1e40af; }
+
+html.akk-native .n-btn[data-tone='admin'] {
+  background-color: var(--n-admin);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.3), 0 6px 16px -8px rgb(15 23 42 / 0.6);
+}
+
+html.akk-native .n-btn[data-tone='admin']:not(:disabled):active { background-color: #1e293b; }
+
+html.akk-native .n-btn[data-tone='success'] {
+  background-color: #16a34a;
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.4), 0 6px 16px -8px rgb(22 163 74 / 0.7);
+}
+
+html.akk-native .n-btn[data-tone='success']:not(:disabled):active { background-color: #15803d; }
+
+html.akk-native .n-btn[data-tone='danger'] {
+  background-color: var(--n-danger);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.35), 0 6px 16px -8px rgb(220 38 38 / 0.65);
+}
+
+html.akk-native .n-btn[data-tone='danger']:not(:disabled):active { background-color: #b91c1c; }
+
+html.akk-native .n-btn--tinted,
+html.akk-native .n-btn--plain {
+  color: var(--n-brand-text);
+  background-color: var(--n-brand-soft);
+  background-image: none;
+  box-shadow: none;
+}
+
+html.akk-native .n-btn--tinted:not(:disabled):active {
+  background-color: rgb(220 107 47 / 0.2);
+}
+
+html.akk-native .n-btn--tinted[data-tone='success'] { color: var(--n-success); background-color: var(--n-success-soft); box-shadow: none; }
+html.akk-native .n-btn--tinted[data-tone='danger'] { color: var(--n-danger-text); background-color: var(--n-danger-soft); box-shadow: none; }
+html.akk-native .n-btn--tinted[data-tone='neutral'] { color: var(--n-text); background-color: var(--n-fill); box-shadow: none; }
+html.akk-native .n-btn--tinted[data-tone='info'] { color: var(--n-info); background-color: var(--n-info-soft); box-shadow: none; }
+
+html.akk-native .n-btn--tinted[data-tone]:not(:disabled):active { filter: brightness(0.96); }
+
+html.akk-native .n-btn--plain {
+  background-color: transparent;
+}
+
+html.akk-native .n-btn--plain:not(:disabled):active {
+  background-color: var(--n-fill-2);
+}
+
+html.akk-native .n-spinner {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  opacity: 0.85;
+  animation: n-spin 0.7s linear infinite;
+}
+
+html.akk-native .n-spinner--lg {
+  width: 26px;
+  height: 26px;
+  border-width: 2.5px;
+  color: var(--n-text-4);
+}
+
+/* Text field */
+html.akk-native .n-field + .n-field {
+  margin-top: var(--n-4);
+}
+
+html.akk-native .n-field__label {
+  display: block;
+  margin: 0 2px 6px;
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  letter-spacing: 0.005em;
+  color: var(--n-text-2);
+}
+
+html.akk-native .n-field__control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  border-radius: var(--n-r-md);
+  background: var(--n-surface);
+  border: 1px solid rgb(15 23 42 / 0.1);
+  box-shadow: inset 0 1px 2px rgb(15 23 42 / 0.03);
+  transition: border-color var(--n-dur-fast) var(--n-ease), box-shadow var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-field__control:focus-within {
+  border-color: rgb(220 107 47 / 0.7);
+  box-shadow: var(--n-focus);
+}
+
+html.akk-native .n-field[data-tone='manager'] .n-field__control:focus-within,
+html.akk-native .n-field[data-tone='admin'] .n-field__control:focus-within {
+  border-color: rgb(29 78 216 / 0.55);
+  box-shadow: 0 0 0 3px rgb(29 78 216 / 0.22);
+}
+
+html.akk-native .n-field[data-invalid='true'] .n-field__control {
+  border-color: rgb(220 38 38 / 0.65);
+}
+
+html.akk-native .n-field__icon {
+  flex: none;
+  margin-left: 14px;
+  color: var(--n-text-4);
+}
+
+html.akk-native .n-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 50px;
+  padding: 0 14px 0 12px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--n-text);
+  font-size: var(--n-fs-body);
+  font-family: inherit;
+}
+
+html.akk-native .n-field__input:focus-visible {
+  box-shadow: none;
+}
+
+html.akk-native .n-field__input::placeholder {
+  color: var(--n-text-4);
+}
+
+html.akk-native .n-field__toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: var(--n-touch);
+  height: var(--n-touch);
+  margin-right: 4px;
+  border-radius: var(--n-r-sm);
+  color: var(--n-text-3);
+  -webkit-tap-highlight-color: transparent;
+}
+
+html.akk-native .n-field__toggle:active {
+  background: var(--n-fill-2);
+}
+
+html.akk-native .n-field__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  margin: 6px 2px 0;
+  font-size: var(--n-fs-footnote);
+  line-height: 1.35;
+  color: var(--n-danger-text);
+}
+
+html.akk-native .n-field__hint {
+  margin: 6px 2px 0;
+  font-size: var(--n-fs-footnote);
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--n-r-md);
+  font-size: var(--n-fs-callout);
+  line-height: 1.4;
+  background: var(--n-danger-soft);
+  color: var(--n-danger-text);
+  animation: n-rise var(--n-dur) var(--n-ease) both;
+}
+
+html.akk-native .n-alert[data-tone='warning'] { background: var(--n-warning-soft); color: var(--n-warning); }
+html.akk-native .n-alert[data-tone='info'] { background: var(--n-info-soft); color: var(--n-info); }
+
+html.akk-native .n-alert svg {
+  flex: none;
+  margin-top: 1px;
+}
+
+/* Search field */
+html.akk-native .n-search {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  height: 44px;
+  border-radius: var(--n-r-sm);
+  background: var(--n-fill);
+  color: var(--n-text-3);
+  transition: box-shadow var(--n-dur-fast) var(--n-ease), background-color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-search:focus-within {
+  background: var(--n-surface);
+  box-shadow: inset 0 0 0 1px rgb(220 107 47 / 0.6), var(--n-focus);
+}
+
+html.akk-native .n-search > svg {
+  flex: none;
+  margin-left: 12px;
+}
+
+html.akk-native .n-search__input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--n-text);
+  font: inherit;
+  font-size: var(--n-fs-body);
+}
+
+html.akk-native .n-search__input:focus-visible {
+  box-shadow: none;
+}
+
+html.akk-native .n-search__input::placeholder {
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-search__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+
+html.akk-native .n-search__clear {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  color: var(--n-text-4);
+}
+
+/* ======================================================================== */
+/* 8. Auth                                                                   */
+/* ======================================================================== */
+
+html.akk-native .n-auth {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100svh;
+  overflow-x: hidden;
+}
+
+html.akk-native .n-auth__ambient {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 70vh;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(90% 60% at 10% 0%, rgb(220 107 47 / 0.2), transparent 70%),
+    radial-gradient(70% 50% at 100% 12%, rgb(245 158 11 / 0.12), transparent 70%);
+}
+
+html.akk-native .n-auth[data-role='manager'] .n-auth__ambient {
+  background:
+    radial-gradient(90% 60% at 10% 0%, rgb(29 78 216 / 0.16), transparent 70%),
+    radial-gradient(70% 50% at 100% 12%, rgb(14 165 233 / 0.1), transparent 70%);
+}
+
+html.akk-native .n-auth[data-role='admin'] .n-auth__ambient {
+  background:
+    radial-gradient(90% 60% at 10% 0%, rgb(51 65 85 / 0.16), transparent 70%),
+    radial-gradient(70% 50% at 100% 12%, rgb(99 102 241 / 0.08), transparent 70%);
+}
+
+html.akk-native .n-auth__bar {
+  display: flex;
+  align-items: center;
+  min-height: var(--n-navbar-h);
+  padding: var(--n-safe-top) calc(var(--n-gutter) - 6px) 0;
+}
+
+html.akk-native .n-auth__body {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: 460px;
+  margin: 0 auto;
+  padding: var(--n-3) var(--n-gutter) var(--n-6);
+}
+
+html.akk-native .n-auth__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: var(--n-5);
+}
+
+html.akk-native .n-auth__logo,
+html.akk-native .n-home__logo {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  padding: 4px;
+  border-radius: 16px;
+  object-fit: contain;
+  background: #fff;
+  border: var(--n-hairline) solid var(--n-separator);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05), 0 8px 20px -10px rgb(15 23 42 / 0.28);
+}
+
+html.akk-native .n-auth__role {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--n-r-pill);
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  background: var(--n-brand-soft);
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-auth[data-role='manager'] .n-auth__role { background: var(--n-manager-soft); color: var(--n-manager); }
+html.akk-native .n-auth[data-role='admin'] .n-auth__role { background: var(--n-admin-soft); color: var(--n-admin); }
+html.akk-native .n-auth[data-role='manager'] .n-navbar__back,
+html.akk-native .n-auth[data-role='admin'] .n-navbar__back { color: var(--n-manager); }
+
+html.akk-native .n-auth__title {
+  font-size: 2rem;
+  font-weight: 750;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  color: var(--n-text);
+}
+
+html.akk-native .n-auth__sub {
+  margin-top: 6px;
+  font-size: var(--n-fs-callout);
+  line-height: 1.45;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-auth__card {
+  margin-top: var(--n-6);
+  padding: var(--n-5) var(--n-4) var(--n-4);
+  border-radius: var(--n-r-xl);
+  background: var(--n-glass);
+  -webkit-backdrop-filter: var(--n-blur);
+  backdrop-filter: var(--n-blur);
+  border: var(--n-hairline) solid var(--n-glass-border);
+  box-shadow: var(--n-glass-highlight), 0 0 0 var(--n-hairline) var(--n-glass-edge), var(--n-shadow-2);
+}
+
+html.akk-native .n-auth__actions {
+  display: grid;
+  gap: var(--n-3);
+  margin-top: var(--n-5);
+}
+
+html.akk-native .n-auth__foot {
+  margin-top: var(--n-4);
+  padding: 0 var(--n-2);
+  text-align: center;
+  font-size: var(--n-fs-footnote);
+  line-height: 1.45;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-auth__legal {
+  padding: var(--n-3) var(--n-gutter) calc(var(--n-safe-bottom) + var(--n-4));
+  text-align: center;
+  font-size: var(--n-fs-caption);
+  line-height: 1.5;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-auth__restoring {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--n-3);
+  padding: var(--n-8) var(--n-4);
+  font-size: var(--n-fs-callout);
+  color: var(--n-text-3);
+}
+
+/* ======================================================================== */
+/* 9. Home                                                                   */
+/* ======================================================================== */
+
+html.akk-native .n-home {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  min-height: 100svh;
+}
+
+html.akk-native .n-home__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: calc(var(--n-safe-top) + var(--n-5)) var(--n-gutter) var(--n-4);
+}
+
+html.akk-native .n-home__company {
+  font-size: var(--n-fs-footnote);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--n-text-2);
+}
+
+html.akk-native .n-home__tag {
+  font-size: var(--n-fs-footnote);
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-home__main {
+  flex: 1 0 auto;
+  padding: 0 var(--n-gutter) var(--n-6);
+}
+
+html.akk-native .n-home__main .n-largetitle {
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+html.akk-native .n-resume {
+  display: flex;
+  align-items: center;
+  gap: var(--n-3);
+  padding: 14px var(--n-4);
+  border-radius: var(--n-r-lg);
+  color: #fff;
+  background-color: var(--n-brand);
+  background-image: linear-gradient(150deg, rgb(255 255 255 / 0.16), rgb(255 255 255 / 0) 55%);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.4), 0 10px 24px -12px rgb(220 107 47 / 0.8);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--n-dur-press) var(--n-ease);
+}
+
+html.akk-native .n-resume:active {
+  transform: scale(0.98);
+}
+
+html.akk-native .n-resume[data-tone='manager'] {
+  background-color: var(--n-manager);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.4), 0 10px 24px -12px rgb(29 78 216 / 0.75);
+}
+
+html.akk-native .n-resume[data-tone='admin'] {
+  background-color: var(--n-admin);
+  box-shadow: inset 0 0.5px 0 rgb(255 255 255 / 0.3), 0 10px 24px -12px rgb(15 23 42 / 0.6);
+}
+
+html.akk-native .n-resume__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--n-r-sm);
+  background: rgb(255 255 255 / 0.2);
+}
+
+html.akk-native .n-resume__title {
+  display: block;
+  font-size: var(--n-fs-headline);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+html.akk-native .n-resume__sub {
+  display: block;
+  font-size: var(--n-fs-footnote);
+  opacity: 0.88;
+}
+
+html.akk-native .n-home__foot {
+  padding: var(--n-2) var(--n-gutter) calc(var(--n-safe-bottom) + var(--n-5));
+  text-align: center;
+  font-size: var(--n-fs-caption);
+  line-height: 1.55;
+  color: var(--n-text-3);
+}
+
+/* ======================================================================== */
+/* 10. Transactions & filters                                                */
+/* ======================================================================== */
+
+html.akk-native .n-list {
+  display: grid;
+  gap: 12px;
+}
+
+html.akk-native .n-tx {
+  position: relative;
+  border-radius: var(--n-r-lg);
+  background: var(--n-surface);
+  border: var(--n-hairline) solid var(--n-separator);
+  box-shadow: var(--n-shadow-1);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 188px;
+}
+
+html.akk-native .n-tx__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px var(--n-4) 10px;
+}
+
+html.akk-native .n-tx__icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--n-r-sm);
+  background: var(--n-brand-soft);
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-tx[data-type='return'] .n-tx__icon {
+  background: var(--n-success-soft);
+  color: var(--n-success);
+}
+
+html.akk-native .n-tx__heading {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+html.akk-native .n-tx__title {
+  font-size: var(--n-fs-headline);
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  color: var(--n-text);
+  overflow-wrap: anywhere;
+}
+
+html.akk-native .n-tx__title small {
+  display: inline-block;
+  white-space: nowrap;
+  margin-left: 6px;
+  font-size: var(--n-fs-footnote);
+  font-weight: 500;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-tx__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 10px;
+  margin-top: 3px;
+  font-size: var(--n-fs-footnote);
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-tx__meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+html.akk-native .n-tx__kind {
+  font-weight: 650;
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-tx[data-type='return'] .n-tx__kind {
+  color: var(--n-success);
+}
+
+html.akk-native .n-tx__items {
+  margin: 0 var(--n-4);
+  padding: 4px 12px;
+  border-radius: var(--n-r-md);
+  background: var(--n-surface-2);
+  border: var(--n-hairline) solid var(--n-separator);
+}
+
+html.akk-native .n-tx__item {
+  padding: 9px 0;
+}
+
+html.akk-native .n-tx__item + .n-tx__item {
+  border-top: var(--n-hairline) solid var(--n-separator);
+}
+
+html.akk-native .n-tx__item-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+html.akk-native .n-tx__item-name {
+  min-width: 0;
+  font-size: var(--n-fs-callout);
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--n-text);
+  overflow-wrap: anywhere;
+}
+
+html.akk-native .n-tx__qty {
+  flex: none;
+  font-size: var(--n-fs-callout);
+  font-weight: 650;
+  color: var(--n-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+html.akk-native .n-tx__item-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 3px;
+}
+
+html.akk-native .n-tx__item-status {
+  font-size: var(--n-fs-caption);
+  font-weight: 650;
+  color: var(--n-warning);
+}
+
+html.akk-native .n-tx__item-status[data-tone='success'] { color: var(--n-success); }
+html.akk-native .n-tx__item-status[data-tone='danger'] { color: var(--n-danger-text); }
+html.akk-native .n-tx__item-status[data-tone='brand'] { color: var(--n-brand-text); }
+
+html.akk-native .n-tx__notes {
+  margin: 10px var(--n-4) 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--n-separator);
+  font-size: var(--n-fs-footnote);
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--n-text-3);
+  overflow-wrap: anywhere;
+}
+
+html.akk-native .n-tx__audit {
+  margin: 10px var(--n-4) 0;
+  font-size: var(--n-fs-caption);
+  line-height: 1.4;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-tx__expand {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  margin: 4px var(--n-4) 0;
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-tx__expanded {
+  display: grid;
+  gap: 8px;
+  margin: 2px var(--n-4) 0;
+  font-size: var(--n-fs-footnote);
+  animation: n-rise var(--n-dur) var(--n-ease) both;
+}
+
+html.akk-native .n-tx__expanded .rounded {
+  border-radius: var(--n-r-xs);
+}
+
+html.akk-native .n-tx__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px var(--n-4) 14px;
+}
+
+html.akk-native .n-tx__actions .n-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 10px;
+}
+
+/* Approve / Decline share the first row; secondary actions sit below. */
+html.akk-native .n-tx__actions .n-tx__decide {
+  flex: 1 1 calc(50% - 4px);
+  min-height: 44px;
+}
+
+html.akk-native .n-tx:not(:has(.n-tx__actions)) {
+  padding-bottom: 14px;
+}
+
+/* Compact activity rows (portal home) */
+html.akk-native .n-activity__status {
+  font-size: var(--n-fs-caption);
+  font-weight: 650;
+}
+
+/* Filter bar */
+html.akk-native .n-filterbar {
+  position: sticky;
+  top: calc(var(--n-safe-top) + var(--n-navbar-h));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 calc(var(--n-gutter) * -1) var(--n-3);
+  padding: 6px var(--n-gutter) 8px;
+  background: var(--n-bg);
+}
+
+html.akk-native .n-filterbtn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--n-r-sm);
+  background: var(--n-fill);
+  color: var(--n-text-2);
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--n-dur-press) var(--n-ease), background-color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-filterbtn:active {
+  transform: scale(0.94);
+}
+
+html.akk-native .n-filterbtn[data-active='true'] {
+  background: var(--n-brand-soft);
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-filterbtn .n-iconbtn__badge {
+  top: -4px;
+  right: -4px;
+  background: var(--n-brand);
+}
+
+html.akk-native .n-chips {
+  display: flex;
+  gap: 8px;
+  margin: calc(var(--n-2) * -1) calc(var(--n-gutter) * -1) var(--n-3);
+  padding: 2px var(--n-gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+html.akk-native .n-chips::-webkit-scrollbar {
+  display: none;
+}
+
+html.akk-native .n-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: var(--n-r-pill);
+  background: var(--n-surface);
+  border: var(--n-hairline) solid var(--n-separator);
+  box-shadow: var(--n-shadow-1);
+  color: var(--n-text-2);
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--n-dur-press) var(--n-ease), background-color var(--n-dur-fast) var(--n-ease), color var(--n-dur-fast) var(--n-ease);
+}
+
+html.akk-native .n-chip:active {
+  transform: scale(0.95);
+}
+
+html.akk-native .n-chip[aria-pressed='true'],
+html.akk-native .n-chip[data-selected='true'] {
+  background: var(--n-text);
+  border-color: var(--n-text);
+  color: #fff;
+}
+
+html.akk-native .n-chips .n-chip[data-selected='true'] {
+  background: var(--n-brand-soft);
+  border-color: transparent;
+  box-shadow: none;
+  color: var(--n-brand-text);
+}
+
+html.akk-native .n-fgroup + .n-fgroup {
+  margin-top: var(--n-5);
+}
+
+html.akk-native .n-fgroup__label {
+  margin: 0 2px var(--n-2);
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-fgroup__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+html.akk-native .n-results {
+  margin: 0 4px var(--n-3);
+  font-size: var(--n-fs-footnote);
+  font-weight: 600;
+  color: var(--n-text-3);
+}
+
+/* Sheet internals shared by confirm / action / filter sheets */
+html.akk-native .n-sheet__head {
+  padding-right: 2.5rem;
+}
+
+html.akk-native .n-sheet__title {
+  font-size: var(--n-fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--n-text);
+}
+
+html.akk-native .n-sheet__text {
+  margin-top: 6px;
+  font-size: var(--n-fs-callout);
+  line-height: 1.45;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-sheet__actions {
+  display: grid;
+  gap: 10px;
+  margin-top: var(--n-2);
+}
+
+html.akk-native .n-sheet__actions--row {
+  grid-template-columns: 1fr 1fr;
+}
+
+html.akk-native .n-sheet .n-group {
+  box-shadow: none;
+}
+
+/* ======================================================================== */
+/* 11. States                                                                */
+/* ======================================================================== */
+
+html.akk-native .n-skel {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--n-r-xs);
+  background: rgb(15 23 42 / 0.07);
+}
+
+html.akk-native .n-skel::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  animation: n-shimmer 1.4s var(--n-ease) infinite;
+}
+
+html.akk-native .n-skel--line {
+  height: 12px;
+}
+
+html.akk-native .n-skel--title {
+  height: 16px;
+}
+
+html.akk-native .n-skel--icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--n-r-sm);
+}
+
+html.akk-native .n-skel-card {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--n-r-lg);
+  background: var(--n-surface);
+  border: var(--n-hairline) solid var(--n-separator);
+}
+
+html.akk-native .n-skel-card__body {
+  display: grid;
+  flex: 1;
+  gap: 10px;
+  align-content: start;
+}
+
+html.akk-native .n-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--n-8) var(--n-5);
+  text-align: center;
+  animation: n-fade var(--n-dur) var(--n-ease) both;
+}
+
+html.akk-native .n-state__icon {
+  display: grid;
+  place-items: center;
+  width: 60px;
+  height: 60px;
+  margin-bottom: var(--n-4);
+  border-radius: 18px;
+  background: var(--n-fill-2);
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-state[data-tone='error'] .n-state__icon {
+  background: var(--n-danger-soft);
+  color: var(--n-danger-text);
+}
+
+html.akk-native .n-state__title {
+  font-size: var(--n-fs-headline);
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  color: var(--n-text);
+}
+
+html.akk-native .n-state__text {
+  max-width: 19rem;
+  margin-top: 4px;
+  font-size: var(--n-fs-callout);
+  line-height: 1.45;
+  color: var(--n-text-3);
+}
+
+html.akk-native .n-state .n-btn {
+  margin-top: var(--n-5);
+}
+
+html.akk-native .n-more {
+  display: flex;
+  justify-content: center;
+  padding: var(--n-4) 0 var(--n-2);
+  color: var(--n-text-3);
+  font-size: var(--n-fs-footnote);
+}
+
+/* Shared EmptyState (layout/EmptyState.jsx) in the app */
+html.akk-native .akk-app [data-ui='card'].border-dashed [data-ui='card-content'] {
+  padding: var(--n-8) var(--n-5);
+}
+
+/* Route-level fallback while a page chunk loads */
+html.akk-native .n-route-fallback {
+  min-height: 100dvh;
+  padding: calc(var(--n-safe-top) + var(--n-navbar-h) + 8px) var(--n-gutter) 0;
+}
+
+/* ======================================================================== */
+/* 12. Forms                                                                 */
+/* ======================================================================== */
+
+html.akk-native .n-form [data-ui='card'] {
+  border-radius: var(--n-r-lg);
+}
+
+html.akk-native .n-form [data-ui='card-content'] {
+  padding: var(--n-4);
+}
+
+html.akk-native .n-form form label {
+  font-size: var(--n-fs-footnote);
+  font-weight: 650;
+  color: var(--n-text-2);
+}
+
+html.akk-native .n-form__kind {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 4px var(--n-3);
+  font-size: var(--n-fs-callout);
+  color: var(--n-text-3);
+}
+
+html.akk-native .akk-form-actions {
+  position: sticky;
+  bottom: calc(var(--n-safe-bottom) + 10px);
+  z-index: 5;
+  margin: 0 calc(var(--n-2) * -1);
+  padding: 8px;
+  border-radius: var(--n-r-lg);
+  background: var(--n-glass);
+  -webkit-backdrop-filter: var(--n-blur);
+  backdrop-filter: var(--n-blur);
+  box-shadow: var(--n-glass-highlight), 0 0 0 var(--n-hairline) var(--n-glass-edge), var(--n-shadow-2);
+}
+
+html.akk-native .akk-form-actions [data-ui='button'] {
+  min-height: 50px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: var(--n-r-md);
+  font-size: var(--n-fs-headline);
+}
+
+/* ======================================================================== */
+/* 13. Legacy content shown inside the app                                   */
+/* ======================================================================== */
+
+html.akk-native .akk-toolbar {
+  padding: var(--n-3);
+  border-radius: var(--n-r-lg);
+  box-shadow: var(--n-shadow-1);
+}
+
+html.akk-native .akk-toolbar--native [data-ui='tabs-list'],
+html.akk-native .akk-toolbar--native .flex-wrap {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+html.akk-native .akk-tx-meta {
+  font-size: var(--n-fs-footnote);
+}
+
+/* Analytics / managers inside the app: calmer card rhythm */
+html.akk-native .akk-app .space-y-6 > * + * {
+  margin-top: var(--n-4);
+}
+
+/* The managers' "x / y" count pills */
+html.akk-native .akk-app .rounded-full.bg-slate-100 {
+  background: var(--n-fill);
+}
+
+/* ======================================================================== */
+/* 14. Motion                                                                */
+/* ======================================================================== */
+
+@media (prefers-reduced-motion: no-preference) {
+  html.akk-native .n-route {
+    animation: n-route-in 200ms var(--n-ease) both;
+  }
+
+  html.akk-native .n-enter {
+    animation: n-rise 300ms var(--n-ease) both;
+  }
+
+  html.akk-native .n-enter:nth-child(2) { animation-delay: 30ms; }
+  html.akk-native .n-enter:nth-child(3) { animation-delay: 60ms; }
+  html.akk-native .n-enter:nth-child(4) { animation-delay: 90ms; }
+  html.akk-native .n-enter:nth-child(n + 5) { animation-delay: 110ms; }
+
+  html.akk-native .n-auth__card {
+    animation: n-rise 360ms var(--n-ease) 40ms both;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.akk-native *,
+  html.akk-native *::before,
+  html.akk-native *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0s !important;
+    transition-duration: 1ms !important;
+  }
+
+  html.akk-native .n-skel::after {
+    display: none;
+  }
+
+  html.akk-native .n-spinner {
+    animation: n-spin 1.2s linear infinite !important;
+  }
+}
+
+/* Opacity only: a transform here would re-parent the fixed tab bar mid-animation. */
+@keyframes n-route-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes n-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes n-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes n-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes n-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* ======================================================================== */
+/* 15. Fallbacks — solid surfaces when blur is unavailable or unwanted       */
+/* ======================================================================== */
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  html.akk-native {
+    --n-glass: rgb(255 255 255 / 0.96);
+    --n-glass-strong: rgb(255 255 255 / 0.98);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html.akk-native {
+    --n-glass: #ffffff;
+    --n-glass-strong: #ffffff;
+    --n-blur: none;
+    --n-blur-strong: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  html.akk-native {
+    --n-separator: rgb(15 23 42 / 0.22);
+    --n-glass: #ffffff;
+    --n-glass-strong: #ffffff;
+    --n-text-3: #3f4856;
+  }
+}
+
+/* Short / landscape phones: tighten chrome so content keeps room */
+@media (max-height: 520px) {
+  html.akk-native {
+    --n-tabbar-h: 52px;
+    --n-tabbar-gap: 6px;
+    --n-fs-large: 1.5rem;
+  }
+
+  html.akk-native .n-tab__label {
+    display: none;
+  }
+}
+
+/* Narrow phones (≤ 360px) */
+@media (max-width: 360px) {
+  html.akk-native {
+    --n-fs-large: 1.65rem;
+    --n-fs-stat: 1.375rem;
+  }
+
+  html.akk-native .n-stats {
+    gap: 8px;
+  }
+
+  html.akk-native .n-stat {
+    padding: 10px;
+  }
+}

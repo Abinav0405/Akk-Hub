@@ -320,8 +320,6 @@
 /* Language picker on phones (desktop has it in the nav). */
 .hx-lang-m {
   margin-top: 20px;
-  max-width: 100%;
-  overflow-x: auto;
 }
 
 @media (min-width: 900px) {
@@ -827,14 +825,10 @@ html.akk-native .akk-cta[data-tone='client'] {
   color: rgb(255 255 255 / 0.7);
 }
 
+/* Compact language menu on crimson hero — no clip, solid contrast. */
 .hxa-lang {
-  max-width: 52vw;
-  border-radius: 999px;
-  background: rgb(255 255 255 / 0.12);
-}
-
-.hxa-lang button {
-  color: rgb(255 255 255 / 0.88);
+  flex-shrink: 0;
+  z-index: 2;
 }
 
 .hxa-greet {

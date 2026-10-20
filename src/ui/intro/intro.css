@@ -1,0 +1,291 @@
+/*
+ * AKK Hub app intro (ui/intro/AppIntro.jsx). App only: every rule is scoped to .akk-intro or to
+ * the html.akk-intro-* classes the intro sets while it plays, so the website is never affected.
+ * Motion = transform / opacity / clip-path (GPU); one short blur on the small logo tile.
+ */
+
+.akk-intro {
+  --intro-base: #4a0b1d; /* = Android launch screen (res/values/akk_intro.xml) */
+  --intro-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --intro-glide: cubic-bezier(0.65, 0, 0.2, 1);
+  --intro-clip-bottom: 0px;
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  pointer-events: auto;
+  contain: strict;
+}
+
+/* ---- background ---------------------------------------------------------------------------- */
+.akk-intro__bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--intro-base);
+  clip-path: inset(0 0 0 0);
+}
+
+/* The Home header's gradient, faded up over the launch colour. */
+.akk-intro__bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(165deg, #42091a 0%, #760f27 48%, #1f1119 100%);
+  opacity: 0;
+  animation: akk-intro-fade 700ms var(--intro-ease) 60ms forwards;
+}
+
+.akk-intro__glow {
+  position: absolute;
+  border-radius: 50%;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.akk-intro__glow--rose {
+  width: 130vmax;
+  height: 130vmax;
+  left: -55vmax;
+  top: -60vmax;
+  background: radial-gradient(closest-side, rgb(232 70 100 / 0.5), transparent 70%);
+  animation:
+    akk-intro-fade 900ms var(--intro-ease) 120ms forwards,
+    akk-intro-drift-a 2600ms var(--intro-ease) 120ms both;
+}
+.akk-intro__glow--bronze {
+  width: 120vmax;
+  height: 120vmax;
+  right: -60vmax;
+  top: -30vmax;
+  background: radial-gradient(closest-side, rgb(190 120 50 / 0.45), transparent 70%);
+  animation:
+    akk-intro-fade 900ms var(--intro-ease) 220ms forwards,
+    akk-intro-drift-b 2600ms var(--intro-ease) 220ms both;
+}
+
+/* Soft light behind the logo that swells for the brand moment. */
+.akk-intro__bloom {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: 150vmin;
+  height: 150vmin;
+  margin: -75vmin 0 0 -75vmin;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgb(255 220 225 / 0.16), transparent 72%);
+  opacity: 0;
+  transform: scale(0.6);
+  animation: akk-intro-bloom 1500ms var(--intro-ease) 300ms forwards;
+}
+
+/* ---- logo + name ---------------------------------------------------------------------------- */
+.akk-intro__stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: env(safe-area-inset-top, 0px) 24px env(safe-area-inset-bottom, 0px);
+}
+
+.akk-intro__lockup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* optical centre sits a little above the middle */
+  margin-top: -6vh;
+}
+
+.akk-intro__tile,
+.akk-intro__name,
+.akk-intro__sub {
+  transform-origin: 0 0;
+  transition: transform 560ms var(--intro-glide), opacity 420ms var(--intro-ease);
+  will-change: transform;
+}
+
+/* Same proportions as the Home header tile (44 px · radius 13 · padding 4) at 112 px. */
+.akk-intro__tile-in {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  padding: 10px;
+  border-radius: 33px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow:
+    0 24px 48px -22px rgb(0 0 0 / 0.75),
+    0 0 0 1px rgb(255 255 255 / 0.6) inset;
+  opacity: 0;
+  transform: scale(0.86);
+  filter: blur(10px);
+  animation: akk-intro-tile 640ms var(--intro-ease) 150ms forwards;
+}
+
+.akk-intro__logo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+/* One restrained light sweep across the tile. */
+.akk-intro__sweep {
+  position: absolute;
+  inset: -20%;
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.85) 50%, transparent 62%);
+  mix-blend-mode: soft-light;
+  transform: translateX(-120%);
+  animation: akk-intro-sweep 760ms cubic-bezier(0.45, 0, 0.25, 1) 720ms forwards;
+}
+
+.akk-intro__name {
+  margin-top: 16px;
+  font-family: 'Space Grotesk', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  /* same line-height ratio as the Home header name, so the glide lands on the same baseline */
+  line-height: 1.5;
+  letter-spacing: -0.02em;
+  color: #fff;
+  white-space: nowrap;
+}
+.akk-intro__sub {
+  margin-top: 2px;
+  font-family: var(--g-font, 'Inter', ui-sans-serif, system-ui, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.7);
+  white-space: nowrap;
+}
+.akk-intro__name-in,
+.akk-intro__sub-in {
+  display: inline-block;
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+}
+.akk-intro__name-in {
+  animation: akk-intro-rise 560ms var(--intro-ease) 560ms forwards;
+}
+.akk-intro__sub-in {
+  animation: akk-intro-rise 520ms var(--intro-ease) 780ms forwards;
+}
+
+/* Only when start-up takes longer than the film: a quiet line under the name. */
+.akk-intro__loading {
+  position: relative;
+  width: 64px;
+  height: 2px;
+  margin-top: 22px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 0.14);
+  opacity: 0;
+  transition: opacity 400ms var(--intro-ease);
+}
+.akk-intro__loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  border-radius: inherit;
+  background: rgb(255 255 255 / 0.75);
+  animation: akk-intro-load 1100ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+.akk-intro[data-slow] .akk-intro__loading {
+  opacity: 1;
+}
+
+/* ---- exits ---------------------------------------------------------------------------------- */
+.akk-intro[data-exit] {
+  pointer-events: none;
+}
+.akk-intro[data-exit] .akk-intro__loading {
+  opacity: 0;
+}
+
+/* Into the app Home: the crimson shrinks to the header, logo + name glide into place (inline
+   transforms from AppIntro), then the overlay dissolves onto the identical real header. */
+.akk-intro[data-exit='home'] .akk-intro__bg {
+  clip-path: inset(0 0 var(--intro-clip-bottom) 0);
+  transition: clip-path 560ms var(--intro-glide);
+}
+.akk-intro[data-exit='home'] {
+  animation: akk-intro-out 180ms linear 440ms forwards;
+}
+.akk-intro[data-exit='home'] .akk-intro__bloom {
+  opacity: 0;
+  transition: opacity 300ms var(--intro-ease);
+}
+
+/* Signed in: the curtain lifts away upwards, the lockup settles back as it goes. */
+.akk-intro[data-exit='lift'] .akk-intro__bg {
+  clip-path: inset(0 0 100% 0);
+  transition: clip-path 600ms var(--intro-glide);
+}
+.akk-intro[data-exit='lift'] .akk-intro__lockup {
+  opacity: 0;
+  transform: translate3d(0, -28px, 0) scale(0.94);
+  transition:
+    transform 520ms var(--intro-glide),
+    opacity 360ms var(--intro-ease);
+}
+
+.akk-intro[data-exit='fade'] {
+  animation: akk-intro-out 200ms linear forwards;
+}
+
+/* The screen behind holds its own entrance until the curtain opens (app Home cards rise in). */
+html.akk-intro-on:not(.akk-intro-leaving) .hxa-in {
+  animation-play-state: paused;
+}
+
+/* ---- keyframes ------------------------------------------------------------------------------ */
+@keyframes akk-intro-fade {
+  to { opacity: 1; }
+}
+@keyframes akk-intro-out {
+  to { opacity: 0; }
+}
+@keyframes akk-intro-drift-a {
+  from { transform: translate3d(-4vmax, -3vmax, 0) scale(0.92); }
+  to { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes akk-intro-drift-b {
+  from { transform: translate3d(5vmax, 2vmax, 0) scale(0.94); }
+  to { transform: translate3d(0, 0, 0) scale(1); }
+}
+@keyframes akk-intro-bloom {
+  60% { opacity: 1; transform: scale(1); }
+  to { opacity: 0.85; transform: scale(1.04); }
+}
+@keyframes akk-intro-tile {
+  to { opacity: 1; transform: scale(1); filter: blur(0); }
+}
+@keyframes akk-intro-sweep {
+  to { transform: translateX(120%); }
+}
+@keyframes akk-intro-rise {
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
+}
+@keyframes akk-intro-load {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+/* ---- reduced motion: no movement, quick cross-fades only ------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  .akk-intro *,
+  .akk-intro *::before,
+  .akk-intro *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition: none !important;
+  }
+  .akk-intro__sweep,
+  .akk-intro__loading::after {
+    display: none;
+  }
+}

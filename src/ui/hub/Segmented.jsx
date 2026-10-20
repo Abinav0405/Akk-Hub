@@ -31,7 +31,7 @@ export default function Segmented({ options, value, onChange, ariaLabel, classNa
                                 <motion.span
                                     layoutId={`${groupId}-pill`}
                                     className="g-segmented__pill"
-                                    transition={reduce ? { duration: 0 } : { type: 'spring', bounce: 0.18, duration: 0.42 }}
+                                    transition={reduce ? { duration: 0 } : { duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
                                 />
                             ) : null}
                             {Icon ? <Icon aria-hidden /> : null}

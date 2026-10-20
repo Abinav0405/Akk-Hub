@@ -77,8 +77,8 @@ export function useWideLayout() {
     return wide;
 }
 
-/* Motion presets shared by all three source apps (kept under the same names). */
-export const sheetSpring = { type: 'spring', stiffness: 230, damping: 28, mass: 0.9 };
-export const nativeSheetSpring = { type: 'spring', stiffness: 420, damping: 38, mass: 0.62 };
-export const easeSoft = { duration: 0.52, ease: [0.22, 1, 0.36, 1] };
+/* Motion presets — duration/ease (not springs) so Android WebView stays smooth. */
+export const sheetSpring = { duration: 0.3, ease: [0.32, 0.72, 0, 1] };
+export const nativeSheetSpring = { duration: 0.26, ease: [0.32, 0.72, 0, 1] };
+export const easeSoft = { duration: 0.28, ease: [0.22, 1, 0.36, 1] };
 export const easeOut = [0.22, 1, 0.36, 1];

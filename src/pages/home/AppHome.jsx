@@ -98,7 +98,7 @@ export default function AppHome() {
                             <p className="hxa-mark__sub">AKK Engineering</p>
                         </div>
                     </div>
-                    <LanguageSwitcher className="hxa-lang" />
+                    <LanguageSwitcher className="hxa-lang" variant="onDark" />
                 </div>
                 <div className="hxa-greet hxa-in">
                     <p className="hxa-greet__eyebrow">{getSingaporeGreeting()}</p>

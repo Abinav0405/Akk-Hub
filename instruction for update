@@ -1,0 +1,8 @@
+git status
+git add .
+git commit -m "."
+git push origin main
+npm run build
+npx cap copy
+npx cap sync
+npm run build:android

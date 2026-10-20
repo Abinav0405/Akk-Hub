@@ -1,14 +1,14 @@
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { Suspense, useEffect } from 'react';
 import { cn } from '@/ui/utils';
 import { Spinner } from '@/ui/hub/primitives';
+import AnimatedOutlet from '@/ui/hub/AnimatedOutlet';
 import { isNativeApp, useWideLayout } from '@/core/platform';
 import { isNavItemActive, navFor } from '@/app/navigation';
 import { prefetchRoleScreens } from '@/app/prefetch';
 import { useIdentity, ROLE_LABELS, signOutEverywhere } from '@/core/auth/identity';
 import { confirmAction } from '@/ui/native/NativeConfirm';
-import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/core/i18n';
 
 /** Nav items may carry `labelKey` (core-i18n); fall back to the English `label`. */
@@ -167,9 +167,10 @@ export default function HubLayout() {
             {wide ? <Sidebar groups={nav.groups} identity={identity} onSignOut={handleSignOut} /> : null}
             <div className="g-shell__body g-page">
                 {/* Screens load inside the shell: the sidebar / tab bar stay put while a
-                    screen's code downloads, instead of the whole app swapping to a loader. */}
+                    screen's code downloads, instead of the whole app swapping to a loader.
+                    AnimatedOutlet fades/slides the new view in (tab + module changes). */}
                 <Suspense fallback={<ScreenLoading />}>
-                    <Outlet />
+                    <AnimatedOutlet />
                 </Suspense>
             </div>
             {/* Web admin uses hub TabBar + AdminMobileSectionStrip (native keeps AdminAppChrome dock; CSS hides .admin-app-dock in .g-shell). */}

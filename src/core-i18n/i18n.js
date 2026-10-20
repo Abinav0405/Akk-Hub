@@ -4,11 +4,11 @@ import { storageKey } from '@/core/storage'
 export const LANGUAGE_STORAGE_KEY = storageKey('hub', 'language');
 
 export const LANGUAGES = [
-    { id: 'en', label: 'EN', htmlLang: 'en' },
-    { id: 'zh', label: '中文', htmlLang: 'zh-Hans' },
-    { id: 'ta', label: 'தமிழ்', htmlLang: 'ta' },
-    { id: 'ms', label: 'Melayu', htmlLang: 'ms' },
-    { id: 'hi', label: 'हिन्दी', htmlLang: 'hi' },
+    { id: 'en', label: 'English', shortLabel: 'EN', htmlLang: 'en' },
+    { id: 'zh', label: '中文', shortLabel: '中', htmlLang: 'zh-Hans' },
+    { id: 'ta', label: 'தமிழ்', shortLabel: 'த', htmlLang: 'ta' },
+    { id: 'ms', label: 'Melayu', shortLabel: 'MS', htmlLang: 'ms' },
+    { id: 'hi', label: 'हिन्दी', shortLabel: 'हि', htmlLang: 'hi' },
 ];
 
 const en = {

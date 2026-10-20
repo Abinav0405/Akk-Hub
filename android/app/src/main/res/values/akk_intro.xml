@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- App launch = first frame of the in-app brand intro (src/ui/intro/intro.css → --intro-base). -->
+<resources>
+    <color name="akk_intro_base">#4A0B1D</color>
+</resources>
