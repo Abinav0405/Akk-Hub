@@ -232,23 +232,25 @@ export default function QuickLogin() {
                 setFormError(result.error);
                 return;
             }
-            rememberLastWorker(workerId.trim(), workerType);
+            const resolvedType = result.workerType || workerType;
+            if (resolvedType !== workerType) setWorkerType(resolvedType);
+            rememberLastWorker(workerId.trim(), resolvedType);
             const worker = result.worker;
             let challenge;
             try {
-                challenge = faceChallengeFor(worker, workerType, password);
+                challenge = faceChallengeFor(worker, resolvedType, password);
             } catch (error) {
                 setFormError(error.message);
                 return;
             }
             if (!challenge) {
-                loginRef.current = { worker, token: worker.session_token, type: workerType, password };
+                loginRef.current = { worker, token: worker.session_token, type: resolvedType, password };
                 if (method === 'face') toast.info("Face ID isn't turned on for your account, so this phone can't sign you in with your face.");
                 else await rememberThisPhone();
                 finishLogin('welcome');
                 return;
             }
-            loginRef.current = { worker, token: null, type: workerType, password };
+            loginRef.current = { worker, token: null, type: resolvedType, password };
             setFace({ open: true, ...challenge });
         } catch (error) {
             setFormError(parseLoginError(error));

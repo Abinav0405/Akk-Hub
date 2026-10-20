@@ -4197,13 +4197,17 @@ export default function AdminDashboard() {
 
             const saveWorkerPassword = async (targetEmployeeId) => {
                 if (!plainPassword) return;
+                const typeLabel = resolvedWorkerType === 'local' ? 'Local' : 'Foreign';
                 const pwOk = await adminSetWorkerPassword({
                     employeeId: targetEmployeeId,
                     workerType: resolvedWorkerType === 'local' ? 'local' : 'foreign',
                     newPassword: plainPassword,
                 });
                 if (!pwOk) {
-                    throw new Error('Failed to update worker login password');
+                    // admin_set_worker_password returns false when no row matches (wrong id / wrong Local|Foreign table)
+                    throw new Error(
+                        `No ${typeLabel} worker with Employee ID ${targetEmployeeId}. Password was not changed — check the ID and Local/Foreign type.`
+                    );
                 }
             };
 

@@ -1,0 +1,45 @@
+diff --git a/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java b/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java
+index 6391666..f1ba611 100644
+--- a/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java
++++ b/node_modules/@capacitor/push-notifications/android/src/main/java/com/capacitorjs/plugins/pushnotifications/PushNotificationsPlugin.java
+@@ -111,17 +111,29 @@ public class PushNotificationsPlugin extends Plugin {
+ 
+     @PluginMethod
+     public void register(PluginCall call) {
+-        FirebaseMessaging.getInstance().setAutoInitEnabled(true);
+-        FirebaseMessaging.getInstance()
+-            .getToken()
+-            .addOnCompleteListener((task) -> {
+-                if (!task.isSuccessful()) {
+-                    sendError(task.getException().getLocalizedMessage());
+-                    return;
+-                }
+-                sendToken(task.getResult());
+-            });
+-        call.resolve();
++        try {
++            FirebaseMessaging messaging = FirebaseMessaging.getInstance();
++            messaging.setAutoInitEnabled(true);
++            messaging
++                .getToken()
++                .addOnCompleteListener((task) -> {
++                    if (!task.isSuccessful()) {
++                        Exception ex = task.getException();
++                        sendError(ex != null ? ex.getLocalizedMessage() : "Registration failed");
++                        return;
++                    }
++                    String token = task.getResult();
++                    if (token == null || token.isEmpty()) {
++                        sendError("Registration returned an empty token");
++                        return;
++                    }
++                    sendToken(token);
++                });
++            call.resolve();
++        } catch (Exception ex) {
++            sendError(ex.getLocalizedMessage() != null ? ex.getLocalizedMessage() : "FCM register failed");
++            call.resolve();
++        }
+     }
+ 
+     @PluginMethod

@@ -384,21 +384,53 @@ export function isNetworkError(error) {
 export function parseLoginError(error, fallback = 'An error occurred during login') {
     if (isNetworkError(error)) return 'No connection — check your network and try again.';
     const msg = error?.message || '';
-    if (msg.includes('account_locked') || msg.includes('Too many failed login attempts')) {
-        return 'Too many failed attempts. Please wait 15 minutes and try again.';
+    // Live DB had invalid RAISE … USING MESSAGE (42601). Treat it as lockout so users aren't stuck.
+    if (
+        msg.includes('account_locked') ||
+        msg.includes('Too many failed login attempts') ||
+        msg.includes('RAISE option already specified')
+    ) {
+        return 'Too many failed attempts. Please wait 15 minutes and try again — or ask an admin to reset your password (that also unlocks the account).';
     }
     return fallback;
 }
 
+/**
+ * Resolve Local vs Foreign before verify_worker_login so a wrong toggle does not burn
+ * rate-limit attempts (and lock the worker out for 15 minutes).
+ */
+export async function resolveWorkerType(employeeId, preferredType) {
+    const id = String(employeeId || '').trim();
+    if (!id) return preferredType === 'local' ? 'local' : 'foreign';
+
+    const [localRes, foreignRes] = await Promise.all([
+        supabase.from('local_worker_details').select('employee_id').eq('employee_id', id).maybeSingle(),
+        supabase.from('worker_details').select('employee_id').eq('employee_id', id).maybeSingle(),
+    ]);
+
+    const inLocal = !!localRes.data;
+    const inForeign = !!foreignRes.data;
+    if (inLocal && !inForeign) return 'local';
+    if (inForeign && !inLocal) return 'foreign';
+    if (inLocal && inForeign) {
+        return preferredType === 'local' ? 'local' : 'foreign';
+    }
+    return preferredType === 'local' ? 'local' : 'foreign';
+}
+
 export async function signInWorker({ workerId, password, workerType }) {
+    const id = String(workerId || '').trim();
+    const preferred = workerType === 'local' ? 'local' : 'foreign';
+    const resolvedType = await resolveWorkerType(id, preferred);
+
     const { data, error } = await supabase.rpc('verify_worker_login', {
-        p_employee_id: workerId.trim(),
+        p_employee_id: id,
         p_password: password,
-        p_worker_type: workerType,
+        p_worker_type: resolvedType,
     });
     if (error) throw error;
     if (!data?.length) return { ok: false, error: 'Invalid Worker ID or Password' };
-    return { ok: true, worker: data[0] };
+    return { ok: true, worker: data[0], workerType: resolvedType };
 }
 
 export async function signInManager({ email, password }) {
@@ -473,13 +505,26 @@ export async function adminSetWorkerPassword({ employeeId, workerType, newPasswo
     if (!ok) throw new Error('Admin session required to reset worker passwords.');
     const plain = normalizeWorkerPasswordForSave(newPassword);
     if (!plain) throw new Error('Enter a new plain-text password (at least 4 characters).');
+    const id = employeeId.trim();
+    const type = workerType === 'local' ? 'local' : 'foreign';
     const { data, error } = await supabase.rpc('admin_set_worker_password', {
-        p_employee_id: employeeId.trim(),
-        p_worker_type: workerType,
+        p_employee_id: id,
+        p_worker_type: type,
         p_new_password: plain,
     });
     if (error) throw error;
-    return !!data;
+    if (!data) {
+        throw new Error(
+            `No ${type} worker found for employee ID ${id}. Check Local vs Foreign before resetting.`
+        );
+    }
+    // Unlock immediately even if the DB migration that clears lockout inside the RPC is not applied yet.
+    try {
+        await supabase.rpc('record_login_success', { p_identifier: id, p_role: 'worker' });
+    } catch {
+        /* best effort — login still works after lockout window */
+    }
+    return true;
 }
 
 /* ---- One-tap Face ID on a remembered phone ---- */

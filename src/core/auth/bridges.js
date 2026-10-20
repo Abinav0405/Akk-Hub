@@ -283,6 +283,21 @@ export async function autoConnectModules({ hubRole, id, email, password }) {
             outcome[module] = res.ok ? 'connected' : 'failed';
         }),
     );
+    // Materials workers: endpoint needs the password once. Hand it over on hub password
+    // sign-in when Materials is already linked (connectModule already covers fresh link).
+    // Silent app restart has no password → skips Materials register by design.
+    if (
+        password &&
+        moduleRoleFor(hubRole, 'materials') === 'worker' &&
+        moduleConnection(hubRole, 'materials') === 'connected'
+    ) {
+        import('@/core/push')
+            .then((push) => {
+                push.setPendingWorkerPassword(password);
+                return push.registerPushDevice();
+            })
+            .catch(() => {});
+    }
     local.setJSON('hub', 'lastAutoConnect', { at: Date.now(), outcome });
     return outcome;
 }

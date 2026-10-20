@@ -210,7 +210,8 @@ export default function EmployeeLogin() {
                 return;
             }
             bioAttemptsRef.current = 0;
-            afterBioCloseRef.current = () => continueAfterPassword(result.worker, creds.workerType, creds.password);
+            const resolvedType = result.workerType || creds.workerType;
+            afterBioCloseRef.current = () => continueAfterPassword(result.worker, resolvedType, creds.password);
             setBio((b) => ({ ...b, status: 'success', message: '' }));
         } catch (error) {
             setBio((b) => ({ ...b, status: 'failure', canRetry: true, message: parseLoginError(error) }));
@@ -330,8 +331,10 @@ export default function EmployeeLogin() {
                 reportError(result.error);
                 return;
             }
-            rememberLastWorker(workerId.trim(), workerType);
-            continueAfterPassword(result.worker, workerType, password);
+            const resolvedType = result.workerType || workerType;
+            if (resolvedType !== workerType) setWorkerType(resolvedType);
+            rememberLastWorker(workerId.trim(), resolvedType);
+            continueAfterPassword(result.worker, resolvedType, password);
         } catch (error) {
             console.error('Login error:', error);
             reportError(parseLoginError(error));

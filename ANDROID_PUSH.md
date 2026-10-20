@@ -9,7 +9,9 @@ The app side is done (`src/core/push.js`). It:
 - opens the right screen when a notification is tapped, including from a closed app;
 - removes the phone at sign-out.
 
-It stays **off** until the three steps below are done.
+Client registration is **on** when `VITE_ENABLE_FCM_REGISTER=true` and
+`android/app/google-services.json` is present. Back-end senders still need the Hub Firebase
+service account (section 2).
 
 ## 1. One Firebase project for the hub
 
@@ -19,28 +21,57 @@ It stays **off** until the three steps below are done.
    It's gitignored: never commit it. The Gradle build applies the Google Services plugin
    automatically when the file is there.
 
-## 2. Point all three back-ends at that Firebase project
+## 2. Point all three back-ends at that Firebase project — TRACK A
 
 FCM only delivers a token through the Firebase project that issued it. Each back-end's push
-sender (its Supabase edge function / FCM service-account secret) must use the **AKK Hub** project's
-service account:
+sender must use the **AKK Hub** Firebase service account (`project_id` **`akk-hub-ef7c3`**).
+Secret name everywhere: **`FCM_SERVICE_ACCOUNT_JSON`** (full JSON, server-side only — never
+commit, never put in app `.env`).
 
-| Back-end | Where it sends from |
-| --- | --- |
-| Attendance (Timesheet DB) | edge functions that send FCM (service-account secret) |
-| Materials (Materials DB) | edge functions that send FCM (service-account secret) |
-| Site work (Progress DB) | edge functions that send FCM (service-account secret) |
+| Back-end | Supabase ref | Sender | Code / deploy | Secret set to Hub SA? |
+| --- | --- | --- | --- | --- |
+| Attendance (Timesheet) | `xuqvzlbfqdkfjjhdvzac` | edge `fcm-db-webhook`, `leave-reminder` | **Deployed** hub `data.path` + supervisor subject | **DONE** — Hub SA (`akk-hub-ef7c3`) set as `FCM_SERVICE_ACCOUNT_JSON` |
+| Materials | `tglslbsruyzkqpxczdzn` | edge `fcm-db-webhook` | **Deployed** hub `data.path` | **DONE** — Hub SA set as `FCM_SERVICE_ACCOUNT_JSON` |
+| Site work (Progress) | `qpndkdbomtbnhkdyigyy` | edge `fcm-db-webhook` (+ Cloudflare Pages `FCM_SERVICE_ACCOUNT_JSON` if used) | **Code updated in repo**; deploy **403** (CLI account lacks Progress privileges) | **Blocked** — secrets + deploy both **403** (need Progress owner/admin CLI or Dashboard) |
 
-Update each project's FCM service-account secret in Supabase → Edge Functions → Secrets
-(server-side only; never put it in the app or `.env`).
+### Done in code (hub paths)
 
-For a notification to open a screen when tapped, the payload's `data.path` should be a hub path,
-e.g. `/timesheet/admin?section=leaves`, `/materials/admin`, `/progress/review`, `/me`.
-Old page names (`AdminDashboard`, `RequestPortal`…) are still understood.
+Payloads now use hub paths (client still maps old names via `legacyPath`):
 
-## 3. Turn it on and build
+- Timesheet: `/timesheet/leave/history`, `/timesheet/timesheets`, `/timesheet/admin?section=leaves`, `/timesheet/manage`, `/timesheet/manage/timesheets`, `/me`, supervisors → `/site`
+- Materials: `/materials/admin`, `/materials/history`
+- Progress: `/progress/review`, `/progress/submissions`
 
-1. In `.env`: `VITE_ENABLE_FCM_REGISTER=true`. Keep it `false` while `google-services.json` is
+### Done in code (supervisor Attendance subject)
+
+- SQL to run once on Timesheet DB:
+  `AKK-Timesheet-Manager-main/SQL files/active/migration_fcm_push_tokens_supervisor.sql`
+- `register-device-token` accepts `supervisor_id` (role session `supervisor`) — **deployed**
+- `fcm-db-webhook` notifies `supervisor_id` tokens on leave / timesheet awaiting-manager style events — **deployed**
+- Hub `src/core/push.js` sends `supervisor_id` when role is supervisor
+
+### Abinav — Hub Firebase SA status
+
+- **Attendance + Materials:** Hub SA already set on both projects (do not re-commit the JSON; leave the adminsdk file off-repo under `Websites final\` root).
+- **Progress still needs an owner/admin account** (current CLI login gets **403** on secrets and on `fcm-db-webhook` deploy).
+
+Set Progress secret via Dashboard (**Edge Functions → Secrets → `FCM_SERVICE_ACCOUNT_JSON`**) or CLI after `supabase login` as a Progress privileged user. Prefer `--env-file` over inline JSON in PowerShell:
+
+```powershell
+# Build a one-line env file from the Hub SA path, then:
+npx supabase secrets set --env-file $tmpEnv --project-ref qpndkdbomtbnhkdyigyy
+cd "Site progress tracker"
+npx supabase functions deploy fcm-db-webhook --project-ref qpndkdbomtbnhkdyigyy --no-verify-jwt
+```
+
+If Site work still sends via Cloudflare Pages, set the same secret name there too.
+
+Also: run the supervisor SQL migration on Timesheet (SQL editor) if not already applied.
+
+## 3. Turn it on and build (client — done)
+
+1. In `.env` (local only; never commit): `VITE_ENABLE_FCM_REGISTER=true`.
+   `.env.example` documents the same. Keep it `false` only while `google-services.json` is
    missing: Firebase isn't initialised without it.
 2. Build and sync:
 
@@ -51,12 +82,16 @@ Old page names (`AdminDashboard`, `RequestPortal`…) are still understood.
 3. Install on a phone, sign in, allow notifications, and send a test (for example approve a
    leave request from another device).
 
+`src/core/push.js` is wired from `main.jsx` (`initPush`) and `HubLayout` / module connect
+(`registerPushDevice`). Modules register against Hub Firebase once the flag is on.
+
 ## Limits
 
-- **Supervisors:** the Attendance push function has no supervisor subject yet, so supervisors only
-  get Site work / Materials notifications until that function accepts one.
-- **Material workers:** that back-end's endpoint needs the worker's password once, so their phone
-  registers when they link Materials (or on their next sign-in), not on a silent app restart.
-- **Known Capacitor bug:** `@capacitor/push-notifications` 8.1.3 can crash on a rare FCM error with
-  no exception. The Timesheet app patched this with patch-package. The hub doesn't include that
-  patch, so add it before wide rollout if you see crashes at registration.
+- **Supervisors (code done — needs SQL):** Attendance Hub SA is set; apply the supervisor SQL
+  migration if not done. Progress still blocked on 403 (section 2).
+- **Material workers (fixed on client track):** that back-end's endpoint needs the worker's
+  password once. The phone registers when they link Materials, or on the next hub / Materials
+  sign-in that includes a password — not on a silent app restart (no password in memory).
+- **Capacitor FCM crash (fixed on client track):** `@capacitor/push-notifications` 8.1.3 is
+  guarded via `patches/@capacitor+push-notifications+8.1.3.patch` and `postinstall` →
+  `patch-package` (same null-safe register fix as Timesheet).

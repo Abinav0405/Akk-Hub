@@ -3,7 +3,7 @@
  *
  * One app → one FCM token. After sign-in the token is registered with every back-end the person
  * uses, through each back-end's existing endpoint:
- *   Attendance  (Timesheet DB)  edge fn `register-device-token`  worker_id | manager_email | admin_email
+ *   Attendance  (Timesheet DB)  edge fn `register-device-token`  worker_id | manager_email | admin_email | supervisor_id
  *   Site work   (Progress DB)   rpc worker_/staff_register_device_token
  *   Materials   (Materials DB)  edge fn `register-device-token`  staff JWT | worker id + password (once)
  * All three back-ends must send with the AKK Hub Firebase project's credentials (see
@@ -128,11 +128,19 @@ export async function initPush() {
 /* ------------------------------------------------------------------ */
 
 async function registerTimesheet(token, identity) {
-    const body = { fcm_token: token, worker_id: null, admin_email: null, manager_email: null, platform: 'android' };
+    const body = {
+        fcm_token: token,
+        worker_id: null,
+        admin_email: null,
+        manager_email: null,
+        supervisor_id: null,
+        platform: 'android',
+    };
     if (identity.role === 'worker') body.worker_id = String(identity.id || '').trim();
     else if (identity.role === 'manager') body.manager_email = String(identity.email || identity.id || '').toLowerCase();
     else if (identity.role === 'admin') body.admin_email = String(identity.email || identity.id || '').toLowerCase();
-    else return; // supervisors: the Timesheet push function has no supervisor subject yet
+    else if (identity.role === 'supervisor') body.supervisor_id = String(identity.id || '').trim().toLowerCase();
+    else return;
     const headers = {};
     const { getRoleSessionToken } = await import('@/core/auth/timesheetSession');
     const roleSession = getRoleSessionToken();
@@ -176,13 +184,14 @@ async function registerMaterials(token, identity) {
     if (identity.role === 'worker') {
         const worker = materials.getWorkerSession();
         if (!worker?.workerId || !pendingMaterialsPassword) return; // their endpoint needs the password once
+        // Keep password until success so a failed invoke can retry on the next register call.
         const password = pendingMaterialsPassword;
-        pendingMaterialsPassword = null;
         const { data, error } = await supabaseMaterials.functions.invoke('register-device-token', {
             body: { action: 'register', fcm_token: token, platform: 'android', role: 'worker', worker_id: worker.workerId, password },
             headers,
         });
         if (error || data?.error) throw error || new Error(data.error);
+        pendingMaterialsPassword = null;
         return;
     }
     const staff = await materials.getStaffSession();
