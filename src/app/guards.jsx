@@ -6,12 +6,12 @@
  *   <ModuleGate module="materials"> — the hub user also has a Material Tracker / Site Progress
  *     session; otherwise shows the inline Connect card instead of bouncing to an old login page.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { PlugZap, ServerOff } from 'lucide-react';
 import { homePathFor, useIdentity, verifyIdentity } from '@/core/auth/identity';
 import { endLoginCurtain } from '@/core/auth/loginCurtain';
-import { MODULE_LABELS, useModuleConnection } from '@/core/auth/bridges';
+import { MODULE_LABELS, sanitizeProgressLink, useModuleConnection } from '@/core/auth/bridges';
 import { NativeErrorState } from '@/ui/native/NativeStates';
 import { HubPage } from '@/ui/PortalShell';
 import { EmptyState } from '@/ui/hub/primitives';
@@ -84,6 +84,11 @@ export function ModuleGate({ module, children }) {
 
     useEffect(() => {
         setJustConnected(false);
+    }, [module, identity?.role, identity?.id]);
+
+    // Drop stale Progress worker/admin flag combos before paint (avoid blank AdminDashboard flash).
+    useLayoutEffect(() => {
+        if (module === 'progress' && identity?.role) sanitizeProgressLink(identity.role);
     }, [module, identity?.role, identity?.id]);
 
     if (status === 'connected' || justConnected) return children;

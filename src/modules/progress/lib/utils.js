@@ -1,4 +1,3 @@
-// TODO(claude): router ownership moved to src/app — removed local router bootstrap
 import { clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 

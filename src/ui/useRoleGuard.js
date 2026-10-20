@@ -28,6 +28,8 @@ import {
     isExporterAuthenticated,
     verifyExporterSession,
 } from '@/core/auth/progress/exporterSession';
+import { refreshModuleConnections, sanitizeProgressLink } from '@/core/auth/bridges';
+import { getIdentity } from '@/core/auth/identity';
 
 const CONNECT_PATH = '/connect/progress';
 /** Standalone Export Only login — clients have no hub Timesheet identity. */
@@ -36,6 +38,15 @@ const EXPORTER_LOGIN_PATH = '/progress/client/login';
 function toastExpired(consume) {
     const message = consume?.();
     if (message) toast.error(message);
+}
+
+function afterProgressDeny() {
+    try {
+        sanitizeProgressLink(getIdentity()?.role);
+        refreshModuleConnections();
+    } catch {
+        /* ignore */
+    }
 }
 
 function readStorage(key) {
@@ -102,6 +113,7 @@ export function useRoleGuard(role) {
                 navigate(EXPORTER_LOGIN_PATH, { replace: true, state: { from: location.pathname } });
                 return;
             }
+            afterProgressDeny();
             navigate(`${CONNECT_PATH}?as=${role}`, { replace: true, state: { from: location.pathname } });
         };
 

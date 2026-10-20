@@ -1,4 +1,3 @@
-// TODO(claude): wire /account and /verify; provide @/ui/layout, AuthChecking, useRoleGuard; session helpers under @/core/*
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Trash2, ShieldCheck, Camera, Save } from 'lucide-react';
@@ -140,7 +139,7 @@ export default function MySubmissions() {
     };
 
     if (session === undefined) return <AuthChecking />;
-    if (!session) return null;
+    if (!session) return <AuthChecking />;
 
     return (
         <>

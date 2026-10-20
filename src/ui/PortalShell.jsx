@@ -27,7 +27,7 @@ const TONES = {
     emerald: 'bg-emerald-100 text-emerald-700',
     violet: 'bg-violet-100 text-violet-700',
     teal: 'bg-teal-100 text-teal-700',
-    indigo: 'bg-indigo-100 text-indigo-700',
+    indigo: 'bg-brand-soft text-brand',
     amber: 'bg-amber-100 text-amber-800',
     rose: 'bg-rose-100 text-rose-700',
 };

@@ -1,4 +1,3 @@
-// TODO(claude): ensure @/ui/native/* chrome/states/confirm exist (or remount Timesheet native chrome)
 // TODO(claude): ensure @/ui/PortalShell exports WorkerPageShell / AdminPageShell / ManagerPageShell
 import React, { useEffect, useState } from 'react';
 import { storageKey } from '@/core/storage';
@@ -144,7 +143,7 @@ export default function WorkerFormFill() {
             );
             await queryClient.invalidateQueries({ queryKey: ['worker-feedback-forms'] });
             await queryClient.invalidateQueries({ queryKey: ['worker-submitted-forms'] });
-            navigate("/timesheet/clock");
+            navigate('/me');
         },
         onError: (e) => toast.error(e.message || 'Failed to submit'),
     });
@@ -203,7 +202,7 @@ export default function WorkerFormFill() {
                 <div className={cn(glassPanel, 'px-6 py-12 text-center')}>
                     <p className="text-sm font-medium text-slate-700">Form not found or not available.</p>
                     <Link
-                        to={"/timesheet/clock"}
+                        to="/me"
                         className="mt-3 inline-block text-sm font-medium text-[#dc6b2f] hover:underline"
                     >
                         Back to portal
@@ -227,7 +226,7 @@ export default function WorkerFormFill() {
                                 View submitted forms
                             </Button>
                         </Link>
-                        <Link to={"/timesheet/clock"}>
+                        <Link to="/me">
                             <Button variant="outline" className="h-10 w-full rounded-xl sm:w-auto">
                                 Back to portal
                             </Button>

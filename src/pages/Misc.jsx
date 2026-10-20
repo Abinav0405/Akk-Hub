@@ -26,17 +26,23 @@ export function ConnectPage() {
     const navigate = useNavigate();
     const location = useLocation();
     const { t } = useLanguage();
-    const exporterMode = module === 'progress' && new URLSearchParams(location.search).get('as') === 'exporter';
+    const asParam = new URLSearchParams(location.search).get('as');
+    const exporterMode = module === 'progress' && asParam === 'exporter';
+    // useRoleGuard sends ?as=admin|manager|worker on deny — always allow that reconnect,
+    // even if hub role mapping briefly looks empty (was bouncing to blank /admin).
+    const reconnectAs =
+        module === 'progress' && ['worker', 'manager', 'admin'].includes(asParam) ? asParam : null;
     const moduleRole = moduleRoleFor(identity?.role, module);
-    if (!MODULE_LABELS[module] || module === 'timesheet' || (!exporterMode && !moduleRole)) {
+    if (!MODULE_LABELS[module] || module === 'timesheet' || (!exporterMode && !moduleRole && !reconnectAs)) {
         return <Navigate to={homePathFor(identity?.role)} replace />;
     }
 
+    const effectiveRole = reconnectAs || moduleRole || identity?.role;
     const destination = exporterMode
         ? '/progress/client'
         : module === 'materials'
           ? { worker: '/materials/request', manager: '/materials/manage', admin: '/materials/admin' }[identity?.role]
-          : { worker: '/progress/submit', manager: '/progress/review', admin: '/progress/admin' }[identity?.role];
+          : { worker: '/progress/submit', manager: '/progress/review', admin: '/progress/admin' }[effectiveRole];
     return (
         <HubPage
             title={t('hub.misc.connectTitle', { module: MODULE_LABELS[module] })}

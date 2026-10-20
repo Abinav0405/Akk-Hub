@@ -1,4 +1,3 @@
-// TODO(claude): AppShell/PageHeader (@/ui/layout) + materials hooks (useAndroidBackButton, useProgressiveList) may need hub mounts
 import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import { storageKey } from '@/core/storage';
 import { supabaseMaterials as supabase } from '@/core/supabase';

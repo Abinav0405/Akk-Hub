@@ -1,4 +1,3 @@
-// TODO(claude): ensure @/ui/native/* chrome/states/confirm exist (or remount Timesheet native chrome)
 // TODO(claude): ensure @/ui/PortalShell exports WorkerPageShell / AdminPageShell / ManagerPageShell
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';

@@ -23,7 +23,7 @@ const PAGE_PATHS = {
   ShiftHistory: '/timesheet/shifts',
   WorkerTimesheets: '/timesheet/timesheets',
   ManagerTimesheets: '/timesheet/manage/timesheets',
-  History: '/timesheet/history',
+  History: '/timesheet/shifts',
   AdminLogin: '/login',
   ManagerLogin: '/login',
   WorkerLogin: '/login',

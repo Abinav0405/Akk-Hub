@@ -23,7 +23,10 @@ export default function ProgressPortalShell({
         <>
             <TopBar eyebrow={eyebrow} title={sectionLabel || current?.label || 'Overview'}>
                 {items.length > 1 ? (
-                    <div className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div
+                        data-section-nav
+                        className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
                         <Segmented
                             options={items.map((i) => ({
                                 id: i.id,

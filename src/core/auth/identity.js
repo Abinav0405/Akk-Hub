@@ -50,18 +50,28 @@ let snapshotKey;
 function computeIdentity() {
     const roleSession = getStoredRoleSession();
     if (roleSession) {
+        const id = roleSession.id || null;
         return {
             role: roleSession.role,
-            id: roleSession.id,
-            name: roleSession.name || roleSession.id,
+            id,
+            name: roleSession.name || id || roleSession.role,
             workerType: roleSession.workerType || null,
             siteId: roleSession.siteId || null,
-            email: roleSession.role === 'manager' ? roleSession.id : null,
+            email: roleSession.role === 'manager' ? id : null,
         };
     }
     if (isAdminAuthenticated()) {
         const p = getAdminProfile();
-        return { role: 'admin', id: p.email, name: p.name, email: p.email, workerType: null, siteId: null };
+        // Never leave akk.hub.id empty for a signed-in admin — bridges owner checks need it.
+        const id = p.email || local.get('hub', 'id') || local.get('hub', 'lastAdminId') || null;
+        return {
+            role: 'admin',
+            id,
+            name: p.name || id || 'Admin',
+            email: p.email || id,
+            workerType: null,
+            siteId: null,
+        };
     }
     return null;
 }
@@ -76,7 +86,13 @@ function readSnapshot() {
         // Module links are scoped to this hub account by bridges.js. Keeping the stable
         // subject alongside the role prevents a second person on a shared device from
         // inheriting a still-persisted Materials or Site Progress session.
-        local.set('hub', 'id', next?.id ?? null);
+        // Only write id when we have one — never wipe a good stamp with null mid-flight.
+        if (next?.id) {
+            local.set('hub', 'id', next.id);
+            if (next.role === 'admin') local.set('hub', 'lastAdminId', next.id);
+        } else if (!next) {
+            local.remove('hub', 'id');
+        }
         // Survives sign-out / expiry so the sign-in screen reopens on the right tab.
         if (next?.role) local.set('hub', 'lastRole', next.role);
     }
@@ -139,6 +155,8 @@ export async function verifyIdentity(expectedRoles) {
 
 export async function signOutEverywhere() {
     const current = readSnapshot();
+    // Stop push to this phone first — the back-ends need the still-valid sessions to remove it.
+    await import('@/core/push').then((push) => push.unregisterPushDevice()).catch(() => {});
     const tasks = [];
     if (current?.role === 'admin') tasks.push(signOutAdmin());
     else tasks.push(revokeRoleSession());
@@ -152,5 +170,7 @@ export async function signOutEverywhere() {
     // Keep convenience prefs (last worker id/type, biometric prefs, language) — clear the rest.
     clearModuleStorage('timesheet', { keep: ['lastWorkerId', 'lastWorkerType'] });
     local.remove('hub', 'role');
+    local.remove('hub', 'id');
+    local.remove('hub', 'lastAdminId');
     notifyIdentity();
 }

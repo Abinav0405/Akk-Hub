@@ -174,6 +174,7 @@ export const NAV = {
                     { id: 'ppackages', label: 'Photo packages', icon: ClipboardCheck, ...sec(PR_REVIEW, 'packages', true) },
                     { id: 'pworkers', label: 'Site employees', icon: Users, ...sec(PR_REVIEW, 'workers') },
                     { id: 'pjsr', label: 'JSR', icon: Receipt, ...sec(PR_REVIEW, 'jsr') },
+                    { id: 'pbranding', label: 'Branding & settings', icon: Palette, ...sec(PR_REVIEW, 'branding') },
                 ],
             },
             { label: 'More', labelKey: 'hub.nav.more', items: [verifyItem, accountItem] },

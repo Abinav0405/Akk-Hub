@@ -13,6 +13,9 @@ import AuthChecking from '@/ui/AuthChecking';
 import { prefetchStaffRoutesIdle } from '@/modules/progress/lib/prefetchRoutes';
 import { listAllPackages } from '@/modules/progress/lib/staffPackages';
 import { listJsrs } from '@/modules/progress/lib/jsr';
+import { useHubSection } from '@/app/useHubSection';
+
+const ADMIN_SECTIONS = ['packages', 'exports', 'jsr', 'analytics', 'users', 'branding'];
 
 const AnalyticsPanel = lazy(() => import('@/modules/progress/components/AnalyticsPanel'));
 const BrandingPanel = lazy(() => import('@/modules/progress/components/BrandingPanel'));
@@ -37,7 +40,7 @@ const SECTION_LABELS = {
 
 export default function AdminDashboard() {
   const session = useRoleGuard('admin');
-  const [tab, setTab] = useState('packages');
+  const [tab, setTab] = useHubSection('packages', ADMIN_SECTIONS);
   const [packageBadge, setPackageBadge] = useState(0);
   const [jsrBadge, setJsrBadge] = useState(0);
   const { overlay } = useLoginWelcome({ ready: Boolean(session) });
@@ -94,8 +97,10 @@ export default function AdminDashboard() {
     [packageBadge, jsrBadge]
   );
 
+  // Never return a blank shell — useRoleGuard redirects to /connect/progress when denied;
+  // stale progress flags can leave session null for a beat while ModuleGate still mounts us.
   if (session === undefined) return overlay || <AuthChecking />;
-  if (!session) return overlay;
+  if (!session) return overlay || <AuthChecking />;
 
 
   return (

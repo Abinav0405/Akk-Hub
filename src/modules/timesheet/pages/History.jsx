@@ -38,19 +38,22 @@ export default function History() {
     const workerName = localStorage.getItem(storageKey('timesheet', 'workerName'));
 
     // Staff route (/timesheet/history) — RequireHubRole already gates manager/admin.
+    // Prefer hub staff homes for back; never send staff to /timesheet/clock → /me (worker-only).
+    const isAdmin =
+        localStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true' ||
+        sessionStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true';
+    const isManager = localStorage.getItem(storageKey('timesheet', 'managerLoggedIn')) === 'true';
+    const backTo = isAdmin ? '/admin' : isManager ? '/manage' : '/me';
+
     // Do not bounce on missing workerLoggedIn (that flag is employee-only and caused
     // false /login redirects for hub-authenticated managers).
     React.useEffect(() => {
-        const staff =
-            localStorage.getItem(storageKey('timesheet', 'managerLoggedIn')) === 'true' ||
-            localStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true' ||
-            sessionStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true';
-        if (staff) return;
+        if (isAdmin || isManager) return;
         const workerLoggedIn = localStorage.getItem(storageKey('timesheet', 'workerLoggedIn'));
         if (!workerLoggedIn) {
             navigate('/login', { replace: true });
         }
-    }, [navigate]);
+    }, [navigate, isAdmin, isManager]);
 
     // Fetch shift history
     const { data: shifts = [], isLoading } = useQuery({
@@ -171,11 +174,12 @@ export default function History() {
             <header className="bg-[#dc6b2f] px-safe pb-6 pt-[max(1.5rem,env(safe-area-inset-top,0px))] text-white shadow-lg">
                 <div className="max-w-6xl mx-auto flex items-center justify-between">
                     <div className="flex items-center gap-4">
-                        <Link to={"/timesheet/clock"}>
+                        <Link to={backTo}>
                             <Button
                                 variant="ghost"
                                 size="icon"
                                 className="text-white hover:bg-white/10"
+                                aria-label="Back"
                             >
                                 <ArrowLeft className="w-5 h-5" />
                             </Button>

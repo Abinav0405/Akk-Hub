@@ -1,4 +1,3 @@
-// TODO(claude): ensure @/ui/native/* chrome/states/confirm exist (or remount Timesheet native chrome)
 // TODO(claude): ensure @/ui/PortalShell exports WorkerPageShell / AdminPageShell / ManagerPageShell
 import React, { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -582,12 +581,12 @@ export default function Analytics() {
                                     </div>
                                     <Clock className="h-6 w-6 text-emerald-600" />
                             </div>
-                            <div className={cn(glassPanel, 'flex items-center justify-between border-indigo-200/70 bg-indigo-50/50 p-5')}>
+                            <div className={cn(glassPanel, 'flex items-center justify-between border-brand-soft bg-brand-soft p-5')}>
                                     <div>
                                         <p className="text-xs font-semibold text-slate-500">Total OT hours (completed)</p>
                                         <p className="mt-1 text-3xl font-bold text-slate-900">{formatHours(derived.totalOtHours)}</p>
                                     </div>
-                                    <Clock className="h-6 w-6 text-indigo-600" />
+                                    <Clock className="h-6 w-6 text-brand" />
                             </div>
                         </div>
 
@@ -603,8 +602,8 @@ export default function Analytics() {
                                         fill="rgba(14,165,233,0.18)"
                                     />
                                 </div>
-                                <div className="rounded-2xl border border-indigo-100 bg-indigo-50/40 p-3">
-                                    <p className="text-xs font-medium text-indigo-800">OT hours</p>
+                                <div className="rounded-2xl border border-brand-soft bg-brand-soft p-3">
+                                    <p className="text-xs font-medium text-brand">OT hours</p>
                                     <Sparkline
                                         values={derived.dailyOtSeries}
                                         stroke="#4f46e5"
@@ -660,8 +659,8 @@ export default function Analytics() {
                                                 <p className="text-sm font-medium text-teal-800">Non-OT hours</p>
                                                 <p className="text-sm font-semibold text-slate-900">{formatHours(derived.totalNonOtHours)}</p>
                                             </div>
-                                            <div className="flex items-center justify-between rounded-xl border border-indigo-200/80 bg-indigo-50/70 p-3">
-                                                <p className="text-sm font-medium text-indigo-800">OT hours</p>
+                                            <div className="flex items-center justify-between rounded-xl border border-brand-soft bg-brand-soft p-3">
+                                                <p className="text-sm font-medium text-brand">OT hours</p>
                                                 <p className="text-sm font-semibold text-slate-900">{formatHours(derived.totalOtHours)}</p>
                                             </div>
                                             <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50/80 p-3">
@@ -766,10 +765,10 @@ export default function Analytics() {
                                             derived.topOtWorkers.map((w) => (
                                                 <div
                                                     key={w.workerId}
-                                                    className="flex items-center justify-between rounded-xl border border-indigo-100 bg-indigo-50/50 p-3"
+                                                    className="flex items-center justify-between rounded-xl border border-brand-soft bg-brand-soft p-3"
                                                 >
                                                     <p className="truncate text-sm font-medium text-slate-900">{w.workerName}</p>
-                                                    <p className="text-sm font-semibold text-indigo-800">{formatHours(w.otHours)}</p>
+                                                    <p className="text-sm font-semibold text-brand">{formatHours(w.otHours)}</p>
                                                 </div>
                                             ))
                                         )}
@@ -794,7 +793,7 @@ export default function Analytics() {
                                                     </div>
                                                     <div className="shrink-0 text-right">
                                                         <p className="text-sm font-semibold text-slate-900">{formatHours(r.netHours)}</p>
-                                                        <p className="text-[11px] font-medium text-indigo-700">OT {formatHours(r.otHours)}</p>
+                                                        <p className="text-[11px] font-medium text-brand">OT {formatHours(r.otHours)}</p>
                                                     </div>
                                                 </div>
                                             ))

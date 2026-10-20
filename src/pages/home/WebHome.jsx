@@ -63,7 +63,7 @@ const SYSTEMS = [
     {
         key: 'timesheet',
         icon: Clock,
-        name: 'Timesheet',
+        name: 'Attendance',
         text: 'Attendance that proves itself — no paper, no guesswork.',
         points: ['Clock in and out by site QR with a GPS check', 'Leave requests, balances and approvals', 'Payslips with CPF / SINDA worked out'],
     },
@@ -71,7 +71,7 @@ const SYSTEMS = [
         key: 'materials',
         tone: 'materials',
         icon: Boxes,
-        name: 'Material Tracker',
+        name: 'Materials',
         text: 'Every item taken and returned, with a reference number.',
         points: ['Take and return requests from the phone', 'Partial returns tracked to the piece', 'Stock, sites and requesters in one place'],
     },
@@ -79,7 +79,7 @@ const SYSTEMS = [
         key: 'progress',
         tone: 'progress',
         icon: Camera,
-        name: 'Site Progress',
+        name: 'Site work',
         text: 'Before, during and after photos that become the report.',
         points: ['Stamped photos with time, place and GPS', 'Review, approve and print site packages', 'JSRs, claims and invoices for clients'],
     },
@@ -146,7 +146,7 @@ export default function WebHome() {
                             Every site, every shift — <em>one sign-in.</em>
                         </h1>
                         <p className="hx-lede">
-                            AKK Hub brings timesheets, materials and site progress together. Clock in at the site,
+                            One app for the whole team. Clock in at the site,
                             request what you need, and send photos that turn into the client’s report.
                         </p>
                         <div className="hx-actions">
@@ -195,7 +195,7 @@ export default function WebHome() {
                 <section id="systems" className="hx__wrap hx-section" aria-labelledby="hx-systems-title">
                     <p className="hx-section__eyebrow">What’s inside</p>
                     <h2 id="hx-systems-title" className="hx-section__title">
-                        Three tools that used to live in three apps.
+                        One app for the whole job — from clock-in to client report.
                     </h2>
                     <div className="hx-systems">
                         {SYSTEMS.map(({ key, tone, icon: Icon, name, text, points }) => (

@@ -7,6 +7,8 @@
  *
  * Unknown / missing values fall back to the default. Switching section replaces the history
  * entry (tab-like); the sidebar / tab bar links push one.
+ *
+ * `setSection` accepts a section id or a functional updater `(prev) => next`, matching useState.
  */
 import { useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -17,9 +19,12 @@ export function useHubSection(defaultId, ids) {
     const current = raw && (!ids || ids.includes(raw)) ? raw : defaultId;
 
     const setSection = useCallback(
-        (id) => {
+        (idOrUpdater) => {
             setParams(
                 (prev) => {
+                    const prevSection = prev.get('section');
+                    const prevId = prevSection && (!ids || ids.includes(prevSection)) ? prevSection : defaultId;
+                    const id = typeof idOrUpdater === 'function' ? idOrUpdater(prevId) : idOrUpdater;
                     const next = new URLSearchParams(prev);
                     if (!id || id === defaultId) next.delete('section');
                     else next.set('section', id);
@@ -28,7 +33,7 @@ export function useHubSection(defaultId, ids) {
                 { replace: true }
             );
         },
-        [defaultId, setParams]
+        [defaultId, ids, setParams]
     );
 
     return [current, setSection];

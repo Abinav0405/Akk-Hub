@@ -1,4 +1,3 @@
-// TODO(claude): ensure @/ui/native/* chrome/states/confirm exist (or remount Timesheet native chrome)
 import React, { useState, useEffect, useCallback } from 'react';
 import { storageKey } from '@/core/storage';
 import { Link } from 'react-router-dom';
@@ -20,6 +19,7 @@ import { toast } from "sonner";
 import { printOrShareHtmlDocument } from '@/modules/timesheet/lib/printHtmlDocument';
 import { registerPushForManager } from '@/modules/timesheet/lib/pushRegistration';
 import { fetchManagerTimesheetHeadTs, useUpdatedAtHeartbeat } from '@/modules/timesheet/lib/smartPolling';
+import { verifyRoleSession } from '@/core/auth/timesheetSession';
 import { PortalBackdrop } from '@/ui/PortalShell';
 import { glassPanel } from '@/ui/glass';
 import { isNativeApp } from '@/core/platform';
@@ -30,15 +30,49 @@ const NATIVE_APP = isNativeApp();
 
 export default function ManagerTimesheets({ embedded = false }) {
     const queryClient = useQueryClient();
-    const managerName = localStorage.getItem(storageKey('timesheet', 'managerName')) || 'Manager';
-    const managerEmail = localStorage.getItem(storageKey('timesheet', 'managerEmail'));
-    const managerLoggedIn = localStorage.getItem(storageKey('timesheet', 'managerLoggedIn'));
+    const [managerName, setManagerName] = useState(
+        () => localStorage.getItem(storageKey('timesheet', 'managerName')) || 'Manager',
+    );
+    const [managerEmail, setManagerEmail] = useState(
+        () => localStorage.getItem(storageKey('timesheet', 'managerEmail')) || '',
+    );
+    const [staffReady, setStaffReady] = useState(
+        () => localStorage.getItem(storageKey('timesheet', 'managerLoggedIn')) === 'true'
+            || localStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true'
+            || sessionStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true',
+    );
 
     useEffect(() => {
-        if (!managerLoggedIn || !managerEmail) return undefined;
+        verifyRoleSession({ keepOnNetworkError: true }).then((session) => {
+            if (session?.networkError) {
+                if (
+                    localStorage.getItem(storageKey('timesheet', 'managerLoggedIn')) === 'true'
+                    || localStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true'
+                    || sessionStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true'
+                ) {
+                    setStaffReady(true);
+                }
+                return;
+            }
+            if (session?.role === 'manager' || session?.role === 'admin') {
+                setStaffReady(true);
+                if (session.session_data?.managerName) setManagerName(session.session_data.managerName);
+                const email = session.session_data?.managerEmail || session.subject_id;
+                if (email) setManagerEmail(String(email));
+            } else if (
+                localStorage.getItem(storageKey('timesheet', 'managerLoggedIn')) === 'true'
+                || localStorage.getItem(storageKey('timesheet', 'adminLoggedIn')) === 'true'
+            ) {
+                setStaffReady(true);
+            }
+        });
+    }, []);
+
+    useEffect(() => {
+        if (!staffReady || !managerEmail) return undefined;
         void registerPushForManager(managerEmail);
         return undefined;
-    }, [managerLoggedIn, managerEmail]);
+    }, [staffReady, managerEmail]);
     const [declineDialog, setDeclineDialog] = useState(null);
     const [declineReason, setDeclineReason] = useState('');
 
@@ -54,7 +88,7 @@ export default function ManagerTimesheets({ embedded = false }) {
             if (error) throw error;
             return data || [];
         },
-        enabled: !!managerLoggedIn,
+        enabled: staffReady,
         refetchInterval: false,
         refetchIntervalInBackground: false,
     });
@@ -64,7 +98,7 @@ export default function ManagerTimesheets({ embedded = false }) {
     }, [refetch]);
 
     useUpdatedAtHeartbeat({
-        enabled: !!managerLoggedIn,
+        enabled: staffReady,
         intervalMs: 3000,
         queryFn: fetchManagerTimesheetHeadTs,
         onChange: pollManagerTimesheets,

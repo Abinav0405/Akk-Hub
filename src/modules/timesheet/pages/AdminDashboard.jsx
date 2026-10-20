@@ -37,6 +37,7 @@ import MoreMenu from '@/modules/progress/components/MoreMenu';
 import { useLanguage } from '@/core-i18n';
 import { isNativeApp } from '@/core/platform';
 import TopBar from '@/ui/hub/TopBar';
+import { useHubSection } from '@/app/useHubSection';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import {
     archivePayslipBeforeEdit,
@@ -68,6 +69,17 @@ import QRCode from "qrcode";
 import { toast } from "sonner";
 import { formatTime, formatDate, isSunday, isPublicHoliday, shouldCreditUnworkedPublicHoliday, calculateShiftHours, getWorkDateFromDateTime, countLeaveDaysForDisplay, toSingaporeDateStr, getTodaySingapore, getSingaporeWallClock, addDaysToYmd, ymdEndOfMonth, ymdStartOfNextMonth } from '@/modules/timesheet/lib/timeUtils';
 import { approximateTime } from '@/modules/timesheet/lib/timeApproximation';
+
+const ADMIN_DASHBOARD_SECTIONS = [
+    'time-tracker',
+    'leaves',
+    'payslip-report',
+    'timesheet-report',
+    'worker-info',
+    'sites',
+    'vehicles',
+    'salary-report', // legacy alias; remapped to time-tracker on mount
+];
 import { toDateTimeLocalUtc, fromDateTimeLocalUtc } from '@/modules/timesheet/lib/utils';
 import FaceMatchPrompt from '@/modules/timesheet/components/biometric/FaceMatchPrompt';
 import AppTour from '@/modules/timesheet/components/AppTour';
@@ -165,6 +177,8 @@ import {
     ShiftApprovalMeta,
     ShiftApprovalStatusBadge,
 } from '@/modules/timesheet/components/ShiftApprovalActions';
+
+const SHIFT_PAGE = 50;
 
 // Production logging system
 const DEBUG_MODE = process.env.NODE_ENV === 'development';
@@ -422,7 +436,9 @@ export default function AdminDashboard() {
     /** Latest shifts.created_at (global head) seen by the poll heartbeat — ref avoids stale closures and null baseline bugs */
     const shiftPollHeadTsRef = useRef(null);
     const [isTutorialRunning, setIsTutorialRunning] = useState(false);
-    const [activeDashboardTab, setActiveDashboardTab] = useState("time-tracker");
+    const [activeDashboardTab, setActiveDashboardTab] = useHubSection('time-tracker', ADMIN_DASHBOARD_SECTIONS);
+    // Long lists render in pages: ~1,000 shift cards at once made the screen crawl.
+    const [shiftLimit, setShiftLimit] = useState(SHIFT_PAGE);
     const adminTutorialSteps = useMemo(() => ([
         {
             id: 'admin-header',
@@ -8478,15 +8494,17 @@ ${balanceBlock.html}
                     accent="slate"
                 />
                 <Tabs value={activeDashboardTab} onValueChange={setActiveDashboardTab} className="mt-4 w-full">
-                    <TabsList className={cn(
+                    <TabsList
+                        data-section-nav
+                        className={cn(
                         'h-auto w-full grid-cols-4 gap-1 rounded-2xl border border-white/70 bg-white/45 p-1 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] backdrop-blur-2xl lg:grid-cols-7',
                         nativeApp ? 'hidden' : 'hidden md:grid'
                     )} data-tour="admin-tabs">
-                        <TabsTrigger value="time-tracker" className="rounded-xl text-xs data-[state=active]:bg-indigo-600 data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-time-tracker">
+                        <TabsTrigger value="time-tracker" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-time-tracker">
                             <Clock className="mr-1.5 h-4 w-4" />
                             {t('admin.timeTracker')}
                         </TabsTrigger>
-                        <TabsTrigger value="leaves" className="relative rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-leaves">
+                        <TabsTrigger value="leaves" className="relative rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-leaves">
                             <Calendar className="mr-1.5 h-4 w-4" />
                             {t('admin.leaves')}
                             {leaveRequests && leaveRequests.length > 0 && (
@@ -8498,23 +8516,23 @@ ${balanceBlock.html}
                                 </Badge>
                             )}
                         </TabsTrigger>
-                        <TabsTrigger value="payslip-report" className="rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-payslip">
+                        <TabsTrigger value="payslip-report" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-payslip">
                             <Receipt className="mr-1.5 h-4 w-4" />
                             {t('admin.payslip')}
                         </TabsTrigger>
-                        <TabsTrigger value="timesheet-report" className="rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-timesheet">
+                        <TabsTrigger value="timesheet-report" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-timesheet">
                             <FileText className="mr-1.5 h-4 w-4" />
                             {t('admin.timesheet')}
                         </TabsTrigger>
-                        <TabsTrigger value="worker-info" className="rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-worker-info">
+                        <TabsTrigger value="worker-info" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-worker-info">
                             <Users className="mr-1.5 h-4 w-4" />
                             {t('admin.workers')}
                         </TabsTrigger>
-                        <TabsTrigger value="sites" className="rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-sites">
+                        <TabsTrigger value="sites" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-sites">
                             <MapPin className="mr-1.5 h-4 w-4" />
                             {t('admin.sites')}
                         </TabsTrigger>
-                        <TabsTrigger value="vehicles" className="rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white lg:text-sm">
+                        <TabsTrigger value="vehicles" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm">
                             <Car className="mr-1.5 h-4 w-4" />
                             {t('admin.vehicles')}
                         </TabsTrigger>
@@ -8526,7 +8544,7 @@ ${balanceBlock.html}
                         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
                             <div>
                                 <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-soft text-brand">
                                         <Clock className="h-4 w-4" />
                                     </span>
                                     {t('admin.timeTracker')}
@@ -8556,7 +8574,7 @@ ${balanceBlock.html}
                                     });
                                     setShowCreateShiftDialog(true);
                                 }}
-                                className={cn('h-10 rounded-xl bg-indigo-600 hover:bg-indigo-700', nativeApp && 'shrink-0')}
+                                className={cn('h-10 rounded-xl bg-brand hover:bg-brand-hover', nativeApp && 'shrink-0')}
                                 data-tour="admin-action-create-shift"
                             >
                                 <PlusCircle className="mr-1.5 h-4 w-4" />
@@ -8744,7 +8762,7 @@ ${balanceBlock.html}
                                 </div>
                             ) : (
                                 <div className="space-y-2">
-                                    {filteredShifts.map((shift) => {
+                                    {filteredShifts.slice(0, shiftLimit).map((shift) => {
                                             const isSundayShift = isSunday(shift.work_date);
                                             const isHolidayShift = isPublicHoliday(shift.work_date);
 
@@ -8799,7 +8817,7 @@ ${balanceBlock.html}
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
-                                                                        className="h-9 flex-1 rounded-xl border-indigo-200 text-xs text-indigo-700 hover:bg-indigo-50 sm:flex-initial sm:text-sm"
+                                                                        className="h-9 flex-1 rounded-xl border-brand-soft text-xs text-brand hover:bg-brand-soft sm:flex-initial sm:text-sm"
                                                                         onClick={() => openEditShiftDialog(shift)}
                                                                         data-tour="admin-edit-shift"
                                                                     >
@@ -8959,6 +8977,15 @@ ${balanceBlock.html}
                                                 </div>
                                             );
                                         })}
+                                        {filteredShifts.length > shiftLimit ? (
+                                            <button
+                                                type="button"
+                                                className="g-btn g-btn--secondary g-btn--block"
+                                                onClick={() => setShiftLimit((n) => n + SHIFT_PAGE)}
+                                            >
+                                                Show more ({filteredShifts.length - shiftLimit} more)
+                                            </button>
+                                        ) : null}
                                 </div>
                             )}
                         </section>
@@ -9943,8 +9970,8 @@ ${balanceBlock.html}
                         <div className="space-y-4" data-tour="admin-worker-info-panel">
                             <section className={cn(glassPanel, 'p-5 sm:p-6')}>
                                 <div className="mb-5 flex gap-4">
-                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-50 via-white to-sky-50 shadow-sm ring-1 ring-indigo-100/80">
-                                        <Users className="h-6 w-6 text-indigo-600" />
+                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-soft via-white to-sky-50 shadow-sm ring-1 ring-brand-soft">
+                                        <Users className="h-6 w-6 text-brand" />
                                     </div>
                                     <div className="min-w-0">
                                         <h2 className="text-lg font-semibold tracking-tight text-slate-900">{t('ui.workerDirectory')}</h2>
@@ -10155,7 +10182,7 @@ ${balanceBlock.html}
                             <section className={cn(glassPanel, 'p-5 sm:p-6')}>
                                     <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                                         <div className="flex gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-sm ring-1 ring-sky-100/80">
+                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-50 via-white to-brand-soft shadow-sm ring-1 ring-sky-100/80">
                                                 <Users className="h-5 w-5 text-sky-700" />
                                             </div>
                                             <div>
@@ -11948,7 +11975,7 @@ ${balanceBlock.html}
                                     )}
                                 </div>
 
-                                <div className="rounded-xl border border-indigo-200/80 bg-gradient-to-br from-indigo-50/80 to-slate-50 p-4 sm:p-5">
+                                <div className="rounded-xl border border-brand-soft bg-gradient-to-br from-brand-soft to-slate-50 p-4 sm:p-5">
                                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                         <div>
                                             <h4 className="text-base font-semibold text-slate-900">Yearly pay summary</h4>
@@ -11958,7 +11985,7 @@ ${balanceBlock.html}
                                         </div>
                                         <Button
                                             type="button"
-                                            className="h-10 shrink-0 bg-indigo-700 hover:bg-indigo-800"
+                                            className="h-10 shrink-0 bg-brand-hover hover:bg-brand-hover"
                                             onClick={handleOpenYearlySummaryDialog}
                                             disabled={payslips.length === 0}
                                         >
@@ -12025,7 +12052,7 @@ ${balanceBlock.html}
                         <Button className="w-full sm:w-auto" variant="outline" onClick={() => setShowYearlySummaryDialog(false)}>
                             Cancel
                         </Button>
-                        <Button className="bg-indigo-700 hover:bg-indigo-800 w-full sm:w-auto" onClick={handleGenerateYearlySummary}>
+                        <Button className="bg-brand-hover hover:bg-brand-hover w-full sm:w-auto" onClick={handleGenerateYearlySummary}>
                             <Printer className="mr-2 h-4 w-4" />
                             Generate &amp; print
                         </Button>
@@ -13770,7 +13797,7 @@ ${balanceBlock.html}
                             Cancel
                         </Button>
                         <Button
-                            className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto"
+                            className="h-11 rounded-xl bg-brand hover:bg-brand-hover w-full sm:w-auto"
                             onClick={async () => {
                                 const workerId = (createShiftData.worker_id || '').trim();
 
@@ -14235,7 +14262,7 @@ ${balanceBlock.html}
                         </div>
                         <Button
                             type="button"
-                            className="bg-emerald-600 hover:bg-emerald-700"
+                            className="bg-brand hover:bg-brand-hover"
                             disabled={saveLeavePolicyMutation.isPending}
                             onClick={() =>
                                 saveLeavePolicyMutation.mutate({

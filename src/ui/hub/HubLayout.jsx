@@ -3,7 +3,7 @@ import { LogOut } from 'lucide-react';
 import { Suspense, useEffect } from 'react';
 import { cn } from '@/ui/utils';
 import { Spinner } from '@/ui/hub/primitives';
-import { useWideLayout } from '@/core/platform';
+import { isNativeApp, useWideLayout } from '@/core/platform';
 import { isNavItemActive, navFor } from '@/app/navigation';
 import { prefetchRoleScreens } from '@/app/prefetch';
 import { useIdentity, ROLE_LABELS, signOutEverywhere } from '@/core/auth/identity';
@@ -133,6 +133,22 @@ export default function HubLayout() {
     useEffect(() => {
         return prefetchRoleScreens(identity?.role);
     }, [identity?.role]);
+
+    // Push (Android app): notification taps open screens through the router, and this phone is
+    // registered for whoever is signed in (no-op on the website / when push isn't configured).
+    useEffect(() => {
+        if (!isNativeApp()) return undefined;
+        let active = true;
+        import('@/core/push').then((push) => {
+            if (!active) return;
+            push.setPushNavigator((path) => navigate(path));
+            if (identity?.role) void push.registerPushDevice(identity);
+        });
+        return () => {
+            active = false;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [identity?.role, identity?.id]);
 
     const handleSignOut = async () => {
         const ok = await confirmAction({

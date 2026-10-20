@@ -1,31 +1,29 @@
 /**
- * Role home — the merged landing screen for each portal (Employee / Supervisor / Manager /
- * Admin). Greeting, the most-used actions from all three modules as tiles, the full list by
- * module, and the status of the Material Tracker / Site Progress connections.
+ * Role home for Supervisor / Manager / Admin (employees use pages/employee/EmployeeHome.jsx).
  *
- * Managers / supervisors / admins see a cross-module "Needs your attention" inbox first.
- * (Employees use the merged Employee home, pages/employee/EmployeeHome.jsx.)
+ *   greeting top bar
+ *   Needs your attention — live counts across attendance, materials and site work
+ *   Finish setting up    — only when a one-time module sign-in is still missing
+ *   Your work            — one card per work area (from app/navigation.js), its main screens
+ *
+ * Same layout on phone and desktop (cards reflow 1 → 2 → 3 columns).
  */
 import { Link } from 'react-router-dom';
-import { Bell, Link2, ShieldCheck } from 'lucide-react';
+import { Bell, ChevronRight, Link2 } from 'lucide-react';
 import { getSingaporeGreeting } from '@/ui/native/NativeChrome';
 import TopBar from '@/ui/hub/TopBar';
-import { List, ListRow, SectionLabel, Tile } from '@/ui/hub/primitives';
+import { List, ListRow, SectionLabel } from '@/ui/hub/primitives';
 import { ROLE_LABELS, useIdentity } from '@/core/auth/identity';
 import { MODULE_LABELS, useModuleConnection } from '@/core/auth/bridges';
 import { useLanguage } from '@/core/i18n';
 import { navFor } from '@/app/navigation';
-import { HOME_TILES } from '@/pages/hubs/homeConfig';
 import ApprovalsInbox from '@/pages/hubs/ApprovalsInbox';
+import { useApprovalsInbox } from '@/pages/hubs/useApprovalsInbox';
 import { paths } from '@/app/paths';
-import { useWideLayout } from '@/core/platform';
 
 const NEEDS_SETUP = (status) => status !== 'unavailable' && status !== 'connected' && status !== 'not-configured';
 
-/**
- * One product: which back-end a feature lives in is plumbing, so the home only mentions it
- * when something still needs a one-time sign-in on this device. (Full status: Account.)
- */
+/** Only shown when something still needs a one-time sign-in on this device (full status: Account). */
 function FinishSetup({ role }) {
     const { t } = useLanguage();
     const materials = useModuleConnection(role, 'materials');
@@ -54,46 +52,78 @@ function FinishSetup({ role }) {
     );
 }
 
-const HUB_HOME = {
-    worker: paths.hubs.worker,
-    supervisor: paths.hubs.supervisor,
-    manager: paths.hubs.manager,
-    admin: paths.hubs.admin,
-};
-
-export default function RoleHome() {
-    const identity = useIdentity();
+function useLabel() {
     const { t } = useLanguage();
-    const wide = useWideLayout();
-    const role = identity?.role;
-    const allTiles = HOME_TILES[role] || [];
-    const tileCap = role === 'admin' || role === 'manager' ? 4 : allTiles.length;
-    const tiles = wide ? [] : allTiles.slice(0, tileCap);
-    const tilePaths = new Set(allTiles.map((tile) => tile.to));
-    const groups = navFor(role)
-        .groups.filter((g) => g.tone)
-        .map((g) => ({
-            ...g,
-            items: g.items.filter((item) => !tilePaths.has(item.to) && item.to !== HUB_HOME[role]),
-        }))
-        .filter((g) => g.items.length > 0);
-    const firstName = String(identity?.name || '').split(/\s+/)[0];
-
-    const resolveLabel = (item) => {
+    return (item) => {
         if (!item.labelKey) return item.label;
         const text = t(item.labelKey);
         return text && text !== item.labelKey ? text : item.label;
     };
+}
+
+function countOf(query) {
+    if (query?.isLoading || query?.isError || query?.data == null) return 0;
+    return Number(query.data) || 0;
+}
+
+/** Pending total for a work-area card (0 → no badge). */
+function areaPending(group, inbox) {
+    if (!inbox || !group.tone) return 0;
+    if (group.tone === 'timesheet') return countOf(inbox.shifts) + countOf(inbox.leave);
+    if (group.tone === 'materials') return countOf(inbox.requests);
+    if (group.tone === 'progress') return countOf(inbox.packages);
+    return 0;
+}
+
+/** One work area: its name and its main screens. */
+function AreaCard({ group, labelOf, pending }) {
+    const Icon = group.items[0]?.icon;
+    return (
+        <section className="hh-area g-card g-card--flat" data-tone={group.tone}>
+            <header className="hh-area__head">
+                {Icon ? (
+                    <span className="g-row__icon hh-area__icon">
+                        <Icon strokeWidth={1.9} aria-hidden />
+                    </span>
+                ) : null}
+                <h3 className="hh-area__title">{labelOf(group)}</h3>
+                {pending > 0 ? (
+                    <span className="g-badge ml-auto" data-tone="brand">
+                        {pending}
+                    </span>
+                ) : null}
+            </header>
+            <nav className="hh-area__links" aria-label={labelOf(group)}>
+                {group.items.map((item) => {
+                    const ItemIcon = item.icon;
+                    return (
+                        <Link key={item.id} to={item.to} className="hh-area__link">
+                            <ItemIcon aria-hidden />
+                            <span className="min-w-0 flex-1 truncate">{labelOf(item)}</span>
+                            <ChevronRight className="hh-area__chev" aria-hidden />
+                        </Link>
+                    );
+                })}
+            </nav>
+        </section>
+    );
+}
+
+export default function RoleHome() {
+    const identity = useIdentity();
+    const { t } = useLanguage();
+    const labelOf = useLabel();
+    const inbox = useApprovalsInbox();
+    const role = identity?.role;
+    const home = paths.hubs[role];
+    // Work areas = the sidebar's groups minus Home; "More" / Settings go last.
+    const areas = navFor(role)
+        .groups.map((g) => ({ ...g, items: g.items.filter((item) => item.to !== home) }))
+        .filter((g) => g.items.length > 0);
+    const firstName = String(identity?.name || '').split(/\s+/)[0];
 
     const subtitle =
-        role === 'worker'
-            ? t('hub.role.workerSub', {
-                  id: identity.id,
-                  type: identity.workerType === 'local' ? t('hub.role.local') : t('hub.role.foreign'),
-              })
-            : role === 'supervisor'
-              ? t('hub.role.supervisorSub', { site: identity.siteId || '—' })
-              : ROLE_LABELS[role];
+        role === 'supervisor' ? t('hub.role.supervisorSub', { site: identity?.siteId || '—' }) : ROLE_LABELS[role];
 
     return (
         <>
@@ -109,60 +139,24 @@ export default function RoleHome() {
                     ) : null
                 }
             />
-            <main className="g-main g-main--role-home">
+            <main className="g-main g-main--role-home hh">
                 <ApprovalsInbox />
-
-                {tiles.length ? (
-                    <>
-                        <SectionLabel>Quick actions</SectionLabel>
-                        <div className="g-tiles g-tiles--compact">
-                            {tiles.map((tile, i) => {
-                                const title = tile.titleKey ? (() => {
-                                    const text = t(tile.titleKey);
-                                    return text && text !== tile.titleKey ? text : tile.title;
-                                })() : tile.title;
-                                const hint = tile.hintKey ? (() => {
-                                    const text = t(tile.hintKey);
-                                    return text && text !== tile.hintKey ? text : tile.hint;
-                                })() : tile.hint;
-                                const { titleKey: _tk, hintKey: _hk, ...rest } = tile;
-                                return (
-                                    <Tile
-                                        key={tile.to}
-                                        {...rest}
-                                        title={title}
-                                        hint={hint}
-                                        className={`g-rise g-rise-${Math.min(i + 1, 4)}`}
-                                    />
-                                );
-                            })}
-                        </div>
-                    </>
-                ) : null}
-
-                {!wide && groups.length ? (
-                    groups.map((group) => (
-                        <section key={group.label}>
-                            <SectionLabel>{resolveLabel(group)}</SectionLabel>
-                            <List className="g-list--compact">
-                                {group.items.map((item) => (
-                                    <ListRow key={item.id} to={item.to} icon={item.icon} tone={group.tone} title={resolveLabel(item)} />
-                                ))}
-                            </List>
-                        </section>
-                    ))
-                ) : null}
-
                 {role !== 'supervisor' ? <FinishSetup role={role} /> : null}
-
-                {!wide ? (
-                    <>
-                        <SectionLabel>{t('hub.role.tools')}</SectionLabel>
-                        <List className="g-list--compact">
-                            <ListRow to={paths.verify} icon={ShieldCheck} tone="bronze" title={t('hub.role.verify')} hint={t('hub.role.verifyHint')} />
-                        </List>
-                    </>
-                ) : null}
+                <section aria-labelledby="hh-work">
+                    <h2 id="hh-work" className="g-section-label">
+                        Your work
+                    </h2>
+                    <div className="hh-areas">
+                        {areas.map((group) => (
+                            <AreaCard
+                                key={group.label}
+                                group={group}
+                                labelOf={labelOf}
+                                pending={areaPending(group, inbox)}
+                            />
+                        ))}
+                    </div>
+                </section>
             </main>
         </>
     );

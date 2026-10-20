@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, Loader2, XCircle } from 'lucide-react';
+import { CheckCircle, Loader2, Pencil, XCircle } from 'lucide-react';
 import CompanyFormPrintActions from '@/modules/timesheet/components/companyForms/CompanyFormPrintActions';
+import CompanyFormFiller from '@/modules/timesheet/components/companyForms/CompanyFormFiller';
 import { toast } from 'sonner';
 import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
@@ -29,6 +30,7 @@ import {
     listFormModules,
     listReviewSubmissions,
     reviewSubmission,
+    updatePendingSubmission,
     getRecommendedResultOptions,
     SUBMISSION_STATUS,
 } from '@/modules/timesheet/lib/companyForms';
@@ -41,6 +43,7 @@ export default function CompanyFormReviewPanel({
     const queryClient = useQueryClient();
     const [statusFilter, setStatusFilter] = useState('pending');
     const [selected, setSelected] = useState(null);
+    const [editing, setEditing] = useState(false);
     const [decisionOpen, setDecisionOpen] = useState(null); // 'approved' | 'rejected' | null
     const [recommendedResult, setRecommendedResult] = useState('');
     const [rejectNote, setRejectNote] = useState('');
@@ -69,6 +72,11 @@ export default function CompanyFormReviewPanel({
         modules.find((m) => m.form_key === row.form_key)?.definition?.title ||
         getFormDefinition(row.form_key)?.title ||
         row.form_key;
+
+    const editDefinition =
+        selected?.definition_snapshot ||
+        modules.find((m) => m.form_key === selected?.form_key)?.definition ||
+        getFormDefinition(selected?.form_key);
 
     const selectedRows = rows.filter((row) => selectedIds.has(row.id));
     const allSelected = rows.length > 0 && selectedRows.length === rows.length;
@@ -100,6 +108,12 @@ export default function CompanyFormReviewPanel({
         setDecisionOpen(status);
     };
 
+    const openSelected = (row) => {
+        setSelected(row);
+        setEditing(false);
+        closeDecision();
+    };
+
     const reviewMut = useMutation({
         mutationFn: ({ id, status, reviewNote, recommendedResult: result }) =>
             reviewSubmission({
@@ -113,10 +127,22 @@ export default function CompanyFormReviewPanel({
         onSuccess: (_data, vars) => {
             toast.success(vars.status === 'approved' ? 'Form approved' : 'Form rejected');
             setSelected(null);
+            setEditing(false);
             closeDecision();
             invalidate();
         },
         onError: (e) => toast.error(e.message || 'Review failed'),
+    });
+
+    const editMut = useMutation({
+        mutationFn: ({ id, payload }) => updatePendingSubmission({ id, payload }),
+        onSuccess: (row) => {
+            toast.success('Form updated');
+            setSelected(row);
+            setEditing(false);
+            invalidate();
+        },
+        onError: (e) => toast.error(e.message || 'Could not save edits'),
     });
 
     const canConfirm =
@@ -131,7 +157,8 @@ export default function CompanyFormReviewPanel({
                         Company form review
                     </h2>
                     <p className="text-xs text-slate-500">
-                        Flagged pending forms appear first. Pick a recommended result when you approve or reject.
+                        Flagged pending forms appear first. Edit pending forms before approving, then pick a
+                        recommended result when you approve or reject.
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -193,7 +220,7 @@ export default function CompanyFormReviewPanel({
                             />
                             <button
                                 type="button"
-                                onClick={() => setSelected(row)}
+                                onClick={() => openSelected(row)}
                                 className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
                             >
                                 <div className="min-w-0">
@@ -236,41 +263,92 @@ export default function CompanyFormReviewPanel({
                 onOpenChange={(o) => {
                     if (!o) {
                         setSelected(null);
+                        setEditing(false);
                         closeDecision();
                     }
                 }}
             >
                 <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Review submission</DialogTitle>
+                        <DialogTitle>
+                            {editing ? 'Edit pending submission' : 'Review submission'}
+                        </DialogTitle>
+                        {editing ? (
+                            <DialogDescription>
+                                Correct the submitted answers, then save. Approve or reject after you finish
+                                editing.
+                            </DialogDescription>
+                        ) : null}
                     </DialogHeader>
-                    {selected && (
+                    {selected && editing && editDefinition ? (
+                        <div className="space-y-3">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-xs text-slate-500">
+                                    Editing while pending — changes are locked after approve/reject.
+                                </p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="rounded-xl"
+                                    disabled={editMut.isPending}
+                                    onClick={() => setEditing(false)}
+                                >
+                                    Cancel edit
+                                </Button>
+                            </div>
+                            <CompanyFormFiller
+                                key={`${selected.id}-edit`}
+                                definition={editDefinition}
+                                workerName={selected.worker_name}
+                                initialPayload={selected.payload || {}}
+                                submitting={editMut.isPending}
+                                submitLabel="Save changes"
+                                reviewTitle="Review changes"
+                                reviewHint="Confirm the corrected answers, then save. You can still approve or reject afterward."
+                                onSubmit={(payload) =>
+                                    editMut.mutateAsync({ id: selected.id, payload })
+                                }
+                            />
+                        </div>
+                    ) : selected ? (
                         <div className="space-y-4">
                             <CompanyFormPrintActions submissions={[selected]} />
                             <CompanyFormSubmissionView submission={selected} />
                         </div>
-                    )}
-                    {selected?.status === 'pending' && (
-                        <DialogFooter className="gap-2 sm:gap-0">
+                    ) : null}
+                    {selected?.status === 'pending' && !editing && (
+                        <DialogFooter className="gap-2 sm:justify-between">
                             <Button
                                 type="button"
-                                variant="destructive"
+                                variant="outline"
                                 className="rounded-xl"
-                                disabled={reviewMut.isPending}
-                                onClick={() => openDecision(SUBMISSION_STATUS.REJECTED)}
+                                disabled={reviewMut.isPending || !editDefinition}
+                                onClick={() => setEditing(true)}
                             >
-                                <XCircle className="mr-1.5 h-4 w-4" />
-                                Reject
+                                <Pencil className="mr-1.5 h-4 w-4" />
+                                Edit form
                             </Button>
-                            <Button
-                                type="button"
-                                className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                                disabled={reviewMut.isPending}
-                                onClick={() => openDecision(SUBMISSION_STATUS.APPROVED)}
-                            >
-                                <CheckCircle className="mr-1.5 h-4 w-4" />
-                                Approve
-                            </Button>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    variant="destructive"
+                                    className="rounded-xl"
+                                    disabled={reviewMut.isPending}
+                                    onClick={() => openDecision(SUBMISSION_STATUS.REJECTED)}
+                                >
+                                    <XCircle className="mr-1.5 h-4 w-4" />
+                                    Reject
+                                </Button>
+                                <Button
+                                    type="button"
+                                    className="rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                                    disabled={reviewMut.isPending}
+                                    onClick={() => openDecision(SUBMISSION_STATUS.APPROVED)}
+                                >
+                                    <CheckCircle className="mr-1.5 h-4 w-4" />
+                                    Approve
+                                </Button>
+                            </div>
                         </DialogFooter>
                     )}
                 </DialogContent>

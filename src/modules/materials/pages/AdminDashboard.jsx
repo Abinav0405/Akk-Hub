@@ -22,15 +22,19 @@ import {
     ClipboardList, Users, BarChart3, UserCog, MoreHorizontal, Inbox
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useHubSection } from '@/app/useHubSection';
 import { formatDisplayDate, formatDisplayDateTime, formatFileDate } from '@/modules/materials/lib/dates';
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { sendBrowserNotification, requestBrowserNotificationPermission } from '@/modules/materials/lib/emailNotification';
+
 const AdminAnalytics = lazy(() => import('@/modules/materials/components/AdminAnalytics'));
 const RequestersManager = lazy(() => import('@/modules/materials/components/RequestersManager'));
 const SitesManager = lazy(() => import('@/modules/materials/components/SitesManager'));
 const MaterialsManager = lazy(() => import('@/modules/materials/components/MaterialsManager'));
 const ManagersManager = lazy(() => import('@/modules/materials/components/ManagersManager'));
+
+const MATERIALS_ADMIN_SECTIONS = ['transactions', 'materials', 'sites', 'requesters', 'analytics', 'managers'];
 
 const ManagerTabFallback = (
     <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
@@ -141,6 +145,9 @@ const ReturnHistoryDisplay = ({ referenceNumber, totalQuantity, materialName, ap
 };
 
 import MaterialForm from '@/modules/materials/components/MaterialForm';
+
+/** Long lists render in pages so the screen stays smooth. */
+const LIST_PAGE = 60;
 
 const NATIVE_TAB_COPY = {
     transactions: { title: 'Requests' },
@@ -292,7 +299,8 @@ const StaffRequestCard = memo(function StaffRequestCard({
 export default function AdminDashboard({ role = 'admin' }) {
     const navigate = useNavigate();
     const native = isNativeApp();
-    const [activeTab, setActiveTab] = useState('transactions');
+    const [activeTab, setActiveTab] = useHubSection('transactions', MATERIALS_ADMIN_SECTIONS);
+    const [txLimit, setTxLimit] = useState(LIST_PAGE);
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('all');
@@ -798,13 +806,13 @@ export default function AdminDashboard({ role = 'admin' }) {
             <div className="flex flex-col gap-3">
                 {!native && (
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList className="bg-card border border-border shadow-xs w-full overflow-x-auto sm:w-auto">
-                        <TabsTrigger value="transactions"><span className="sm:hidden">Inbox</span><span className="hidden sm:inline">Transactions</span></TabsTrigger>
-                        <TabsTrigger value="requesters"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
-                        {isAdmin && <TabsTrigger value="analytics"><span className="sm:hidden">Stats</span><span className="hidden sm:inline">Analytics</span></TabsTrigger>}
-                        <TabsTrigger value="sites">Sites</TabsTrigger>
-                        <TabsTrigger value="materials"><span className="sm:hidden">Stock</span><span className="hidden sm:inline">Materials</span></TabsTrigger>
-                        {isAdmin && <TabsTrigger value="managers"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Managers</span></TabsTrigger>}
+                    <TabsList data-section-nav className="bg-card border border-border shadow-xs w-full overflow-x-auto sm:w-auto">
+                        <TabsTrigger value="transactions" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Inbox</span><span className="hidden sm:inline">Transactions</span></TabsTrigger>
+                        <TabsTrigger value="requesters" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
+                        {isAdmin && <TabsTrigger value="analytics" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Stats</span><span className="hidden sm:inline">Analytics</span></TabsTrigger>}
+                        <TabsTrigger value="sites" className="data-[state=active]:bg-brand data-[state=active]:text-white">Sites</TabsTrigger>
+                        <TabsTrigger value="materials" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Stock</span><span className="hidden sm:inline">Materials</span></TabsTrigger>
+                        {isAdmin && <TabsTrigger value="managers" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Managers</span></TabsTrigger>}
                     </TabsList>
                 </Tabs>
                 )}
@@ -1010,7 +1018,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                     ) : (
                         <div className="space-y-4">
                             <AnimatePresence>
-                                {filteredTransactions.map((transaction, index) => (
+                                {filteredTransactions.slice(0, txLimit).map((transaction, index) => (
                                     <motion.div
                                         key={transaction.id}
                                         initial={{ opacity: 0, y: 20 }}
@@ -1298,6 +1306,11 @@ export default function AdminDashboard({ role = 'admin' }) {
                                     </motion.div>
                                 ))}
                             </AnimatePresence>
+                            {filteredTransactions.length > txLimit ? (
+                                <button type="button" className="g-btn g-btn--secondary g-btn--block" onClick={() => setTxLimit((n) => n + LIST_PAGE)}>
+                                    Show more ({filteredTransactions.length - txLimit} more)
+                                </button>
+                            ) : null}
                         </div>
                     )}
                 </AnimatePresence>

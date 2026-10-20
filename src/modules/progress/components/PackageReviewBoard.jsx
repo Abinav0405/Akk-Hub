@@ -25,6 +25,9 @@ import { isNativeApp } from '@/core/platform';
 import { storageKey } from '@/core/storage'
 
 const PrintPackageDialog = lazy(() => import('@/modules/progress/components/PrintPackageDialog'));
+
+/** Long lists render in pages so the screen stays smooth. */
+const LIST_PAGE = 60;
 const ExcelExportDialog = lazy(() => import('@/modules/progress/components/ExcelExportDialog'));
 const MultiExportDialog = lazy(() => import('@/modules/progress/components/MultiExportDialog'));
 const SummaryExportDialog = lazy(() => import('@/modules/progress/components/SummaryExportDialog'));
@@ -558,6 +561,7 @@ export default function PackageReviewBoard({ role }) {
     const [workerFilter, setWorkerFilter] = useState('all');
     // List (table) or grid (cards). Remembered per browser; phones always get cards.
     const [view, setView] = useState(() => readView(native ? 'grid' : 'list'));
+    const [pkgLimit, setPkgLimit] = useState(LIST_PAGE);
     const chooseView = (next) => {
         setView(next);
         try { localStorage.setItem(VIEW_KEY, next); } catch { /* ignore */ }
@@ -972,7 +976,7 @@ export default function PackageReviewBoard({ role }) {
             ) : null}
 
             {summaryCards ? (
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-5">
                     {summaryCards.map((card) => {
                         const active = filter === card.id;
                         return (
@@ -983,7 +987,7 @@ export default function PackageReviewBoard({ role }) {
                                 aria-pressed={active}
                                 className={cn(
                                     'rounded-xl border bg-white p-3.5 text-left transition-all hover:shadow-sm',
-                                    active ? 'border-slate-900 ring-1 ring-slate-900' : 'border-border'
+                                    active ? 'border-brand ring-1 ring-brand' : 'border-border'
                                 )}
                             >
                                 <p className="text-xs font-medium text-slate-600">{card.label}</p>
@@ -1238,7 +1242,7 @@ export default function PackageReviewBoard({ role }) {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filtered.map((p) => (
+                                {filtered.slice(0, pkgLimit).map((p) => (
                                     <PackageRow
                                         key={p.id}
                                         pkg={p}
@@ -1263,7 +1267,7 @@ export default function PackageReviewBoard({ role }) {
                     </div>
                 ) : null}
                 <div className={cn('grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3', view === 'list' && 'md:hidden')}>
-                    {filtered.map((p) => (
+                    {filtered.slice(0, pkgLimit).map((p) => (
                         <PackageCard
                             key={p.id}
                             pkg={p}
@@ -1285,6 +1289,11 @@ export default function PackageReviewBoard({ role }) {
                         />
                     ))}
                 </div>
+                {filtered.length > pkgLimit ? (
+                    <button type="button" className="g-btn g-btn--secondary g-btn--block" onClick={() => setPkgLimit((n) => n + LIST_PAGE)}>
+                        Show more ({filtered.length - pkgLimit} more)
+                    </button>
+                ) : null}
                 </>
             )}
 

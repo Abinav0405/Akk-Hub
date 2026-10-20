@@ -1,4 +1,3 @@
-// TODO(claude): ensure @/ui/native/* chrome/states/confirm exist (or remount Timesheet native chrome)
 import React from 'react'
 import { Card } from '@/ui/card'
 import { isNativeApp } from '@/core/platform'
@@ -20,7 +19,7 @@ export default function LegalNotice() {
 
             <div className="space-y-3 text-[15px] leading-7 text-slate-700">
               <p>
-                AKK Timesheet Manager (&quot;the App&quot;) is used by AKK Engineering to manage attendance,
+                AKK Hub (&quot;the App&quot;) is used by AKK Engineering to manage attendance, materials, site photos,
                 timesheets, shifts, and related workplace records.
               </p>
             </div>

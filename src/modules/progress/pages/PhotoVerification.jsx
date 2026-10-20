@@ -1,4 +1,3 @@
-// TODO(claude): wire /account and /verify; provide @/ui/layout, AuthChecking, useRoleGuard; session helpers under @/core/*
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
@@ -83,7 +82,7 @@ const STATUS_META = {
         icon: ShieldAlert,
         title: 'Not verified — no matching record',
         short: 'Not on file',
-        detail: 'This code does not match any photo issued by AKK Engineering’s Site Progress Tracker. If the photo came through WhatsApp, the barcode may have been misread — type the printed code under the bars.',
+        detail: 'This code does not match any photo issued by AKK Engineering’s AKK Hub. If the photo came through WhatsApp, the barcode may have been misread — type the printed code under the bars.',
     },
     'unclear-code': {
         tone: 'warn',
@@ -734,7 +733,7 @@ export default function PhotoVerification() {
                 )}
 
                 <p className="text-center text-xs text-muted-foreground">
-                    AKK Engineering Pte. Ltd. — Site Progress Tracker Photo Verification
+                    AKK Engineering Pte. Ltd. — AKK Hub photo verification
                 </p>
             </div>
         </AppShell>

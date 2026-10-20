@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { Loader2, ClipboardList, Users, Palette, FileText } from 'lucide-react';
 import ProgressPortalShell from '@/modules/progress/components/ProgressPortalShell';
 import PackageReviewBoard from '@/modules/progress/components/PackageReviewBoard';
@@ -10,6 +10,9 @@ import { registerPushForCurrentSession } from '@/core/push';
 import { useLoginWelcome } from '@/modules/progress/hooks/useLoginWelcome';
 import AuthChecking from '@/ui/AuthChecking';
 import { prefetchStaffRoutesIdle } from '@/modules/progress/lib/prefetchRoutes';
+import { useHubSection } from '@/app/useHubSection';
+
+const MANAGER_SECTIONS = ['packages', 'workers', 'jsr', 'branding'];
 
 const BrandingPanel = lazy(() => import('@/modules/progress/components/BrandingPanel'));
 const CommercialHub = lazy(() => import('@/modules/progress/components/jsr/CommercialHub'));
@@ -23,7 +26,7 @@ const SECTION_LABELS = {
 
 export default function ManagerDashboard() {
   const session = useRoleGuard('manager');
-  const [tab, setTab] = useState('packages');
+  const [tab, setTab] = useHubSection('packages', MANAGER_SECTIONS);
   const { overlay } = useLoginWelcome({ ready: Boolean(session) });
 
   useEffect(() => {
@@ -54,7 +57,7 @@ export default function ManagerDashboard() {
   );
 
   if (session === undefined) return overlay || <AuthChecking />;
-  if (!session) return overlay;
+  if (!session) return overlay || <AuthChecking />;
 
 
   return (

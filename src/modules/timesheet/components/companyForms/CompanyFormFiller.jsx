@@ -41,10 +41,30 @@ export default function CompanyFormFiller({
     workerName,
     onSubmit,
     submitting = false,
+    /** Pre-fill from an existing submission (manager/admin edit-before-approve). */
+    initialPayload = null,
+    submitLabel = 'Submit for review',
+    reviewTitle = 'Review & submit',
+    reviewHint = 'Check your answers before sending to managers/admins.',
 }) {
-    const [fields, setFields] = useState(() => buildInitialFields(definition, workerName));
-    const [checklist, setChecklist] = useState({});
-    const [tableRows, setTableRows] = useState(() => buildInitialTableRows(definition.table));
+    const [fields, setFields] = useState(() => {
+        const base = buildInitialFields(definition, workerName);
+        if (initialPayload?.fields && typeof initialPayload.fields === 'object') {
+            return { ...base, ...initialPayload.fields };
+        }
+        return base;
+    });
+    const [checklist, setChecklist] = useState(() =>
+        initialPayload?.checklist && typeof initialPayload.checklist === 'object'
+            ? { ...initialPayload.checklist }
+            : {}
+    );
+    const [tableRows, setTableRows] = useState(() => {
+        if (Array.isArray(initialPayload?.tableRows) && initialPayload.tableRows.length) {
+            return initialPayload.tableRows.map((row) => ({ ...row }));
+        }
+        return buildInitialTableRows(definition.table);
+    });
     const [step, setStep] = useState(0);
 
     const isChecklist = definition.layout === LAYOUT.CHECKLIST_STEPS;
@@ -200,8 +220,8 @@ export default function CompanyFormFiller({
     const renderReview = () => (
         <div className="space-y-4">
             <div>
-                <h3 className="text-base font-semibold text-slate-900">Review & submit</h3>
-                <p className="text-sm text-slate-500">Check your answers before sending to managers/admins.</p>
+                <h3 className="text-base font-semibold text-slate-900">{reviewTitle}</h3>
+                <p className="text-sm text-slate-500">{reviewHint}</p>
             </div>
             {previewFlags.is_flagged && (
                 <div className="rounded-xl border border-red-200 bg-red-50 p-3">
@@ -320,7 +340,7 @@ export default function CompanyFormFiller({
                         ) : (
                             <Send className="mr-2 h-4 w-4" />
                         )}
-                        Submit for review
+                        {submitLabel}
                     </Button>
                 )}
             </div>

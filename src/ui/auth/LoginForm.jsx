@@ -445,14 +445,15 @@ export default function LoginForm({
                     </div>
                 </header>
 
-                {sheetLayout ? (
+                {sheetLayout && sheetOpen ? (
                 <motion.button
                     type="button"
                     aria-label="Close login"
-                    className={cn('fixed inset-0 z-30 bg-slate-900/25', !sheetOpen && 'pointer-events-none')}
+                    className="fixed inset-0 z-30 bg-slate-900/25"
                     tabIndex={-1}
                     initial={{ opacity: 0 }}
-                    animate={{ opacity: sheetOpen ? 1 : 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
                     transition={easeSoft}
                     onClick={onRequestClose}
                 />

@@ -1,4 +1,3 @@
-// TODO(claude): provide @/core/nativeBack (pushNativeBackHandler)
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';

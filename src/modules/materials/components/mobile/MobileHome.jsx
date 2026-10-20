@@ -91,13 +91,13 @@ export default function MobileHome() {
         />
         <div className="min-w-0">
           <p className="n-home__company">AKK ENGINEERING</p>
-          <p className="n-home__tag">Official Material Tracker</p>
+          <p className="n-home__tag">AKK Hub</p>
         </div>
       </header>
 
       <main className="n-home__main">
         <div className="n-largetitle">
-          <h1 className="n-largetitle__text">Material Tracker</h1>
+          <h1 className="n-largetitle__text">Materials</h1>
           <p className="n-largetitle__sub">
             Request materials, return them, and keep inventory in sync.
           </p>

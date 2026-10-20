@@ -287,7 +287,7 @@ export default function SubmitProgress() {
     }, [step]);
 
     if (session === undefined) return <AuthChecking />;
-    if (!session) return null;
+    if (!session) return <AuthChecking />;
 
     const linkedPackage = linkablePackages.find((p) => p.id === linkedPackageId);
     const selectedSite = sites.find((s) => s.id === siteId);
@@ -611,7 +611,7 @@ export default function SubmitProgress() {
             tabBar={native}
             header={
                 <PageHeader
-                    title="Submit Site Progress"
+                    title="Submit site photos"
                     description={native && session.display_name ? `Signed in as ${session.display_name}` : undefined}
                     backTo={"/progress/submit"}
                 />

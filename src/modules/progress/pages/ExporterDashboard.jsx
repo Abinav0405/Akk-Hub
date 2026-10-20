@@ -37,7 +37,7 @@ export default function ExporterDashboard() {
     }, [session]);
 
     if (session === undefined) return overlay || <AuthChecking />;
-    if (!session) return overlay;
+    if (!session) return overlay || <AuthChecking />;
 
     // Standalone portal (outside HubLayout) — clients need an in-page sign-out.
     const handleLogout = async () => {

@@ -56,7 +56,7 @@ const BADGE_CLASS = {
   'c-rejected': 'bg-red-100 text-red-800',
   'c-certified': 'bg-cyan-100 text-cyan-900',
   'c-partial': 'bg-amber-100 text-amber-900',
-  paymentcert: 'bg-indigo-100 text-indigo-800',
+  paymentcert: 'bg-violet-50 text-violet-700',
   invoiceprepared: 'bg-sky-100 text-sky-800',
   invoicesubmitted: 'bg-cyan-100 text-cyan-900',
   paymentpending: 'bg-amber-100 text-amber-900',

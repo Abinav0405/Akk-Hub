@@ -7,8 +7,9 @@ import { Link } from 'react-router-dom';
 import { Boxes, CalendarDays, ClipboardCheck, ClipboardList, Link2 } from 'lucide-react';
 import { useApprovalsInbox } from '@/pages/hubs/useApprovalsInbox';
 import { paths } from '@/app/paths';
+import { sectionHref } from '@/app/useHubSection';
 
-function InboxItem({ icon: Icon, tone, label, query, to, linkTo }) {
+function InboxItem({ icon: Icon, tone, label, emptyHint, query, to, linkTo }) {
     const linked = !linkTo;
     const value = !linked ? null : query?.isLoading ? null : query?.isError ? '!' : query?.data ?? 0;
     const busy = value > 0;
@@ -39,7 +40,9 @@ function InboxItem({ icon: Icon, tone, label, query, to, linkTo }) {
                     </span>
                 )}
             </div>
-            <span className="text-[13px] font-semibold leading-tight text-[var(--g-ink-2)]">{label}</span>
+            <span className="text-[13px] font-semibold leading-tight text-[var(--g-ink-2)]">
+                {linked && value === 0 && emptyHint ? emptyHint : label}
+            </span>
         </Link>
     );
 }
@@ -50,13 +53,24 @@ export default function ApprovalsInbox() {
 
     const items =
         role === 'supervisor'
-            ? [{ key: 'shifts', icon: ClipboardCheck, tone: 'timesheet', label: 'Shifts to approve', query: shifts, to: paths.timesheet.siteShifts }]
+            ? [
+                  {
+                      key: 'shifts',
+                      icon: ClipboardCheck,
+                      tone: 'timesheet',
+                      label: 'Shifts to approve',
+                      emptyHint: 'No pending shifts',
+                      query: shifts,
+                      to: paths.timesheet.siteShifts,
+                  },
+              ]
             : [
                   {
                       key: 'shifts',
                       icon: ClipboardCheck,
                       tone: 'timesheet',
                       label: 'Shifts to approve',
+                      emptyHint: 'No pending shifts',
                       query: shifts,
                       to: role === 'admin' ? paths.timesheet.admin : paths.timesheet.manage,
                   },
@@ -65,14 +79,16 @@ export default function ApprovalsInbox() {
                       icon: CalendarDays,
                       tone: 'timesheet',
                       label: 'Leave requests',
+                      emptyHint: 'No leave waiting',
                       query: leave,
-                      to: role === 'admin' ? paths.timesheet.admin : paths.timesheet.manage,
+                      to: sectionHref(role === 'admin' ? paths.timesheet.admin : paths.timesheet.manage, 'leaves'),
                   },
                   {
                       key: 'materials',
                       icon: Boxes,
                       tone: 'materials',
                       label: 'Material requests',
+                      emptyHint: 'No material requests',
                       query: requests,
                       to: role === 'admin' ? paths.materials.admin : paths.materials.manage,
                       linkTo: materials === 'disconnected' ? paths.connect('materials') : undefined,
@@ -82,18 +98,29 @@ export default function ApprovalsInbox() {
                       icon: ClipboardList,
                       tone: 'progress',
                       label: 'Site packages',
+                      emptyHint: 'No packages waiting',
                       query: packages,
                       to: role === 'admin' ? paths.progress.admin : paths.progress.review,
                       linkTo: progress === 'disconnected' ? paths.connect('progress') : undefined,
                   },
               ];
 
+    const linked = items.filter((item) => !item.linkTo);
+    const loaded = linked.every((item) => !item.query?.isLoading && !item.query?.isError);
+    const totalPending = linked.reduce((sum, item) => sum + (Number(item.query?.data) || 0), 0);
+    const allClear = loaded && totalPending === 0;
+
     return (
         <section aria-labelledby="inbox-heading" className="mb-1">
-            <h2 id="inbox-heading" className="g-section-label !mt-0">
-                Needs your attention
-            </h2>
-            <div className={`grid gap-2.5 ${items.length > 1 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1'}`}>
+            <div className="flex flex-wrap items-end justify-between gap-2">
+                <h2 id="inbox-heading" className="g-section-label !mt-0 !mb-0">
+                    Needs your attention
+                </h2>
+                {allClear ? (
+                    <p className="text-[12px] font-medium text-[var(--g-muted)]">Nothing waiting — you&apos;re caught up.</p>
+                ) : null}
+            </div>
+            <div className={`mt-2.5 grid gap-2.5 ${items.length > 1 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1'}`}>
                 {items.map(({ key, ...item }) => (
                     <InboxItem key={key} {...item} />
                 ))}

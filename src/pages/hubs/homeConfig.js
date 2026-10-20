@@ -11,13 +11,16 @@ import {
     ClipboardList,
     Clock,
     FileSpreadsheet,
+    FileText,
     History,
     Megaphone,
     PackagePlus,
     Receipt,
+    Users,
     Wallet,
 } from 'lucide-react';
 import { paths } from '@/app/paths';
+import { sectionHref } from '@/app/useHubSection';
 
 export const HOME_TILES = {
     worker: [
@@ -37,16 +40,18 @@ export const HOME_TILES = {
         { icon: ClipboardCheck, tone: 'timesheet', title: 'Shifts & leave', titleKey: 'hub.tile.shiftsLeave', hint: 'Approve and edit', hintKey: 'hub.tile.shiftsLeaveHint', to: paths.timesheet.manage },
         { icon: FileSpreadsheet, tone: 'timesheet', title: 'Timesheets', titleKey: 'hub.tile.timesheets', hint: 'Monthly sheets', hintKey: 'hub.tile.timesheetsHint', to: paths.timesheet.manageTimesheets },
         { icon: Boxes, tone: 'materials', title: 'Material requests', titleKey: 'hub.tile.materialRequests', hint: 'Approve take / return', hintKey: 'hub.tile.materialRequestsHint', to: paths.materials.manage },
-        { icon: ClipboardList, tone: 'progress', title: 'Site packages', titleKey: 'hub.tile.sitePackages', hint: 'Review & print', hintKey: 'hub.tile.sitePackagesHint', to: paths.progress.review },
+        { icon: ClipboardList, tone: 'progress', title: 'Photo packages', titleKey: 'hub.tile.sitePackages', hint: 'Review & print', hintKey: 'hub.tile.sitePackagesHint', to: paths.progress.review },
+        { icon: FileText, tone: 'timesheet', title: 'Company forms', titleKey: 'hub.tile.companyForms', hint: 'Review submissions', hintKey: 'hub.tile.companyFormsHint', to: sectionHref(paths.timesheet.manage, 'company-forms') },
+        { icon: Users, tone: 'progress', title: 'Site employees', titleKey: 'hub.tile.siteEmployees', hint: 'Who is on site', hintKey: 'hub.tile.siteEmployeesHint', to: sectionHref(paths.progress.review, 'workers') },
     ],
     admin: [
-        { icon: Clock, tone: 'timesheet', title: 'Timesheet admin', titleKey: 'hub.tile.timesheetAdmin', hint: 'Shifts, payroll, people', hintKey: 'hub.tile.timesheetAdminHint', to: paths.timesheet.admin },
-        { icon: Boxes, tone: 'materials', title: 'Materials admin', titleKey: 'hub.tile.materialsAdmin', hint: 'Requests & stock', hintKey: 'hub.tile.materialsAdminHint', to: paths.materials.admin },
-        { icon: Receipt, tone: 'progress', title: 'Site progress', titleKey: 'hub.tile.siteProgress', hint: 'Packages & billing', hintKey: 'hub.tile.siteProgressHint', to: paths.progress.admin },
+        { icon: Clock, tone: 'timesheet', title: 'Attendance & pay', titleKey: 'hub.tile.timesheetAdmin', hint: 'Shifts, leave, payslips', hintKey: 'hub.tile.timesheetAdminHint', to: paths.timesheet.admin },
+        { icon: Boxes, tone: 'materials', title: 'Materials', titleKey: 'hub.tile.materialsAdmin', hint: 'Requests & stock', hintKey: 'hub.tile.materialsAdminHint', to: paths.materials.admin },
+        { icon: Receipt, tone: 'progress', title: 'Site work', titleKey: 'hub.tile.siteProgress', hint: 'Packages, exports, billing', hintKey: 'hub.tile.siteProgressHint', to: paths.progress.admin },
         { icon: BarChart3, tone: 'timesheet', title: 'Analytics', titleKey: 'hub.tile.analytics', hint: 'Hours & attendance', hintKey: 'hub.tile.analyticsHint', to: paths.timesheet.analytics },
         { icon: Megaphone, tone: 'timesheet', title: 'Announcements', titleKey: 'hub.tile.announcements', hint: 'To all employees', hintKey: 'hub.tile.announcementsHint', to: paths.timesheet.announcements },
         { icon: CalendarDays, tone: 'timesheet', title: 'Attendance', titleKey: 'hub.tile.attendance', hint: 'Daily report', hintKey: 'hub.tile.attendanceHint', to: paths.timesheet.attendance },
-        { icon: History, tone: 'materials', title: 'Material history', titleKey: 'hub.tile.materialHistory', hint: 'Every transaction', hintKey: 'hub.tile.materialHistoryHint', to: paths.materials.log },
+        { icon: FileText, tone: 'timesheet', title: 'Company forms', titleKey: 'hub.tile.companyForms', hint: 'Templates & reviews', hintKey: 'hub.tile.companyFormsAdminHint', to: paths.timesheet.adminCompanyForms },
         { icon: Building2, tone: 'progress', title: 'Client portal', titleKey: 'hub.tile.clientPortal', hint: 'Reports & claims', hintKey: 'hub.tile.clientPortalHint', to: paths.progress.clientLogin },
     ],
 };

@@ -65,7 +65,7 @@ export default function UpdatePrompt({ active }) {
           </h2>
         </div>
         <p id="akk-update-body" className="mt-3 text-[15px] leading-[21px] text-slate-600">
-          A newer version of AKK Timesheet Manager is available on Google
+          A newer version of AKK Hub is available on Google
           Play. Update now to get the latest features and fixes.
         </p>
         <div className="mt-5 grid gap-2">

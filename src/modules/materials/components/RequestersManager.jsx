@@ -251,7 +251,7 @@ export default function RequestersManager() {
                     </thead>
                     <tbody>${rows}</tbody>
                 </table>
-                <p class="footer">AKK Material Tracker · Admin generated report</p>
+                <p class="footer">AKK Hub · Materials report</p>
             </body>
             </html>
         `, {

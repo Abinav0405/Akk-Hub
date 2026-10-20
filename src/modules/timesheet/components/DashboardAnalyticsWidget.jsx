@@ -104,7 +104,7 @@ export default function DashboardAnalyticsWidget({ shifts, lateCutoffMinutes = 9
 
     if (variant === 'glass') {
         return (
-            <div className="grid grid-cols-3 gap-2 sm:gap-3">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                 {tiles.map((tile) => {
                     const Icon = tile.icon;
                     const tint = glassTints[tile.tint] || glassTints.sky;
@@ -125,7 +125,7 @@ export default function DashboardAnalyticsWidget({ shifts, lateCutoffMinutes = 9
 
     return (
         <div className="mx-auto w-full max-w-7xl px-safe">
-            <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {tiles.map((tile) => {
                     const Icon = tile.icon;
                     return (

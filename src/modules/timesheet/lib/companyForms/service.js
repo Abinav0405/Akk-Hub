@@ -311,6 +311,82 @@ export async function saveRecommendedResultOptions(options) {
     return data;
 }
 
+/**
+ * Manager/admin correction of a submitted form while it is still pending approval.
+ * Re-evaluates flags and rebuilds the stored document. Locked once approved/rejected.
+ */
+export async function updatePendingSubmission({ id, payload }) {
+    if (!id) throw new Error('Missing submission id');
+    if (!payload || typeof payload !== 'object') {
+        throw new Error('Missing form payload');
+    }
+
+    const existing = await getSubmission(id);
+    if (!existing) throw new Error('Could not update submission.');
+    if (existing.status !== SUBMISSION_STATUS.PENDING) {
+        throw new Error('Only pending forms can be edited before approval.');
+    }
+
+    const { is_flagged, flag_reasons } = evaluateFormFlags(existing.form_key, payload);
+    const updatedAt = new Date().toISOString();
+
+    let definition = existing.definition_snapshot;
+    if (!definition) {
+        definition =
+            (await getResolvedFormDefinition(existing.form_key)) ||
+            getFormDefinition(existing.form_key);
+    }
+    if (!definition) throw new Error('Unknown form');
+
+    const next = {
+        ...existing,
+        payload,
+        is_flagged,
+        flag_reasons,
+        updated_at: updatedAt,
+    };
+
+    const patch = {
+        payload,
+        is_flagged,
+        flag_reasons,
+        updated_at: updatedAt,
+        document_html: buildCompanyFormDocumentHtml({ submission: next, definition }),
+        definition_snapshot: snapshotDefinition(definition),
+    };
+
+    let { data, error } = await supabaseTimesheet
+        .from('company_form_submissions')
+        .update(patch)
+        .eq('id', id)
+        .eq('status', SUBMISSION_STATUS.PENDING)
+        .select()
+        .maybeSingle();
+
+    if (error && (missingColumn(error, 'document_html') || missingColumn(error, 'definition_snapshot'))) {
+        const legacy = { ...patch };
+        delete legacy.document_html;
+        delete legacy.definition_snapshot;
+        ({ data, error } = await supabaseTimesheet
+            .from('company_form_submissions')
+            .update(legacy)
+            .eq('id', id)
+            .eq('status', SUBMISSION_STATUS.PENDING)
+            .select()
+            .maybeSingle());
+    }
+
+    if (error) throw error;
+    if (!data) {
+        const latest = await getSubmission(id);
+        if (latest && latest.status !== SUBMISSION_STATUS.PENDING) {
+            throw new Error('Only pending forms can be edited before approval.');
+        }
+        throw new Error('Could not update submission.');
+    }
+    return data;
+}
+
 export async function reviewSubmission({
     id,
     status,

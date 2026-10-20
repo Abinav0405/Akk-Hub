@@ -1,4 +1,3 @@
-// TODO(claude): session helpers + layout for MyAccountPanel
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';

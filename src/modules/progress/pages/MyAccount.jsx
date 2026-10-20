@@ -1,4 +1,3 @@
-// TODO(claude): wire /account and /verify; provide @/ui/layout, AuthChecking, useRoleGuard; session helpers under @/core/*
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppShell, PageHeader } from '@/ui/layout';
@@ -55,7 +54,7 @@ export default function MyAccount() {
   }, [session]);
 
   if (session === undefined) return <AuthChecking />;
-  if (!session) return null;
+  if (!session) return <AuthChecking />;
 
   return (
     <>

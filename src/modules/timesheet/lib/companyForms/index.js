@@ -29,6 +29,7 @@ export {
     listWorkerSubmissions,
     getSubmission,
     listReviewSubmissions,
+    updatePendingSubmission,
     reviewSubmission,
     getRecommendedResultOptions,
     saveRecommendedResultOptions,

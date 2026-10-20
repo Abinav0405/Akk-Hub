@@ -23,10 +23,11 @@ import { isBackendConfigured } from '@/core/supabase';
 
 export const MODULES = ['timesheet', 'materials', 'progress'];
 
+/** What people call each area of the one app (never the old app names). */
 export const MODULE_LABELS = {
-    timesheet: 'Timesheet',
-    materials: 'Material Tracker',
-    progress: 'Site Progress',
+    timesheet: 'Attendance',
+    materials: 'Materials',
+    progress: 'Site work',
 };
 
 /** hub role → module role (null = no access in that module yet). */
@@ -95,12 +96,64 @@ function hasCurrentOwner(module) {
     const owner = currentHubOwner();
     return Boolean(owner && connectionOwner(module) === owner);
 }
-function setConnectionOwner(module) {
-    const owner = currentHubOwner();
+function setConnectionOwner(module, explicitOwner) {
+    const owner = explicitOwner || currentHubOwner();
     if (owner) local.set('hub', `conn.${module}.owner`, owner);
 }
 function clearConnectionOwner(module) {
     local.remove('hub', `conn.${module}.owner`);
+}
+
+/** Push ModuleGate / FinishSetup to re-read after flags change outside connectModule. */
+export function refreshModuleConnections() {
+    notify();
+}
+
+/**
+ * Progress link is role-specific. Stale adminLoggedIn beside a worker session (QA: owner
+ * `test`) must not count as connected for hub admin — that blanked /progress/admin while
+ * useRoleGuard denied and bounced. (Read-only — clear via sanitizeProgressLink.)
+ */
+function progressConnectedFor(role) {
+    if (role === 'worker') return progressWorker.isWorkerAuthenticated();
+    if (role === 'manager') return progressManager.isManagerAuthenticated();
+    if (role === 'admin') {
+        if (!progressAdmin.isAdminAuthenticated()) return false;
+        if (!local.get('progress', 'adminEmail')) return false;
+        // Worker session from a prior device link must not keep admin "connected".
+        if (progressWorker.isWorkerAuthenticated()) return false;
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Clear contradictory Progress flags (call from effects / deny paths — not during render).
+ */
+export function sanitizeProgressLink(hubRole) {
+    const role = moduleRoleFor(hubRole, 'progress');
+    if (!role) return;
+    let changed = false;
+    if (role === 'admin') {
+        if (progressAdmin.isAdminAuthenticated() && (!local.get('progress', 'adminEmail') || progressWorker.isWorkerAuthenticated())) {
+            progressAdmin.clearAdminFlags();
+            changed = true;
+        }
+    } else if (role === 'manager') {
+        if (progressManager.isManagerAuthenticated() && progressWorker.isWorkerAuthenticated()) {
+            progressWorker.clearWorkerSession();
+            changed = true;
+        }
+    } else if (role === 'worker') {
+        if (progressWorker.isWorkerAuthenticated() && progressAdmin.isAdminAuthenticated()) {
+            progressAdmin.clearAdminFlags();
+            changed = true;
+        }
+    }
+    if (changed) {
+        clearConnectionOwner('progress');
+        notify();
+    }
 }
 
 /**
@@ -126,9 +179,7 @@ export function moduleConnection(hubRole, module) {
             : 'disconnected';
     }
     if (module === 'progress') {
-        if (role === 'worker') return progressWorker.isWorkerAuthenticated() ? 'connected' : 'disconnected';
-        if (role === 'manager') return progressManager.isManagerAuthenticated() ? 'connected' : 'disconnected';
-        if (role === 'admin') return progressAdmin.isAdminAuthenticated() ? 'connected' : 'disconnected';
+        return progressConnectedFor(role) ? 'connected' : 'disconnected';
     }
     return 'disconnected';
 }
@@ -167,25 +218,42 @@ export async function connectModule({ hubRole, module, id, email, password }) {
             const owner = currentHubOwner();
             if (prevOwner && owner && prevOwner !== owner) {
                 await disconnectModule('progress');
+            } else {
+                // Same hub user, role-hop / reconnect: drop other Progress portal sessions
+                // but keep Export Only (another tab may still be on the client portal).
+                if (role !== 'worker') await progressWorker.signOutWorker().catch(() => {});
+                if (role !== 'manager') await progressManager.signOutManager().catch(() => {});
+                // Fresh flags written by signInAdmin / left cleared for worker|manager.
+                progressAdmin.clearAdminFlags();
             }
         }
 
         let result;
+        const loginId = (email || id || '').trim();
         if (module === 'materials') {
             result =
                 role === 'worker'
                     ? await materials.signInRequester({ requesterId: id, password })
-                    : await materials.signInStaff({ email: email || id, password, role });
+                    : await materials.signInStaff({ email: loginId, password, role });
             if (result.ok && role !== 'worker') setStaffMarker('materials', role);
         } else if (module === 'progress') {
             if (role === 'worker') result = await progressWorker.signInWorker({ employeeCode: id, password });
-            else if (role === 'manager') result = await progressManager.signInManager({ loginId: email || id, password });
-            else result = await progressAdmin.signInAdmin({ email: email || id, password });
+            else if (role === 'manager') result = await progressManager.signInManager({ loginId, password });
+            else result = await progressAdmin.signInAdmin({ email: loginId, password });
         }
         if (result?.ok) {
-            setConnectionOwner(module);
-            // Owner stamp can fail if hub.id was empty; retry once from live identity.
-            if (!hasCurrentOwner(module)) setConnectionOwner(module);
+            // Prefer the credentials just used when hub.id was still empty.
+            const ownerHint = currentHubOwner() || loginId || id || null;
+            if (ownerHint && !local.get('hub', 'id')) local.set('hub', 'id', ownerHint);
+            setConnectionOwner(module, ownerHint);
+            if (!hasCurrentOwner(module)) setConnectionOwner(module, ownerHint);
+            // Push: register this phone with the module just linked (no-op on web / when disabled).
+            import('@/core/push')
+                .then((push) => {
+                    if (module === 'materials' && role === 'worker') push.setPendingWorkerPassword(password);
+                    return push.registerPushDevice();
+                })
+                .catch(() => {});
         }
         notify();
         return result?.ok ? { ok: true } : { ok: false, error: result?.error || 'Could not sign in.' };

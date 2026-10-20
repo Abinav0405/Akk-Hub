@@ -26,6 +26,7 @@ import { useLanguage } from '@/core-i18n';
 import TopBar from '@/ui/hub/TopBar';
 import { Link } from "react-router-dom";
 import { verifyRoleSession } from '@/core/auth/timesheetSession';
+import { useHubSection } from '@/app/useHubSection';
 import { format } from "date-fns";
 import QRCode from "qrcode";
 import { toast } from "sonner";
@@ -64,6 +65,9 @@ import { isNativeApp } from '@/core/platform';
 import { NativeIconButton, NativeNavBar } from '@/ui/native/NativeChrome';
 import { NativeErrorState, NativeListSkeleton } from '@/ui/native/NativeStates';
 
+const SHIFT_PAGE = 50;
+
+const MANAGER_DASHBOARD_SECTIONS = ['time-tracker', 'leaves', 'company-forms', 'timesheets'];
 const NATIVE_APP = isNativeApp();
 
 // Production logging system
@@ -77,7 +81,9 @@ const log = {
 
 export default function ManagerDashboard() {
     const { t } = useLanguage();
-    const [managerTab, setManagerTab] = useState('time-tracker');
+    const [managerTab, setManagerTab] = useHubSection('time-tracker', MANAGER_DASHBOARD_SECTIONS);
+    // Long lists render in pages: ~1,000 shift cards at once made the screen crawl.
+    const [shiftLimit, setShiftLimit] = useState(SHIFT_PAGE);
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -1518,20 +1524,20 @@ export default function ManagerDashboard() {
                 <DashboardAnalyticsWidget shifts={shifts} variant={NATIVE_APP ? 'app' : 'glass'} />
 
                 <Tabs value={managerTab} onValueChange={setManagerTab} className="mt-4 w-full">
-                    <TabsList className="akk-tabs-wrap grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-white/70 bg-white/70 p-1 shadow-sm">
-                        <TabsTrigger value="time-tracker" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-emerald-600 data-[state=active]:text-white sm:text-sm">
+                    <TabsList data-section-nav className="akk-tabs-wrap grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-white/70 bg-white/70 p-1 shadow-sm">
+                        <TabsTrigger value="time-tracker" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
                             <Clock className="mr-1.5 h-4 w-4" />
                             {t('admin.timeTracker')}
                         </TabsTrigger>
-                        <TabsTrigger value="leaves" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white sm:text-sm">
+                        <TabsTrigger value="leaves" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
                             <Calendar className="mr-1.5 h-4 w-4" />
                             {t('admin.leaves')}
                         </TabsTrigger>
-                        <TabsTrigger value="company-forms" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white sm:text-sm">
+                        <TabsTrigger value="company-forms" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
                             <FileText className="mr-1.5 h-4 w-4" />
                             {t('admin.companyForms')}
                         </TabsTrigger>
-                        <TabsTrigger value="timesheets" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-slate-800 data-[state=active]:text-white sm:text-sm">
+                        <TabsTrigger value="timesheets" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
                             <Receipt className="mr-1.5 h-4 w-4" />
                             {t('admin.timesheet')}
                         </TabsTrigger>
@@ -1576,7 +1582,7 @@ export default function ManagerDashboard() {
                                     resetCreateShiftForm();
                                     setShowCreateShiftDialog(true);
                                 }}
-                                className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                                className="h-10 rounded-xl bg-brand hover:bg-brand-hover"
                                 data-tour="manager-create-shift"
                             >
                                 <PlusCircle className="mr-1.5 h-4 w-4" />
@@ -1717,7 +1723,7 @@ export default function ManagerDashboard() {
                         </div>
                     ) : (
                         <div className="space-y-2" data-tour="manager-shifts-list">
-                            {filteredShifts.map((shift) => {
+                            {filteredShifts.slice(0, shiftLimit).map((shift) => {
                                             const isSundayShift = isSunday(shift.work_date);
                                             const isHolidayShift = isPublicHoliday(shift.work_date);
 
@@ -1925,6 +1931,15 @@ export default function ManagerDashboard() {
                                                 </div>
                                             );
                                         })}
+                                        {filteredShifts.length > shiftLimit ? (
+                                            <button
+                                                type="button"
+                                                className="g-btn g-btn--secondary g-btn--block"
+                                                onClick={() => setShiftLimit((n) => n + SHIFT_PAGE)}
+                                            >
+                                                Show more ({filteredShifts.length - shiftLimit} more)
+                                            </button>
+                                        ) : null}
                         </div>
                     )}
                 </section>
@@ -2150,7 +2165,7 @@ export default function ManagerDashboard() {
                         <Button className="w-full sm:w-auto" variant="outline" onClick={() => setShowCreateShiftDialog(false)}>
                             Cancel
                         </Button>
-                        <Button className="bg-indigo-600 hover:bg-indigo-700 w-full sm:w-auto"
+                        <Button className="bg-brand hover:bg-brand-hover w-full sm:w-auto"
                             onClick={handleCreateShiftSubmit} disabled={isCreatingShift}>
                             {isCreatingShift ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             Create Shift
@@ -2420,17 +2435,7 @@ export default function ManagerDashboard() {
                 </DialogContent>
             </Dialog>
 
-            {/* Native app: Tutorial lives in the nav bar instead of floating over the list. */}
-            {NATIVE_APP ? null : (
-            <Button
-                onClick={() => setIsTutorialRunning(true)}
-                className="fixed bottom-5 right-5 z-50 h-11 rounded-full bg-emerald-600 px-4 text-white shadow-lg hover:bg-emerald-700 sm:hidden"
-                size="sm"
-            >
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Tutorial
-            </Button>
-            )}
+            {/* Tutorial: top-bar / native nav only — no phone FAB (it covered hub Site/Account). */}
 
         </div>
     );

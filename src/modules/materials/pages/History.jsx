@@ -1,4 +1,3 @@
-// TODO(claude): AppShell/PageHeader (@/ui/layout) + materials hooks (useAndroidBackButton, useProgressiveList) may need hub mounts
 import React, { useState, useEffect } from 'react';
 import { supabaseMaterials as supabase } from '@/core/supabase';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";

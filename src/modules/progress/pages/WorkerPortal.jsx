@@ -29,7 +29,7 @@ export default function WorkerPortal() {
     }, [session]);
 
     if (session === undefined) return overlay || <AuthChecking />;
-    if (!session) return overlay;
+    if (!session) return overlay || <AuthChecking />;
 
 
     return (

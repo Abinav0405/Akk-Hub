@@ -11,6 +11,8 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { LoadingScreen } from '@/ui/hub/primitives';
 import { ModuleGate, RequireHubRole } from '@/app/guards';
 import { modulePage } from '@/app/modulePage';
+import { homePathFor, useIdentity } from '@/core/auth/identity';
+import { paths } from '@/app/paths';
 import Home from '@/pages/Home';
 
 // The signed-in shell isn't needed on Home / sign-in, so it loads with the first portal screen.
@@ -56,7 +58,6 @@ const MODULE_ROUTES = [
     ['/timesheet/admin/forms', T('AdminForms'), ['admin']],
     ['/timesheet/admin/forms/:id', T('AdminFormDetail'), ['admin']],
     ['/timesheet/admin/company-forms', T('AdminCompanyForms'), ['admin']],
-    ['/timesheet/history', T('History'), STAFF],
     // Material Tracker
     ['/materials/request', M('RequestPortal'), ['worker'], 'materials'],
     ['/materials/history', M('RequestHistory'), ['worker'], 'materials'],
@@ -83,6 +84,22 @@ const ClientPortal = lazy(() => import('@/pages/client/ClientPortal'));
 /** Public screens (Verify a photo, privacy): plain page, no tab bar — they have their own back button. */
 function PublicScreen({ children }) {
     return <div className="g-page">{children}</div>;
+}
+
+/**
+ * Legacy Timesheet History.jsx was never routed. Hub had wrongly mounted the worker-shift
+ * History UI behind a STAFF gate. Send each role to the real history surface:
+ * worker → ShiftHistory; staff/supervisor → their attendance dashboards.
+ */
+function TimesheetHistoryRedirect() {
+    const identity = useIdentity();
+    const to = ({
+        worker: paths.timesheet.shifts,
+        supervisor: paths.timesheet.siteShifts,
+        manager: paths.timesheet.manage,
+        admin: paths.timesheet.admin,
+    })[identity?.role] || homePathFor(identity?.role);
+    return <Navigate to={to} replace />;
 }
 
 function Guarded({ roles, module, Component }) {
@@ -124,6 +141,8 @@ export default function AppRoutes() {
                     <Route path="/notifications" element={<RequireHubRole roles={ALL}><Misc.Notifications /></RequireHubRole>} />
                     <Route path="/connect/:module" element={<RequireHubRole roles={ALL}><Misc.ConnectPage /></RequireHubRole>} />
                     <Route path="/timesheet/leave" element={<Navigate to="/timesheet/leave/history" replace />} />
+                    {/* Orphan worker History.jsx — role-aware redirect (legacy never routed this page). */}
+                    <Route path="/timesheet/history" element={<RequireHubRole roles={ALL}><TimesheetHistoryRedirect /></RequireHubRole>} />
                     {MODULE_ROUTES.map(([path, Component, roles, module]) => (
                         <Route key={path} path={path} element={<Guarded roles={roles} module={module} Component={Component} />} />
                     ))}

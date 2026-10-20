@@ -63,7 +63,7 @@ export default function AdminEditShiftDialog({
                 </DialogHeader>
                 {editingShift ? (
                     <>
-                        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/70 px-4 py-3">
+                        <div className="rounded-2xl border border-brand-soft bg-brand-soft px-4 py-3">
                             <p className="font-semibold text-slate-900">
                                 {editingShift.workers?.employee_name || 'Worker'}
                             </p>
@@ -235,7 +235,7 @@ export default function AdminEditShiftDialog({
                             ) : null}
                             <Button
                                 onClick={() => onSave(data, false)}
-                                className="h-11 rounded-xl bg-indigo-600 hover:bg-indigo-700"
+                                className="h-11 rounded-xl bg-brand hover:bg-brand-hover"
                             >
                                 Update Shift
                             </Button>

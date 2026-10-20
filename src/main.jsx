@@ -64,6 +64,8 @@ initNativeShell().finally(() => {
     );
     if (isNativeApp()) {
         hideNativeCapacitorSplash();
+        // Notification taps (incl. the one that launched the app) are queued until the router is up.
+        void import('@/core/push').then((push) => push.initPush());
         // Ask for notifications / location / camera once per install, after the first paint.
         window.setTimeout(() => void runNativeFirstLaunchPermissionsIfNeeded(), 1200);
     }

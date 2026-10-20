@@ -2,6 +2,8 @@
  * Site Progress / Material Tracker layout API (Components/layout/*) on the hub chrome.
  * The hub already draws the sidebar / tab bar, so these are light wrappers.
  */
+import { useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { cn } from '@/ui/utils';
 import TopBar from '@/ui/hub/TopBar';
 import Segmented from '@/ui/hub/Segmented';
@@ -56,12 +58,39 @@ export function PageFooter({ className }) {
 export function PortalShell({ portalLabel, groups = [], value, onChange, sectionLabel, children, className }) {
     const items = groups.flatMap((g) => g.items || []);
     const current = items.find((i) => i.id === value);
-    const eyebrow = String(portalLabel || 'Site Progress').replace(/\s*-\s*/, ' · ');
+
+    // Keep the section in the URL (?section=, see app/useHubSection.js) so the hub sidebar can
+    // open any section directly and Back / refresh work — without the dashboard knowing.
+    const [params, setParams] = useSearchParams();
+    const urlSection = params.get('section');
+    const defaultSection = useRef(value);
+    useEffect(() => {
+        const wanted = urlSection && items.some((i) => i.id === urlSection) ? urlSection : defaultSection.current;
+        if (wanted && wanted !== value) onChange?.(wanted);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [urlSection]);
+    const changeSection = (id) => {
+        onChange?.(id);
+        setParams(
+            (prev) => {
+                const next = new URLSearchParams(prev);
+                if (id === defaultSection.current) next.delete('section');
+                else next.set('section', id);
+                return next;
+            },
+            { replace: true }
+        );
+    };
+    // One product: name the area of work, not the source app ("Site Progress - Admin").
+    const eyebrow = /site progress/i.test(String(portalLabel || 'Site Progress')) ? 'Site work' : portalLabel;
     return (
         <>
             <TopBar eyebrow={eyebrow} title={sectionLabel || current?.label || 'Overview'}>
                 {items.length > 1 ? (
-                    <div className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    <div
+                        data-section-nav
+                        className="-mx-1 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                    >
                         <Segmented
                             options={items.map((i) => ({
                                 id: i.id,
@@ -69,7 +98,7 @@ export function PortalShell({ portalLabel, groups = [], value, onChange, section
                                 icon: i.icon,
                             }))}
                             value={value}
-                            onChange={onChange}
+                            onChange={changeSection}
                             ariaLabel="Sections"
                             className="min-w-max"
                         />

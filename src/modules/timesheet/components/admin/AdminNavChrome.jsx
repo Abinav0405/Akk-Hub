@@ -24,7 +24,7 @@ export const ADMIN_TAB_TITLES = {
 };
 
 const DASH_TABS = [
-    { id: 'time-tracker', labelKey: 'admin.timeTracker', icon: Clock, iconClass: 'text-indigo-600', tour: 'admin-tab-time-tracker' },
+    { id: 'time-tracker', labelKey: 'admin.timeTracker', icon: Clock, iconClass: 'text-brand', tour: 'admin-tab-time-tracker' },
     { id: 'leaves', labelKey: 'admin.leaves', icon: Calendar, iconClass: 'text-slate-600', tour: 'admin-tab-leaves', badge: true },
     { id: 'payslip-report', labelKey: 'admin.payslipReport', icon: Receipt, iconClass: 'text-slate-600', tour: 'admin-tab-payslip' },
     { id: 'timesheet-report', labelKey: 'admin.timesheet', icon: FileText, iconClass: 'text-slate-600', tour: 'admin-tab-timesheet' },
@@ -95,10 +95,11 @@ export function AdminMobileSectionStrip({ activeTab, onTabChange, leaveCount = 0
     const { t } = useLanguage();
     return (
         <div
-            className={cn('admin-section-strip', className)}
+            className={cn('admin-section-strip md:hidden', className)}
             role="tablist"
             aria-label={t('admin.sections')}
             data-tour="admin-tabs"
+            data-section-nav
         >
             {DASH_TABS.map((tab) => {
                 const Icon = tab.icon;
