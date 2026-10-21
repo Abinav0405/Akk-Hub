@@ -1,7 +1,7 @@
 /**
  * App home (Capacitor, or ?app=1 preview) — a native sign-in screen, not a website.
  * Crimson hero with greeting, the Employee card (site-QR hint, Sign in, Face ID / Fingerprint
- * one-tap), then the other portals (Managers, Admin, Clients) with the same biometric shortcuts,
+ * one-tap), then other portals (Managers, Admin, Clients) with fingerprint-only shortcuts,
  * and Verify a photo. No tab bar.
  */
 import { useEffect, useState } from 'react';
@@ -50,13 +50,20 @@ function QrHint() {
     );
 }
 
-function BioQuickLinks({ faceTo, fingerprintTo, hasFingerprint }) {
+/** @param {{ faceTo?: string, fingerprintTo?: string, hasFingerprint?: boolean, showFace?: boolean }} props */
+function BioQuickLinks({ faceTo, fingerprintTo, hasFingerprint, showFace = true }) {
+    const showFp = Boolean(hasFingerprint && fingerprintTo);
+    const showFaceLink = Boolean(showFace && faceTo);
+    if (!showFaceLink && !showFp) return null;
+    const single = (showFaceLink ? 1 : 0) + (showFp ? 1 : 0) === 1;
     return (
-        <div className={`hxa-quick ${hasFingerprint ? '' : 'hxa-quick--single'}`}>
-            <Link to={faceTo}>
-                <ScanFace strokeWidth={1.8} aria-hidden /> Face ID
-            </Link>
-            {hasFingerprint ? (
+        <div className={`hxa-quick ${single ? 'hxa-quick--single' : ''}`}>
+            {showFaceLink ? (
+                <Link to={faceTo}>
+                    <ScanFace strokeWidth={1.8} aria-hidden /> Face ID
+                </Link>
+            ) : null}
+            {showFp ? (
                 <Link to={fingerprintTo}>
                     <Fingerprint strokeWidth={1.8} aria-hidden /> Fingerprint
                 </Link>
@@ -68,7 +75,6 @@ function BioQuickLinks({ faceTo, fingerprintTo, hasFingerprint }) {
 const OTHER_PORTALS = [
     {
         to: `${paths.login}?role=management`,
-        faceTo: `${paths.login}?role=management&quick=face`,
         fingerprintTo: `${paths.login}?role=management&quick=fingerprint`,
         icon: Users,
         tone: 'manager',
@@ -77,7 +83,6 @@ const OTHER_PORTALS = [
     },
     {
         to: `${paths.login}?role=admin`,
-        faceTo: `${paths.login}?role=admin&quick=face`,
         fingerprintTo: `${paths.login}?role=admin&quick=fingerprint`,
         icon: Shield,
         tone: 'admin',
@@ -86,7 +91,6 @@ const OTHER_PORTALS = [
     },
     {
         to: paths.progress.clientLogin,
-        faceTo: `${paths.progress.clientLogin}?quick=face`,
         fingerprintTo: `${paths.progress.clientLogin}?quick=fingerprint`,
         icon: Building2,
         tone: 'client',
@@ -95,7 +99,7 @@ const OTHER_PORTALS = [
     },
 ];
 
-function PortalRow({ to, icon: Icon, tone, title, hint, faceTo, fingerprintTo, hasFingerprint, showBio }) {
+function PortalRow({ to, icon: Icon, tone, title, hint, fingerprintTo, hasFingerprint, showBio }) {
     return (
         <div className="hxa-portal">
             <Link to={to} className="hxa-row" data-tone={tone}>
@@ -109,7 +113,7 @@ function PortalRow({ to, icon: Icon, tone, title, hint, faceTo, fingerprintTo, h
                 <ChevronRight className="hxa-row__chev" aria-hidden />
             </Link>
             {showBio ? (
-                <BioQuickLinks faceTo={faceTo} fingerprintTo={fingerprintTo} hasFingerprint={hasFingerprint} />
+                <BioQuickLinks fingerprintTo={fingerprintTo} hasFingerprint={hasFingerprint} showFace={false} />
             ) : null}
         </div>
     );

@@ -4,7 +4,9 @@
  * admin_save_place / admin_merge_places (one backend only).
  */
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Boxes, Camera, Clock, GitMerge, MapPin, Pencil, Plus, Search, TriangleAlert } from 'lucide-react';
+import { Boxes, Camera, Clock, Download, GitMerge, MapPin, Pencil, Plus, QrCode, RefreshCw, Search, TriangleAlert } from 'lucide-react';
+import QRCode from 'qrcode';
+import { toast } from 'sonner';
 import { HubPage } from '@/ui/PortalShell';
 import { Banner, EmptyState, Field, Heading, Spinner } from '@/ui/hub/primitives';
 import { Button } from '@/ui/button';
@@ -19,6 +21,37 @@ const AREAS = [
     { key: 'materials', label: 'Materials', icon: Boxes, hint: 'Shown in the material request site list' },
     { key: 'progress', label: 'Site work', icon: Camera, hint: 'Photo packages, JSR and section prefixes' },
 ];
+
+/** Same token shape as timesheet admin site QR (NAME_TOKEN). */
+function generateQrToken(name) {
+    const base = String(name || 'SITE')
+        .trim()
+        .replace(/\s+/g, '_')
+        .toUpperCase() || 'SITE';
+    return `${base}_TOKEN`;
+}
+
+async function qrDataUrl(token, width = 512) {
+    return QRCode.toDataURL(token, { margin: 2, width });
+}
+
+async function downloadSiteQrPng({ qr_token, site_name }) {
+    if (!qr_token) {
+        toast.error('QR token not available for this site');
+        return;
+    }
+    try {
+        const dataUrl = await qrDataUrl(qr_token, 512);
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = `${String(site_name || 'site').replaceAll(' ', '_')}_qr.png`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    } catch {
+        toast.error('Failed to generate QR code');
+    }
+}
 
 const STOP = new Set(['and', 'the', 'of', 'at', 'site', 'sites', 'akk']);
 const tokens = (name) =>
@@ -87,9 +120,13 @@ function Switch({ on, onChange, label, disabled }) {
             aria-label={label}
             disabled={disabled}
             onClick={() => onChange(!on)}
-            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${on ? 'bg-[var(--g-brand)]' : 'bg-slate-300'}`}
+            className={`relative h-6 w-11 shrink-0 overflow-hidden rounded-full transition-colors ${on ? 'bg-[var(--g-brand)]' : 'bg-slate-300'}`}
         >
-            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+            <span
+                className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                    on ? 'translate-x-5' : 'translate-x-0'
+                }`}
+            />
         </button>
     );
 }
@@ -117,6 +154,7 @@ function EditDialog({ place, open, onClose, onSaved }) {
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
     const [prefixes, setPrefixes] = useState(false);
+    const [qrPreviewUrl, setQrPreviewUrl] = useState('');
 
     useEffect(() => {
         if (open) {
@@ -124,8 +162,30 @@ function EditDialog({ place, open, onClose, onSaved }) {
             setError('');
         } else {
             setPrefixes(false);
+            setQrPreviewUrl('');
         }
     }, [open, place]);
+
+    useEffect(() => {
+        let active = true;
+        const token = form.attendance?.on ? String(form.attendance.qr_token || '').trim() : '';
+        if (!open || !token) {
+            setQrPreviewUrl('');
+            return () => {
+                active = false;
+            };
+        }
+        qrDataUrl(token, 256)
+            .then((url) => {
+                if (active) setQrPreviewUrl(url);
+            })
+            .catch(() => {
+                if (active) setQrPreviewUrl('');
+            });
+        return () => {
+            active = false;
+        };
+    }, [open, form.attendance?.on, form.attendance?.qr_token]);
 
     const set = (area, patch) => setForm((f) => ({ ...f, [area]: { ...f[area], ...patch } }));
     const anyOn = AREAS.some(({ key }) => form[key].on);
@@ -168,14 +228,50 @@ function EditDialog({ place, open, onClose, onSaved }) {
                                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
                                         <Field id="site-lat" label="Latitude" inputMode="decimal" value={form.attendance.latitude} onChange={(e) => set('attendance', { latitude: e.target.value })} />
                                         <Field id="site-lng" label="Longitude" inputMode="decimal" value={form.attendance.longitude} onChange={(e) => set('attendance', { longitude: e.target.value })} />
-                                        <Field
-                                            id="site-qr"
-                                            label="QR code text"
-                                            className="sm:col-span-2"
-                                            hint={form.id && place?.attendance ? 'Changing it means reprinting the site QR.' : 'Leave empty to create one automatically.'}
-                                            value={form.attendance.qr_token}
-                                            onChange={(e) => set('attendance', { qr_token: e.target.value })}
-                                        />
+                                        <div className="sm:col-span-2 space-y-2">
+                                            <Field
+                                                id="site-qr"
+                                                label="QR code text"
+                                                hint={form.id && place?.attendance ? 'Changing it means reprinting the site QR.' : 'Leave empty to create one automatically on save, or generate now.'}
+                                                value={form.attendance.qr_token}
+                                                onChange={(e) => set('attendance', { qr_token: e.target.value })}
+                                            />
+                                            <div className="flex flex-wrap gap-2">
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 rounded-xl"
+                                                    onClick={() => set('attendance', { qr_token: generateQrToken(form.name) })}
+                                                >
+                                                    <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+                                                    {form.attendance.qr_token ? 'Regenerate' : 'Generate'}
+                                                </Button>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-9 rounded-xl"
+                                                    disabled={!String(form.attendance.qr_token || '').trim()}
+                                                    onClick={() =>
+                                                        downloadSiteQrPng({
+                                                            qr_token: form.attendance.qr_token,
+                                                            site_name: form.name,
+                                                        })
+                                                    }
+                                                >
+                                                    <Download className="h-3.5 w-3.5" aria-hidden />
+                                                    Download PNG
+                                                </Button>
+                                            </div>
+                                            <div className="flex justify-center rounded-xl border border-[var(--g-hairline)] bg-white p-3">
+                                                {qrPreviewUrl ? (
+                                                    <img src={qrPreviewUrl} alt={`QR code for ${form.name || 'site'}`} className="h-40 w-40 object-contain" />
+                                                ) : (
+                                                    <p className="py-10 text-center text-sm text-[var(--g-muted)]">Generate or enter a token to preview the QR.</p>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 ) : null}
                                 {form[key].on && key === 'progress' ? (
@@ -233,6 +329,57 @@ function EditDialog({ place, open, onClose, onSaved }) {
                 </DialogContent>
             </Dialog>
         </>
+    );
+}
+
+function SiteQrPreviewDialog({ preview, open, onClose }) {
+    return (
+        <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+            <DialogContent className="max-w-md gap-4">
+                <DialogHeader>
+                    <DialogTitle className="pr-8">{preview?.site_name || 'Site QR'}</DialogTitle>
+                    <DialogDescription>Use this code for worker check-in at this site. Save the image or copy the token.</DialogDescription>
+                </DialogHeader>
+                {preview?.dataUrl ? (
+                    <div className="flex justify-center rounded-xl border border-[var(--g-hairline)] bg-white p-4">
+                        <img
+                            src={preview.dataUrl}
+                            alt={`QR code for ${preview.site_name}`}
+                            className="h-56 w-56 max-w-full object-contain sm:h-64 sm:w-64"
+                        />
+                    </div>
+                ) : null}
+                <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                    <Button
+                        type="button"
+                        className="h-10 rounded-xl"
+                        onClick={() => {
+                            if (!preview) return;
+                            downloadSiteQrPng({ qr_token: preview.qr_token, site_name: preview.site_name });
+                        }}
+                    >
+                        <Download className="h-4 w-4" aria-hidden />
+                        Download PNG
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-10 rounded-xl"
+                        onClick={async () => {
+                            if (!preview?.qr_token) return;
+                            try {
+                                await navigator.clipboard.writeText(preview.qr_token);
+                                toast.success('QR token copied');
+                            } catch {
+                                toast.error('Failed to copy');
+                            }
+                        }}
+                    >
+                        Copy token
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -306,6 +453,7 @@ export default function SitesPage() {
     const [editing, setEditing] = useState(null); // place | {} (new) | null
     const [merging, setMerging] = useState(null);
     const [mergeSeed, setMergeSeed] = useState(null);
+    const [qrPreview, setQrPreview] = useState(null);
 
     const load = useCallback(async () => {
         if (!UNIFIED) return;
@@ -325,6 +473,20 @@ export default function SitesPage() {
         return (places || []).filter((p) => !q || p.name.toLowerCase().includes(q));
     }, [places, query]);
     const pairs = useMemo(() => (places ? similarPairs(places) : []), [places]);
+
+    const openSiteQr = async (place) => {
+        const token = place?.attendance?.qr_token;
+        if (!token) {
+            toast.error('QR token not available — edit the site and generate one under Attendance.');
+            return;
+        }
+        try {
+            const dataUrl = await qrDataUrl(token, 512);
+            setQrPreview({ site_name: place.name || 'Site', qr_token: token, dataUrl });
+        } catch {
+            toast.error('Failed to generate QR code');
+        }
+    };
 
     const done = () => {
         setEditing(null);
@@ -398,11 +560,21 @@ export default function SitesPage() {
                             <p className="truncate font-semibold text-[var(--g-ink)]">{p.name}</p>
                             <p className="mt-0.5 text-xs text-[var(--g-muted)]">
                                 {AREAS.map(({ key }) => usage(p, key)).filter(Boolean).join(' · ') || 'Not used yet'}
-                                {p.attendance && p.attendance.latitude == null ? ' · no location set' : ''}
+                                {p.attendance &&
+                                (p.attendance.latitude == null ||
+                                    p.attendance.longitude == null ||
+                                    (Number(p.attendance.latitude) === 0 && Number(p.attendance.longitude) === 0))
+                                    ? ' · no location set'
+                                    : ''}
                             </p>
                         </div>
                         <AreaChips place={p} />
-                        <div className="flex shrink-0 gap-2">
+                        <div className="flex shrink-0 flex-wrap gap-2">
+                            {p.attendance?.qr_token ? (
+                                <Button type="button" size="sm" variant="outline" onClick={() => openSiteQr(p)} title="View or download QR code">
+                                    <QrCode className="h-3.5 w-3.5" aria-hidden /> QR
+                                </Button>
+                            ) : null}
                             <Button type="button" size="sm" variant="outline" onClick={() => setEditing(p)}>
                                 <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
                             </Button>
@@ -415,6 +587,7 @@ export default function SitesPage() {
             </ul>
 
             <EditDialog place={editing && editing.id ? editing : null} open={Boolean(editing)} onClose={() => setEditing(null)} onSaved={done} />
+            <SiteQrPreviewDialog preview={qrPreview} open={Boolean(qrPreview)} onClose={() => setQrPreview(null)} />
             <MergeDialog
                 seed={mergeSeed}
                 place={merging}

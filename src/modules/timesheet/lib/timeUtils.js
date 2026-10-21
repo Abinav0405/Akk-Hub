@@ -417,6 +417,27 @@ export function calculateShiftHours(entryTime, leaveTime, breaksOrLunchStart = [
 }
 
 /**
+ * Parse site lat/lng for geofence. Rejects null/''/`Number(null)===0` traps and (0,0)
+ * (Null Island) — those look “finite” but put workers ~11,000 km from Singapore sites.
+ * @returns {{ latitude: number, longitude: number } | null}
+ */
+export function parseSiteGpsCoords(siteOrLat, lonMaybe) {
+    const rawLat = siteOrLat != null && typeof siteOrLat === 'object'
+        ? siteOrLat.latitude
+        : siteOrLat;
+    const rawLng = siteOrLat != null && typeof siteOrLat === 'object'
+        ? siteOrLat.longitude
+        : lonMaybe;
+    if (rawLat == null || rawLng == null || rawLat === '' || rawLng === '') return null;
+    const latitude = typeof rawLat === 'number' ? rawLat : Number(String(rawLat).trim());
+    const longitude = typeof rawLng === 'number' ? rawLng : Number(String(rawLng).trim());
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    if (latitude === 0 && longitude === 0) return null;
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+    return { latitude, longitude };
+}
+
+/**
  * Calculate distance between two GPS coordinates using Haversine formula
  */
 export function calculateDistance(lat1, lon1, lat2, lon2) {

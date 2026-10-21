@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import LiveQrCamera from '@/modules/timesheet/components/LiveQrCamera';
-import { calculateDistance } from '@/modules/timesheet/lib/timeUtils';
+import { calculateDistance, parseSiteGpsCoords } from '@/modules/timesheet/lib/timeUtils';
 import { supabaseTimesheet } from '@/core/supabase'
 
 function readGpsOnce() {
@@ -40,12 +40,6 @@ const QRScanner = ({
     const reportValidationFailure = (title, subtitle) => {
         toast.error(subtitle || title);
         onValidationFailure?.({ title, subtitle: subtitle || undefined });
-    };
-
-    const siteHasGps = (site) => {
-        const lat = Number(site?.latitude);
-        const lng = Number(site?.longitude);
-        return Number.isFinite(lat) && Number.isFinite(lng);
     };
 
     useEffect(() => {
@@ -111,7 +105,9 @@ const QRScanner = ({
                 return;
             }
 
-            if (!siteHasGps(site)) {
+            // Number(null)===0 used to pass “has GPS” and compare against Null Island (~11,500 km).
+            const siteGps = parseSiteGpsCoords(site);
+            if (!siteGps) {
                 reportValidationFailure(
                     'Site GPS not configured',
                     'This site has no coordinates. Ask an admin to set latitude and longitude before clock-in.',
@@ -147,8 +143,8 @@ const QRScanner = ({
             const distance = calculateDistance(
                 loc.latitude,
                 loc.longitude,
-                site.latitude,
-                site.longitude,
+                siteGps.latitude,
+                siteGps.longitude,
             );
 
             if (distance > requiredDistance) {
