@@ -42,6 +42,7 @@ import {
 } from '@/modules/timesheet/lib/leaveService';
 import { workerIsNotInCompany } from '@/modules/timesheet/lib/workerEmploymentPay';
 import { glassPanel } from '@/ui/PortalShell';
+import { NativeEmptyState } from '@/ui/native/NativeStates';
 import { cn } from '@/modules/timesheet/lib/utils';
 
 function promptRejectReason() {
@@ -303,9 +304,11 @@ export default function ManagerLeavePanel({ managerName }) {
                             <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
                         </div>
                     ) : pendingLeaves.length === 0 ? (
-                        <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 py-8 text-center text-sm text-slate-500">
-                            No leave requests awaiting manager approval.
-                        </p>
+                        <NativeEmptyState
+                            icon={Calendar}
+                            title="No leave requests"
+                            message="Nothing awaiting manager approval right now."
+                        />
                     ) : (
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                             {pendingLeaves.map((request) => {
@@ -492,7 +495,7 @@ export default function ManagerLeavePanel({ managerName }) {
                         <Button
                             onClick={() => saveEdit.mutate()}
                             disabled={saveEdit.isPending}
-                            className="bg-blue-600 hover:bg-blue-700"
+                            className="bg-brand hover:bg-brand-hover"
                         >
                             {saveEdit.isPending ? 'Saving…' : 'Save changes'}
                         </Button>

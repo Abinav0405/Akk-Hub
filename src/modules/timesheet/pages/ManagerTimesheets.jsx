@@ -296,19 +296,19 @@ export default function ManagerTimesheets({ embedded = false }) {
                     title="Timesheet approvals"
                 />
             ) : (
-            <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/75 px-safe pt-[max(0.75rem,env(safe-area-inset-top,0px))] backdrop-blur-xl">
+            <header className="manager-solid-header sticky top-0 z-20 px-safe pt-[max(0.75rem,env(safe-area-inset-top,0px))]">
                 <div className="mx-auto flex max-w-4xl items-center gap-3 py-3">
                     <div className="flex min-w-0 items-center gap-2">
                         <Link to={"/timesheet/manage"}>
-                            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-slate-600 hover:bg-slate-100">
+                            <Button variant="ghost" size="icon" className="h-11 w-11 rounded-full text-[var(--g-ink-2)] hover:bg-[var(--g-brand-soft)] hover:text-[var(--g-brand)]">
                                 <ArrowLeft className="h-5 w-5" />
                             </Button>
                         </Link>
                         <div className="min-w-0">
-                            <p className="truncate text-[11px] font-medium uppercase tracking-[0.14em] text-emerald-700">
+                            <p className="manager-page-eyebrow truncate text-[11px] font-medium uppercase tracking-[0.14em]">
                                 Manager
                             </p>
-                            <h1 className="truncate text-lg font-semibold tracking-tight text-slate-900">
+                            <h1 className="truncate text-lg font-semibold tracking-tight text-[var(--g-ink)]">
                                 Timesheet approvals
                             </h1>
                         </div>
@@ -320,8 +320,10 @@ export default function ManagerTimesheets({ embedded = false }) {
             <main className={embedded ? undefined : 'relative z-10 mx-auto max-w-4xl px-safe py-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]'}>
                 <section className={cn(glassPanel, 'p-4 sm:p-5')}>
                     <div className="mb-4">
-                        <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                            <FileText className="h-5 w-5 text-emerald-600" />
+                        <h2 className="akk-mod-head__title text-lg font-semibold tracking-tight">
+                            <span className="akk-mod-head__icon">
+                                <FileText className="h-4 w-4" aria-hidden />
+                            </span>
                             Pending review
                         </h2>
                         <p className="mt-0.5 text-xs text-slate-500">
@@ -339,13 +341,13 @@ export default function ManagerTimesheets({ embedded = false }) {
                         <NativeErrorState error={timesheetsError} onRetry={() => refetch()} retrying={isRefetchingTimesheets} className="shadow-none" />
                     ) : isLoading ? (
                         <div className="flex justify-center py-16">
-                            <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                            <Loader2 className="h-7 w-7 animate-spin text-[var(--g-brand)]" />
                         </div>
                     ) : timesheets.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-16 text-center">
-                            <FileText className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                            <h3 className="text-base font-semibold text-slate-700">No timesheets pending</h3>
-                            <p className="mt-1 text-sm text-slate-500">Timesheets will show here when workers submit them.</p>
+                        <div className="rounded-[var(--g-r-lg)] border border-dashed border-[var(--g-hairline)] bg-[var(--g-surface-inset)] py-16 text-center">
+                            <FileText className="mx-auto mb-3 h-12 w-12 text-[var(--g-faint)]" />
+                            <h3 className="text-base font-semibold text-[var(--g-ink-2)]">No timesheets pending</h3>
+                            <p className="mt-1 text-sm text-[var(--g-muted)]">Timesheets will show here when workers submit them.</p>
                         </div>
                     ) : (
                         <div className="space-y-2">
@@ -358,8 +360,8 @@ export default function ManagerTimesheets({ embedded = false }) {
                                     <div
                                         key={ts.id}
                                         className={cn(
-                                            'rounded-2xl border bg-white/90 p-4',
-                                            isDeclinedByWorker ? 'border-red-200 bg-red-50/70' : 'border-slate-200/80'
+                                            'manager-timesheet-card p-4',
+                                            isDeclinedByWorker ? 'border-red-200 bg-red-50/70' : null
                                         )}
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -410,7 +412,7 @@ export default function ManagerTimesheets({ embedded = false }) {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-9 rounded-xl border-slate-200 bg-white/70"
+                                                className="h-9 rounded-xl border-slate-200 bg-white"
                                                 onClick={() => handleViewTimesheet(ts)}
                                             >
                                                 <FileText className="mr-1 h-4 w-4" />
@@ -419,7 +421,7 @@ export default function ManagerTimesheets({ embedded = false }) {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-9 rounded-xl border-slate-200 bg-white/70"
+                                                className="h-9 rounded-xl border-slate-200 bg-white"
                                                 onClick={() => handleDownloadTimesheet(ts)}
                                             >
                                                 <Download className="mr-1 h-4 w-4" />
@@ -430,7 +432,7 @@ export default function ManagerTimesheets({ embedded = false }) {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-9 rounded-xl border-slate-200 bg-white/70"
+                                                className="h-9 rounded-xl border-slate-200 bg-white"
                                                 onClick={() => resendToWorker.mutate(ts)}
                                                 disabled={resendToWorker.isPending}
                                             >
@@ -440,7 +442,7 @@ export default function ManagerTimesheets({ embedded = false }) {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="h-9 rounded-xl border-slate-200 bg-white/70"
+                                                className="h-9 rounded-xl border-slate-200 bg-white"
                                                 onClick={() => recreateAndResend.mutate(ts)}
                                                 disabled={recreateAndResend.isPending}
                                             >

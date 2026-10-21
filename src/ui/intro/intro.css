@@ -42,21 +42,22 @@
   will-change: transform, opacity;
 }
 .akk-intro__glow--rose {
-  width: 130vmax;
-  height: 130vmax;
-  left: -55vmax;
-  top: -60vmax;
-  background: radial-gradient(closest-side, rgb(232 70 100 / 0.5), transparent 70%);
+  width: 120vmax;
+  height: 120vmax;
+  left: -50vmax;
+  top: -55vmax;
+  /* Soft brand wash — not a neon bloom */
+  background: radial-gradient(closest-side, rgb(165 15 45 / 0.28), transparent 72%);
   animation:
     akk-intro-fade 900ms var(--intro-ease) 120ms forwards,
     akk-intro-drift-a 2600ms var(--intro-ease) 120ms both;
 }
 .akk-intro__glow--bronze {
-  width: 120vmax;
-  height: 120vmax;
-  right: -60vmax;
-  top: -30vmax;
-  background: radial-gradient(closest-side, rgb(190 120 50 / 0.45), transparent 70%);
+  width: 110vmax;
+  height: 110vmax;
+  right: -55vmax;
+  top: -28vmax;
+  background: radial-gradient(closest-side, rgb(168 101 30 / 0.22), transparent 72%);
   animation:
     akk-intro-fade 900ms var(--intro-ease) 220ms forwards,
     akk-intro-drift-b 2600ms var(--intro-ease) 220ms both;

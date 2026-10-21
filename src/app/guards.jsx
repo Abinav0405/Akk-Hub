@@ -11,7 +11,8 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { PlugZap, ServerOff } from 'lucide-react';
 import { homePathFor, useIdentity, verifyIdentity } from '@/core/auth/identity';
 import { endLoginCurtain } from '@/core/auth/loginCurtain';
-import { MODULE_LABELS, sanitizeProgressLink, useModuleConnection } from '@/core/auth/bridges';
+import { MODULE_LABELS, linkHubWorker, sanitizeProgressLink, useModuleConnection } from '@/core/auth/bridges';
+import { UNIFIED } from '@/core/supabase';
 import { NativeErrorState } from '@/ui/native/NativeStates';
 import { HubPage } from '@/ui/PortalShell';
 import { EmptyState } from '@/ui/hub/primitives';
@@ -86,6 +87,21 @@ export function ModuleGate({ module, children }) {
         setJustConnected(false);
     }, [module, identity?.role, identity?.id]);
 
+    // One backend: a worker's areas open from their hub session; re-check access on every visit.
+    const workerLink = UNIFIED && identity?.role === 'worker';
+    const [linkState, setLinkState] = useState('idle');
+    useEffect(() => {
+        if (!workerLink) return undefined;
+        let live = true;
+        setLinkState('linking');
+        linkHubWorker().then((access) => {
+            if (live) setLinkState(access ? 'done' : 'failed');
+        });
+        return () => {
+            live = false;
+        };
+    }, [workerLink, module, identity?.id]);
+
     // Drop stale Progress worker/admin flag combos before paint (avoid blank AdminDashboard flash).
     useLayoutEffect(() => {
         if (module === 'progress' && identity?.role) sanitizeProgressLink(identity.role);
@@ -104,7 +120,26 @@ export function ModuleGate({ module, children }) {
             </HubPage>
         );
     }
-    if (status === 'unavailable') {
+    if (workerLink && status === 'disconnected' && linkState !== 'failed') {
+        return (
+            <HubPage title={label} backTo={homePathFor(identity?.role)} narrow>
+                <div className="g-card min-h-24 animate-pulse" aria-busy="true" aria-label={`Opening ${label}`} />
+            </HubPage>
+        );
+    }
+    if (status === 'unavailable' || (workerLink && status === 'disconnected')) {
+        if (workerLink && linkState === 'failed') {
+            return (
+                <HubPage title={label} backTo={homePathFor(identity?.role)} narrow>
+                    <NativeErrorState
+                        title="Can’t reach the server"
+                        message="Check your connection, then try again."
+                        onRetry={() => setLinkState('idle') || linkHubWorker().then((a) => setLinkState(a ? 'done' : 'failed'))}
+                        className="g-card !py-6"
+                    />
+                </HubPage>
+            );
+        }
         return (
             <HubPage title={label} backTo={homePathFor(identity?.role)} narrow>
                 <EmptyState icon={PlugZap} tone={module} title={`${label} isn’t part of your role yet`}>

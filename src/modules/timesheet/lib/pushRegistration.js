@@ -1,5 +1,5 @@
 import { Capacitor } from '@capacitor/core';
-import { supabaseTimesheet } from '@/core/supabase'
+import { supabaseTimesheet, FN } from '@/core/supabase'
 import { SESSION_TOKEN_KEY } from '@/core/auth/timesheetSession';
 
 // SECURITY: VITE_* values ship in the client bundle and are NOT secret.
@@ -129,7 +129,7 @@ async function runRegisterJob(buildBody) {
                         window.clearTimeout(timeout);
                         cachedFcmToken = value;
                         try {
-                            const { data, error } = await supabaseTimesheet.functions.invoke('register-device-token', {
+                            const { data, error } = await supabaseTimesheet.functions.invoke(FN.registerAttendance, {
                                 body: buildBody(value),
                                 headers: buildAuthHeaders(),
                             });
@@ -234,7 +234,7 @@ export async function unregisterPushDevice() {
     const token = cachedFcmToken;
     cachedFcmToken = null;
     try {
-        const { error } = await supabaseTimesheet.functions.invoke('register-device-token', {
+        const { error } = await supabaseTimesheet.functions.invoke(FN.registerAttendance, {
             body: { unregister_token: token },
             headers: buildAuthHeaders(),
         });

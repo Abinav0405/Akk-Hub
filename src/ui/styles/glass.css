@@ -1,20 +1,20 @@
 /*
- * AKK Hub — "liquid glass" design system.
+ * AKK Hub — premium liquid-glass design system (ONE PRODUCT).
  *
- * Merges the native glass systems of Material Tracker and Site Progress Tracker and applies
- * them everywhere (web + Android), with the AKK crimson/bronze identity from the logo.
+ * Direction: efficient modern Hub with AKK crimson — not an Apple clone.
+ * Glass is accent only (~5%): floating nav, sheets, overlays, sticky top chrome.
+ * Main content, tables, forms, and settings use solid surfaces (g-card / g-surface).
  *
- * Performance rules carried over from the source apps:
- *  - backdrop-filter only on fixed chrome (top bar, tab bar, sidebar) and the login card.
- *    Anything that scrolls or animates uses near-opaque fills + a white rim instead, so
- *    Android WebViews don't recompute blur every frame.
- *  - Motion uses opacity / transform only; prefers-reduced-motion turns entrances off.
+ * Performance:
+ *  - backdrop-filter only on fixed chrome; scrolling content = opaque fills.
+ *  - Motion: opacity / transform only; prefers-reduced-motion kills entrances.
  *
  * Contents
  *   1. Tokens          5. Buttons, chips, badges    9. Home & auth
  *   2. Canvas          6. Fields & segmented       10. States
  *   3. Surfaces        7. Lists, rows, tiles       11. Legacy compat (welcome, curtain)
  *   4. Chrome          8. Sheets & dialogs         12. Motion
+ *  17. Admin density   (tables / toolbars / panels)
  */
 
 /* ===================================================================================== */
@@ -32,19 +32,19 @@
   --g-bronze-soft: rgb(168 101 30 / 0.12);
 
   /* Module tones (tiles, accents) */
-  --g-tone-timesheet: #dc6b2f;
-  --g-tone-timesheet-soft: rgb(220 107 47 / 0.12);
-  --g-tone-materials: #1d4ed8;
-  --g-tone-materials-soft: rgb(29 78 216 / 0.1);
-  --g-tone-progress: #0f766e;
-  --g-tone-progress-soft: rgb(15 118 110 / 0.11);
+  --g-tone-timesheet: #a50f2d;
+  --g-tone-timesheet-soft: rgb(165 15 45 / 0.09);
+  --g-tone-materials: #8a5a1a;
+  --g-tone-materials-soft: rgb(138 90 26 / 0.1);
+  --g-tone-progress: #2f5d62;
+  --g-tone-progress-soft: rgb(47 93 98 / 0.1);
   --g-tone-camera: #b02e46;
   --g-tone-camera-soft: rgb(176 46 70 / 0.1);
 
   /* Role tones */
   --g-tone-worker: var(--g-brand);
-  --g-tone-manager: #047857;
-  --g-tone-supervisor: #0369a1;
+  --g-tone-manager: var(--g-brand);
+  --g-tone-supervisor: var(--g-brand);
   --g-tone-admin: #334155;
 
   /* Ink */
@@ -63,35 +63,43 @@
   --g-info: #1d4ed8;
   --g-info-soft: rgb(29 78 216 / 0.09);
 
-  /* Surfaces */
-  --g-bg: #eef1f6;
-  --g-surface: rgb(255 255 255 / 0.86);
+  /* Surfaces — solid for content; glass tokens only for floating chrome */
+  --g-bg: #f1f2f5;
+  --g-surface: #ffffff;
   --g-surface-solid: #ffffff;
   --g-surface-2: #f6f7fa;
-  --g-glass: rgb(255 255 255 / 0.64);
-  --g-glass-strong: rgb(255 255 255 / 0.82);
-  --g-rim: rgb(255 255 255 / 0.9);
-  --g-hairline: rgb(15 29 51 / 0.08);
+  --g-surface-inset: #f8f9fb;
+  --g-glass: rgb(255 255 255 / 0.68);
+  --g-glass-strong: rgb(255 255 255 / 0.86);
+  --g-rim: rgb(255 255 255 / 0.88);
+  --g-hairline: rgb(15 29 51 / 0.09);
   --g-hairline-2: rgb(15 29 51 / 0.13);
-  --g-fill: rgb(116 120 132 / 0.11);
-  --g-fill-press: rgb(116 120 132 / 0.18);
-  --g-blur: blur(18px) saturate(170%);
-  --g-blur-strong: blur(28px) saturate(180%);
+  --g-fill: rgb(116 120 132 / 0.1);
+  --g-fill-press: rgb(116 120 132 / 0.16);
+  --g-blur: blur(16px) saturate(150%);
+  --g-blur-strong: blur(22px) saturate(160%);
 
-  /* Depth */
-  --g-sheen: inset 0 1px 0 rgb(255 255 255 / 0.95);
-  --g-shadow-1: 0 1px 2px rgb(15 29 51 / 0.05);
-  --g-shadow-2: 0 1px 2px rgb(15 29 51 / 0.05), 0 12px 28px -18px rgb(15 29 51 / 0.38);
-  --g-shadow-3: 0 2px 6px rgb(15 29 51 / 0.06), 0 24px 48px -20px rgb(15 29 51 / 0.45);
-  --g-focus: 0 0 0 3px rgb(165 15 45 / 0.28);
+  /* Depth — calm; no glow stacks */
+  --g-sheen: inset 0 1px 0 rgb(255 255 255 / 0.92);
+  --g-shadow-1: 0 1px 2px rgb(15 29 51 / 0.04);
+  --g-shadow-2: 0 1px 2px rgb(15 29 51 / 0.04), 0 6px 18px -12px rgb(15 29 51 / 0.18);
+  --g-shadow-3: 0 2px 6px rgb(15 29 51 / 0.05), 0 18px 40px -18px rgb(15 29 51 / 0.32);
+  --g-focus: 0 0 0 3px rgb(165 15 45 / 0.26);
 
-  /* Shape */
+  /* Shape — content prefers sm/md; pill reserved for chips/tab capsules */
   --g-r-xs: 8px;
-  --g-r-sm: 12px;
-  --g-r-md: 16px;
-  --g-r-lg: 20px;
-  --g-r-xl: 26px;
+  --g-r-sm: 10px;
+  --g-r-md: 12px;
+  --g-r-lg: 14px;
+  --g-r-xl: 18px;
   --g-r-pill: 999px;
+
+  /* Density — admin / manager tables & toolbars */
+  --g-table-row-h: 40px;
+  --g-table-head-h: 36px;
+  --g-toolbar-h: 44px;
+  --g-panel-pad: 1rem;
+  --g-panel-pad-lg: 1.25rem;
 
   /* Type */
   --g-font: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -103,12 +111,12 @@
   --g-fs-footnote: 0.8125rem;
   --g-fs-caption: 0.75rem;
 
-  /* Motion — short polish (200–350ms); opacity/transform only for WebView */
-  --g-dur-fast: 160ms;
-  --g-dur: 220ms;
-  --g-dur-page: 280ms;
-  --g-dur-sheet: 300ms;
-  --g-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Motion — short polish; opacity/transform only for WebView */
+  --g-dur-fast: 140ms;
+  --g-dur: 200ms;
+  --g-dur-page: 240ms;
+  --g-dur-sheet: 280ms;
+  --g-ease: cubic-bezier(0.22, 0.8, 0.24, 1);
   --g-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
 
   /* Chrome */
@@ -179,10 +187,8 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(70vmax 50vmax at -10% -8%, rgb(165 15 45 / 0.13), transparent 58%),
-    radial-gradient(60vmax 50vmax at 110% 24%, rgb(168 101 30 / 0.11), transparent 60%),
-    radial-gradient(55vmax 45vmax at 12% 112%, rgb(29 78 216 / 0.08), transparent 58%),
-    linear-gradient(180deg, #f6f7fb 0%, var(--g-bg) 100%);
+    radial-gradient(80vmax 40vmax at 0% -10%, rgb(165 15 45 / 0.07), transparent 60%),
+    linear-gradient(180deg, #f8f8fa 0%, var(--g-bg) 100%);
 }
 
 #root {
@@ -211,13 +217,18 @@ td {
 .g-card {
   position: relative;
   border-radius: var(--g-r-lg);
-  border: 1px solid var(--g-rim);
+  border: 1px solid var(--g-hairline);
   background: var(--g-surface);
-  box-shadow: var(--g-sheen), var(--g-shadow-2);
+  box-shadow: var(--g-shadow-1);
 }
 
 .g-card--flat {
-  box-shadow: var(--g-sheen), var(--g-shadow-1);
+  box-shadow: none;
+}
+
+/* Raised card: the one thing on a screen that should lift (e.g. clock-in, next action). */
+.g-card--raised {
+  box-shadow: var(--g-shadow-2);
 }
 
 .g-card--pad {
@@ -279,13 +290,13 @@ td {
   }
 }
 
-/* Top bar */
+/* Top bar — floating glass accent (blur budget); content below stays solid */
 .g-topbar {
   position: sticky;
   top: 0;
   z-index: 40;
   padding-top: var(--g-safe-top);
-  background: rgb(246 247 251 / 0.72);
+  background: var(--g-glass);
   -webkit-backdrop-filter: var(--g-blur);
   backdrop-filter: var(--g-blur);
   border-bottom: 1px solid var(--g-hairline);
@@ -403,7 +414,8 @@ td {
 /* Bottom tab bar: floating glass capsule */
 .g-tabbar {
   position: fixed;
-  z-index: 45;
+  /* Above page chrome; below open admin drawers (z-100) so menus can cover it while open. */
+  z-index: 60;
   left: max(0.7rem, env(safe-area-inset-left, 0px));
   right: max(0.7rem, env(safe-area-inset-right, 0px));
   bottom: calc(var(--g-safe-bottom) + 0.55rem);
@@ -498,10 +510,10 @@ html.akk-kb-open .g-tabbar {
   text-align: center;
 }
 
-/* Desktop sidebar */
+/* Desktop sidebar — always a full rail; foot controls stay inside (never float over main). */
 .g-sidebar {
   position: fixed;
-  z-index: 41;
+  z-index: 50;
   top: 0;
   bottom: 0;
   left: 0;
@@ -510,14 +522,19 @@ html.akk-kb-open .g-tabbar {
   flex-direction: column;
   gap: 0.75rem;
   padding: 1rem 0.9rem;
-  background: rgb(250 250 252 / 0.72);
-  -webkit-backdrop-filter: var(--g-blur);
-  backdrop-filter: var(--g-blur);
+  overflow: hidden;
+  background: rgb(248 249 252 / 0.97);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   border-right: 1px solid var(--g-hairline);
+  box-sizing: border-box;
 }
 
 .g-shell--sidebar .g-shell__body {
+  position: relative;
+  z-index: 0;
   padding-left: var(--g-sidebar-w);
+  isolation: isolate;
 }
 
 .g-sidebar__brand {
@@ -572,7 +589,16 @@ html.akk-kb-open .g-tabbar {
 }
 
 .g-sidebar__foot {
+  position: relative;
+  z-index: 1;
   margin-top: auto;
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
+  /* Solid so Sign out never reads as a detached FAB over page content. */
+  background: var(--g-surface, #fff);
+  border: 1px solid var(--g-hairline);
+  border-radius: var(--g-r-md, 0.75rem);
 }
 
 /* Page heading inside the content */
@@ -661,13 +687,13 @@ html.akk-kb-open .g-tabbar {
 
 .g-btn--secondary {
   color: var(--g-ink);
-  background: var(--g-glass-strong);
-  border: 1px solid var(--g-rim);
-  box-shadow: var(--g-sheen), var(--g-shadow-1);
+  background: var(--g-surface);
+  border: 1px solid var(--g-hairline-2);
+  box-shadow: var(--g-shadow-1);
 }
 
 .g-btn--secondary:hover {
-  background: #fff;
+  background: var(--g-surface-2);
 }
 
 .g-btn--ghost {
@@ -712,13 +738,12 @@ html.akk-kb-open .g-tabbar {
   gap: 0.35rem;
   min-height: 30px;
   padding: 0 0.75rem;
-  border-radius: var(--g-r-pill);
+  border-radius: var(--g-r-sm);
   font-size: var(--g-fs-footnote);
   font-weight: 600;
   color: var(--g-ink-2);
-  background: var(--g-glass-strong);
-  border: 1px solid var(--g-rim);
-  box-shadow: var(--g-sheen);
+  background: var(--g-surface-2);
+  border: 1px solid var(--g-hairline);
 }
 
 .g-badge {
@@ -981,8 +1006,8 @@ button.g-row:hover {
 [data-tone='progress'] { --tone: var(--g-tone-progress); --tone-soft: var(--g-tone-progress-soft); }
 [data-tone='camera'] { --tone: var(--g-tone-camera); --tone-soft: var(--g-tone-camera-soft); }
 [data-tone='worker'] { --tone: var(--g-brand); --tone-soft: var(--g-brand-soft); }
-[data-tone='manager'] { --tone: var(--g-tone-manager); --tone-soft: rgb(4 120 87 / 0.1); }
-[data-tone='supervisor'] { --tone: var(--g-tone-supervisor); --tone-soft: rgb(3 105 161 / 0.1); }
+[data-tone='manager'] { --tone: var(--g-tone-manager); --tone-soft: var(--g-brand-soft); }
+[data-tone='supervisor'] { --tone: var(--g-tone-supervisor); --tone-soft: var(--g-brand-soft); }
 [data-tone='admin'] { --tone: var(--g-tone-admin); --tone-soft: rgb(51 65 85 / 0.1); }
 [data-tone='bronze'] { --tone: var(--g-bronze); --tone-soft: var(--g-bronze-soft); }
 
@@ -1036,7 +1061,8 @@ button.g-row:hover {
   }
 }
 
-/* Timesheet admin — section tabs live under the hub TopBar on phone web (not a second bottom bar). */
+/* Hub section strip — phone tabs under TopBar (admin + manager; not a second bottom bar). */
+.hub-section-strip,
 .admin-section-strip {
   display: flex;
   gap: 0.35rem;
@@ -1047,10 +1073,12 @@ button.g-row:hover {
   padding-bottom: 0.15rem;
 }
 
+.hub-section-strip::-webkit-scrollbar,
 .admin-section-strip::-webkit-scrollbar {
   display: none;
 }
 
+.hub-section-strip__chip,
 .admin-section-strip__chip {
   display: inline-flex;
   flex-shrink: 0;
@@ -1058,19 +1086,21 @@ button.g-row:hover {
   gap: 0.35rem;
   min-height: 44px;
   padding: 0 0.75rem;
-  border-radius: 999px;
-  border: 1px solid var(--g-rim);
-  background: rgb(255 255 255 / 0.55);
-  font-size: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--g-hairline);
+  background: var(--g-surface);
+  font-size: 12.5px;
   font-weight: 600;
   color: var(--g-ink-2);
   white-space: nowrap;
 }
 
+.hub-section-strip__chip.is-active,
 .admin-section-strip__chip.is-active {
-  border-color: rgb(79 70 229 / 0.35);
-  background: rgb(79 70 229 / 0.12);
-  color: rgb(49 46 129);
+  border-color: rgb(165 15 45 / 0.32);
+  background: var(--g-brand-soft);
+  color: var(--g-brand-text);
+  box-shadow: inset 0 0 0 1px rgb(165 15 45 / 0.08);
 }
 
 .g-tile {
@@ -1082,9 +1112,9 @@ button.g-row:hover {
   padding: 1rem;
   overflow: hidden;
   border-radius: var(--g-r-lg);
-  border: 1px solid var(--g-rim);
+  border: 1px solid var(--g-hairline);
   background: var(--g-surface);
-  box-shadow: var(--g-sheen), var(--g-shadow-2);
+  box-shadow: var(--g-shadow-1);
   text-align: left;
   transition: transform var(--g-dur-fast) var(--g-ease), box-shadow var(--g-dur) var(--g-ease);
 }
@@ -1102,7 +1132,7 @@ button.g-row:hover {
 }
 
 .g-tile:hover {
-  box-shadow: var(--g-sheen), var(--g-shadow-3);
+  box-shadow: var(--g-shadow-2);
 }
 
 .g-tile:active {
@@ -1156,9 +1186,9 @@ button.g-row:hover {
 .g-stat {
   padding: 0.85rem 0.9rem;
   border-radius: var(--g-r-md);
-  border: 1px solid var(--g-rim);
+  border: 1px solid var(--g-hairline);
   background: var(--g-surface);
-  box-shadow: var(--g-sheen), var(--g-shadow-1);
+  box-shadow: var(--g-shadow-1);
 }
 
 .g-stat__value {
@@ -1726,12 +1756,12 @@ button.g-row:hover {
   display: none !important;
 }
 
-/* Timesheet "Scan to clock in" dock sits above the hub tab bar on phones… */
-.g-shell:not(.g-shell--sidebar) .wh-dock {
+/* Attendance dock is inline under the shift card — only a floating override needs tab-bar clearance. */
+.g-shell:not(.g-shell--sidebar) .wh-dock--floating {
   bottom: calc(var(--g-safe-bottom) + var(--g-tabbar-h) + 1.35rem);
 }
 .g-shell:not(.g-shell--sidebar) .wh-content:not(.wh-content--scan) {
-  padding-bottom: calc(var(--wh-dock-h) + var(--g-tabbar-space) + 1rem);
+  padding-bottom: calc(var(--g-tabbar-space) + 1rem);
 }
 
 /* Employee home (pages/employee/EmployeeHome.jsx): one column on phones (wrappers vanish)… */
@@ -1766,13 +1796,7 @@ button.g-row:hover {
   gap: 1.25rem;
   align-items: start;
 }
-.g-shell--sidebar .wh-home-main .wh-dock {
-  position: static;
-  left: auto;
-  bottom: auto;
-  width: 100%;
-  transform: none;
-}
+/* Inline dock already flows under the shift card on every breakpoint. */
 
 /* Website on phones: the app's compact tiles (the desktop-sized ones filled the screen). */
 @media (max-width: 1023px) {
@@ -1837,12 +1861,7 @@ button.g-row:hover {
   }
 }
 
-/* Nothing scrolls behind the desktop sidebar, so frosting it costs GPU time for no effect. */
-.g-sidebar {
-  background: rgb(248 249 252 / 0.97);
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
+/* Sidebar paint budget already set above (opaque, no blur). */
 
 /* The drifting background orbs / bubbles are decoration: static on touch devices and for
    reduced motion (each one is a large, always-animating GPU layer). */
@@ -1949,4 +1968,294 @@ button.g-row:hover {
   height: 16px;
   flex-shrink: 0;
   color: var(--g-faint);
+}
+
+/* ===================================================================================== */
+/* 17. Admin / manager density — solid panels, dense tables, selective glass             */
+/* ===================================================================================== */
+
+.admin-dash-ui,
+.manager-dash-ui,
+.supervisor-dash-ui {
+  color: var(--g-ink);
+}
+
+/* Solid content panel (prefer over translucent white/80 cards). */
+.admin-dash-ui .g-card,
+.manager-dash-ui .g-card,
+.admin-dash-ui [class*='glassPanel'],
+.akk-panel {
+  background: var(--g-surface);
+  border-color: var(--g-hairline);
+}
+
+/* Dense data tables — sticky head, hairline rows, actions always visible. */
+.admin-dash-ui table,
+.manager-dash-ui table,
+.akk-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--g-fs-footnote);
+  color: var(--g-ink);
+}
+
+/* Scrollport for worker/payslip tables — keeps sticky thead inside the clip. */
+.admin-dash-ui .akk-table-scroll,
+.manager-dash-ui .akk-table-scroll {
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+.admin-dash-ui thead th,
+.manager-dash-ui thead th,
+.akk-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  height: var(--g-table-head-h);
+  padding: 0.45rem 0.75rem;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--g-muted);
+  background: var(--g-surface-inset);
+  border-bottom: 1px solid var(--g-hairline-2);
+}
+
+.admin-dash-ui tbody td,
+.manager-dash-ui tbody td,
+.akk-table tbody td {
+  height: var(--g-table-row-h);
+  padding: 0.45rem 0.75rem;
+  border-bottom: 1px solid var(--g-hairline);
+  vertical-align: middle;
+  background: var(--g-surface);
+}
+
+.admin-dash-ui tbody tr:hover td,
+.manager-dash-ui tbody tr:hover td,
+.akk-table tbody tr:hover td {
+  background: var(--g-surface-2);
+}
+
+/*
+ * Worker directory table — freeze ID + NRIC/FIN + Name on horizontal scroll.
+ * Fixed widths keep `left` offsets equal to painted column widths (border-box):
+ *   ID   4.5rem → left 0
+ *   NRIC 7.5rem → left 4.5rem
+ *   Name 11rem  → left 12rem
+ * Specificity beats the generic thead/tbody rules above (z-index / background).
+ */
+.admin-dash-ui .akk-worker-table {
+  --akk-w-id: 4.5rem;
+  --akk-w-nric: 7.5rem;
+  --akk-w-name: 11rem;
+  --akk-left-nric: var(--akk-w-id);
+  --akk-left-name: calc(var(--akk-w-id) + var(--akk-w-nric));
+  --akk-sticky-span: calc(var(--akk-w-id) + var(--akk-w-nric) + var(--akk-w-name));
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-dash-ui .akk-worker-table .akk-sticky-id,
+.admin-dash-ui .akk-worker-table .akk-sticky-nric,
+.admin-dash-ui .akk-worker-table .akk-sticky-name {
+  position: sticky;
+  box-sizing: border-box;
+  background-clip: padding-box;
+  border-right: 1px solid var(--g-hairline);
+  white-space: nowrap;
+}
+
+.admin-dash-ui .akk-worker-table .akk-sticky-id {
+  left: 0;
+  width: var(--akk-w-id);
+  min-width: var(--akk-w-id);
+  max-width: var(--akk-w-id);
+  z-index: 5;
+}
+
+.admin-dash-ui .akk-worker-table .akk-sticky-nric {
+  left: var(--akk-left-nric);
+  width: var(--akk-w-nric);
+  min-width: var(--akk-w-nric);
+  max-width: var(--akk-w-nric);
+  z-index: 4;
+}
+
+.admin-dash-ui .akk-worker-table .akk-sticky-name {
+  left: var(--akk-left-name);
+  width: var(--akk-w-name);
+  min-width: var(--akk-w-name);
+  max-width: var(--akk-w-name);
+  z-index: 3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 4px 0 8px -4px rgb(15 23 42 / 0.14);
+}
+
+.admin-dash-ui .akk-worker-table thead th.akk-sticky-id,
+.admin-dash-ui .akk-worker-table thead th.akk-sticky-nric,
+.admin-dash-ui .akk-worker-table thead th.akk-sticky-name {
+  top: 0;
+  background: var(--g-surface-inset, #f1f5f9);
+}
+
+.admin-dash-ui .akk-worker-table thead th.akk-sticky-id {
+  z-index: 15;
+}
+.admin-dash-ui .akk-worker-table thead th.akk-sticky-nric {
+  z-index: 14;
+}
+.admin-dash-ui .akk-worker-table thead th.akk-sticky-name {
+  z-index: 13;
+}
+
+.admin-dash-ui .akk-worker-table tbody td.akk-sticky-id,
+.admin-dash-ui .akk-worker-table tbody td.akk-sticky-nric,
+.admin-dash-ui .akk-worker-table tbody td.akk-sticky-name {
+  background: #ffffff;
+}
+
+.admin-dash-ui .akk-worker-table tbody tr:hover td.akk-sticky-id,
+.admin-dash-ui .akk-worker-table tbody tr:hover td.akk-sticky-nric,
+.admin-dash-ui .akk-worker-table tbody tr:hover td.akk-sticky-name {
+  background: #f8fafc;
+}
+
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left td.akk-sticky-id,
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left td.akk-sticky-nric,
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left td.akk-sticky-name,
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left:hover td.akk-sticky-id,
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left:hover td.akk-sticky-nric,
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left:hover td.akk-sticky-name {
+  background: #fef2f2;
+}
+
+/*
+ * "Not in company" banner: sticky label only across the frozen trio (colSpan 3).
+ * Rest of the row is a normal scrolling gray bar — avoids full-width colspan sticky drift.
+ */
+.admin-dash-ui .akk-worker-table td.akk-section-banner-label {
+  /* colSpan=3 → natural width = ID+NRIC+Name; do not force width (skews sticky offsets). */
+  position: sticky;
+  left: 0;
+  z-index: 6;
+  box-sizing: border-box;
+  padding: 0.4rem 0.625rem;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  border-right: 1px solid var(--g-hairline);
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  box-shadow: 4px 0 8px -4px rgb(15 23 42 / 0.12);
+}
+
+.admin-dash-ui .akk-worker-table td.akk-section-banner-rest {
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f1f5f9;
+}
+
+.admin-dash-ui tbody td.num,
+.manager-dash-ui tbody td.num,
+.akk-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Toolbar row under section heads */
+.akk-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: var(--g-toolbar-h);
+}
+
+.akk-toolbar .g-btn,
+.akk-toolbar button {
+  min-height: 40px;
+}
+
+/* Module section head — shared by admin / manager / materials / progress */
+.akk-mod-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.akk-mod-head__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: var(--g-ink);
+}
+
+.akk-mod-head__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--g-r-sm);
+  background: var(--g-brand-soft);
+  color: var(--g-brand);
+}
+
+.akk-mod-head__lede {
+  margin-top: 0.2rem;
+  font-size: var(--g-fs-caption);
+  color: var(--g-muted);
+}
+
+/* Segmented / TabsList solid surface (not frosted) */
+.admin-dash-ui [role='tablist'],
+.manager-dash-ui [role='tablist'] {
+  background: var(--g-surface);
+  border: 1px solid var(--g-hairline);
+}
+
+/* Kill leftover module-rainbow on primary actions inside admin canvas */
+.admin-dash-ui .bg-violet-600,
+.admin-dash-ui .bg-purple-600,
+.admin-dash-ui .hover\:bg-violet-700:hover {
+  background-color: var(--g-brand) !important;
+}
+.admin-dash-ui .text-violet-800,
+.admin-dash-ui .text-violet-700 {
+  color: var(--g-brand-text) !important;
+}
+.admin-dash-ui .border-violet-200,
+.admin-dash-ui .border-violet-100 {
+  border-color: rgb(165 15 45 / 0.22) !important;
+}
+.admin-dash-ui .bg-violet-50\/70,
+.admin-dash-ui .bg-violet-50 {
+  background-color: var(--g-brand-muted) !important;
+}
+
+@media (max-width: 639px) {
+  .admin-dash-ui table,
+  .manager-dash-ui table {
+    font-size: 12.5px;
+  }
+  .admin-dash-ui thead th,
+  .manager-dash-ui thead th {
+    letter-spacing: 0.02em;
+  }
 }

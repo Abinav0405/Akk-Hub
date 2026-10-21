@@ -580,7 +580,7 @@ export default function SubmitProgress() {
                                 Back to Portal
                             </Button>
                         )}
-                        <Button variant="outline" className="w-full min-h-11 border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900" onClick={() => navigate("/progress/submissions")}>
+                        <Button variant="outline" className="w-full min-h-11 border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800" onClick={() => navigate("/progress/submissions")}>
                             View my submissions
                         </Button>
                     </div>
@@ -625,7 +625,7 @@ export default function SubmitProgress() {
                     </p>
                 )}
                 {presetPackageId && !resubmitId && awaitingStaff && (
-                    <p className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                    <p className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-3 text-sm text-slate-800">
                         With Admin/Manager — package details are locked. You can still add Completion photos.
                     </p>
                 )}
@@ -1009,7 +1009,7 @@ export default function SubmitProgress() {
                     </Button>
                     <Button
                         variant="outline"
-                        className="min-h-11 w-full border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900"
+                        className="min-h-11 w-full border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800"
                         disabled={!canOpenCamera || uploading}
                         asChild
                     >
@@ -1191,10 +1191,10 @@ function ReviewSheet({ photos, onRemove, onRetakeAll, onAddMore, onUploadMore, o
                 <Button variant="outline" className="min-h-11 border-amber-300 bg-amber-50 text-amber-950 hover:bg-amber-100 hover:text-amber-950" onClick={onRetakeAll}>
                     Retake All
                 </Button>
-                <Button variant="outline" className="min-h-11 border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900" onClick={onAddMore} disabled={photos.length >= MAX_PHOTOS_PER_STAGE || uploading}>
+                <Button variant="outline" className="min-h-11 border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800" onClick={onAddMore} disabled={photos.length >= MAX_PHOTOS_PER_STAGE || uploading}>
                     Add More
                 </Button>
-                <Button variant="outline" className="min-h-11 border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900" onClick={onUploadMore} disabled={photos.length >= MAX_PHOTOS_PER_STAGE || uploading}>
+                <Button variant="outline" className="min-h-11 border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800" onClick={onUploadMore} disabled={photos.length >= MAX_PHOTOS_PER_STAGE || uploading}>
                     {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Upload'}
                 </Button>
                 </div>

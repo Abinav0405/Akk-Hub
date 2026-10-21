@@ -31,7 +31,14 @@ import {
 } from "lucide-react";
 import PageLoader from '@/modules/timesheet/components/PageLoader.jsx';
 const VehiclesTab = lazy(() => import('@/modules/timesheet/components/admin/VehiclesTab'));
-import { Link, useNavigate } from "react-router-dom";
+const TimeTrackerTab = lazy(() => import('@/modules/timesheet/components/admin/tabs/TimeTrackerTab'));
+const LeavesTab = lazy(() => import('@/modules/timesheet/components/admin/tabs/LeavesTab'));
+const PayslipReportTab = lazy(() => import('@/modules/timesheet/components/admin/tabs/PayslipReportTab'));
+const TimesheetReportTab = lazy(() => import('@/modules/timesheet/components/admin/tabs/TimesheetReportTab'));
+const WorkerInfoTab = lazy(() => import('@/modules/timesheet/components/admin/tabs/WorkerInfoTab'));
+const SitesTab = lazy(() => import('@/modules/timesheet/components/admin/tabs/SitesTab'));
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useIdentity, homePathFor } from '@/core/auth/identity';
 import { cn, moduleSheetDialog } from '@/modules/timesheet/lib/utils';
 import MoreMenu from '@/modules/progress/components/MoreMenu';
 import { useLanguage } from '@/core-i18n';
@@ -61,7 +68,8 @@ import PayslipBalancePicker from '@/modules/timesheet/components/payroll/Payslip
 import PayBalancesPanel from '@/modules/timesheet/components/payroll/PayBalancesPanel';
 import { NativeErrorState, NativeListSkeleton } from '@/ui/native/NativeStates';
 import { glassPanel, glassDialog, glassInput, PortalBackdrop, AdminChoiceCard, AdminFieldLabel, AdminToneIcon } from '@/ui/PortalShell';
-import { AdminMobileSectionStrip, AdminMorePagesDrawer, AdminAppChrome, ADMIN_TAB_TITLES } from '@/modules/timesheet/components/admin/AdminNavChrome';
+import { AdminMobileSectionStrip, AdminMorePagesDrawer, ADMIN_TAB_TITLES } from '@/modules/timesheet/components/admin/AdminNavChrome';
+import { AdminDashProvider } from '@/modules/timesheet/components/admin/AdminDashContext';
 import AdminEditShiftDialog from '@/modules/timesheet/components/admin/AdminEditShiftDialog';
 import { setAdminShiftRefreshPaused, isAdminShiftRefreshPaused } from '@/modules/timesheet/lib/adminShiftRefreshPause';
 import { format } from "date-fns";
@@ -172,6 +180,8 @@ import {
 } from '@/modules/timesheet/lib/leaveService';
 import { exportLeaveReportExcel } from '@/modules/timesheet/lib/leaveExport';
 import LeaveCalendar from '@/modules/timesheet/components/LeaveCalendar';
+import WorkerAccessPanel from '@/modules/timesheet/components/admin/WorkerAccessPanel';
+import WorkerAccessTable from '@/modules/timesheet/components/admin/WorkerAccessTable';
 import {
     ShiftApprovalButtons,
     ShiftApprovalMeta,
@@ -348,6 +358,7 @@ function validateWorkerEmploymentTimeline({ inCompany, dateJoined, dateOfCessati
 export default function AdminDashboard() {
     const { t } = useLanguage();
     const navigate = useNavigate();
+    const identity = useIdentity();
     const [filter, setFilter] = useState('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [dateFilter, setDateFilter] = useState('all');
@@ -439,6 +450,7 @@ export default function AdminDashboard() {
     const [activeDashboardTab, setActiveDashboardTab] = useHubSection('time-tracker', ADMIN_DASHBOARD_SECTIONS);
     // Long lists render in pages: ~1,000 shift cards at once made the screen crawl.
     const [shiftLimit, setShiftLimit] = useState(SHIFT_PAGE);
+    const [leaveLimit, setLeaveLimit] = useState(SHIFT_PAGE);
     const adminTutorialSteps = useMemo(() => ([
         {
             id: 'admin-header',
@@ -8441,8 +8453,143 @@ ${balanceBlock.html}
     };
 
     
+                const adminDash = {
+                SHIFT_PAGE,
+                adminApproveTimesheet,
+                adminResendToWorker,
+                allLeaveRequests,
+                allSites,
+                approvingShiftId,
+                bulkLeaveStatusMutation,
+                dateFilter,
+                deletePassedOutTimesheet,
+                deletePayslip,
+                deleteShiftMutation,
+                expandedCards,
+                exportToExcel,
+                exportWorkersToExcel,
+                fetchPayslipReport,
+                filter,
+                filteredShifts,
+                foreignWorkers,
+                foreignWorkersDirectory,
+                formatAmount,
+                formatRejoinDatesCell,
+                handleAddWorkerClick,
+                handleApproveShift,
+                handleDeclineShift,
+                handleDeleteWorkerClick,
+                handleDownloadPassedOutTimesheet,
+                handleEditWorkerClick,
+                handleExportLeaveReport,
+                handlePrintAllPassedOutPayslipReport,
+                handlePrintAllPassedOutTimesheets,
+                handlePrintPassedOutPayslipReport,
+                handlePrintPayslipReportSummary,
+                handlePrintSingleLeaveForm,
+                handlePrintTimesheetReportSummary,
+                handleViewPassedOutPayslipReport,
+                handleViewPassedOutTimesheet,
+                handleWorkerSearchClick,
+                inProgressCount,
+                isFetching,
+                isFetchingAdminTimesheets,
+                isLoading,
+                isLoadingForeignWorkers,
+                isLoadingLeaveRequests,
+                isLoadingLocalWorkers,
+                isLoadingSites,
+                isPrintingLeaveForms,
+                isShiftsError,
+                leaveDashboardStats,
+                leavePolicySettings,
+                leaveRequests,
+                localWorkers,
+                localWorkersDirectory,
+                nativeApp,
+                openAddSiteDialog,
+                openEditShiftDialog,
+                openEditSiteDialog,
+                openLeaveAttachment,
+                openSiteQrPreview,
+                openTimesheetHistory,
+                passedOutTimesheetsData,
+                payslipReportData,
+                payslipReportMonth,
+                printWorkerDetails,
+                promptLeaveRejectReason,
+                queryClient,
+                recreateAndResendTimesheet,
+                refetch,
+                resendSameTimesheet,
+                searchTerm,
+                selectedLeaveIds,
+                selectedMonth,
+                selectedYear,
+                setAdminDeclineTimesheetDialog,
+                setCreateShiftData,
+                setDateFilter,
+                setEditingLeave,
+                setEditingPayslip,
+                setFilter,
+                setLeaveEditData,
+                setLeaveEditHardWarnings,
+                setLeaveEditSoftWarnings,
+                setLeavePolicyForm,
+                setPassOutPayslipMode,
+                setPassOutTimesheetMode,
+                setPayslipEditForm,
+                setPayslipReportMonth,
+                setPendingDeleteShiftId,
+                setPendingDeleteSite,
+                setPrintSelectedWorkerType,
+                setPrintWorkerTypeDialog,
+                setSearchTerm,
+                setSelectedLeaveIds,
+                setSelectedMonth,
+                setSelectedYear,
+                setShiftLimit,
+                setShowCreateLeaveDialog,
+                setShowCreateShiftDialog,
+                setShowDeleteDialog,
+                setShowEditLeaveDialog,
+                setShowIndividualDeletePinDialog,
+                setShowLeaveHistory,
+                setShowLeavePolicyDialog,
+                setShowManagerDialog,
+                setShowPassOutPayslipDialog,
+                setShowPassOutTimesheetDialog,
+                setShowSupervisorDialog,
+                setSiteFilter,
+                setTimesheetReportMonth,
+                setWorkerIdFilter,
+                setWorkerTypeFilter,
+                shiftLimit,
+                shifts,
+                shiftsError,
+                siteFilter,
+                t,
+                timeTrackerFormOpen,
+                timesheetReportMonth,
+                toggleCardExpansion,
+                unapprovedCount,
+                uniqueSites,
+                updateLeaveStatus,
+                workerIdFilter,
+                workerIsNotInCompany,
+                workerTypeFilter,
+                leaveLimit,
+                setLeaveLimit,
+            };
+
+    // Defense in depth: Worker Info / payslips must never render for manager/supervisor
+    // even if a route guard is bypassed. (Route already restricts to admin.)
+    if (identity && identity.role !== 'admin') {
+        return <Navigate to={homePathFor(identity.role)} replace />;
+    }
+
     return (
-        <div className={cn('relative isolate min-h-dvh-safe', nativeApp ? 'admin-app-ui bg-slate-100' : 'bg-[#f8fafc]')}>
+        <div className={cn('admin-dash-ui relative isolate min-h-dvh-safe', nativeApp ? 'admin-app-ui bg-[var(--g-bg)]' : 'bg-[var(--g-bg,#f3f4f6)]')}>
             {nativeApp ? null : <PortalBackdrop slate />}
             <AppTour
                 run={isTutorialRunning}
@@ -8450,40 +8597,32 @@ ${balanceBlock.html}
                 onClose={() => setIsTutorialRunning(false)}
                 onStepChange={handleAdminTourStepChange}
             />
-            {nativeApp ? (
-                <AdminAppChrome
+            {/* Hub owns the bottom TabBar — always use TopBar + section strip + More drawer
+                (AdminAppChrome's dock is CSS-hidden inside .g-shell and left sections unreachable). */}
+            <TopBar
+                eyebrow={t('role.admin')}
+                title={ADMIN_TAB_TITLES[activeDashboardTab] || t('admin.dashboard')}
+                trailing={
+                    <div className="flex items-center gap-1.5" data-tour="admin-header">
+                        <AdminMorePagesDrawer onTutorial={startTutorial} />
+                        <Button
+                            onClick={startTutorial}
+                            variant="outline"
+                            size="sm"
+                            className="hidden h-9 rounded-full border-[var(--g-hairline)] sm:inline-flex"
+                        >
+                            <HelpCircle className="mr-1.5 h-4 w-4" />
+                            {t('common.tutorial')}
+                        </Button>
+                    </div>
+                }
+            >
+                <AdminMobileSectionStrip
                     activeTab={activeDashboardTab}
                     onTabChange={setActiveDashboardTab}
                     leaveCount={leaveRequests?.length || 0}
-                    onTutorial={startTutorial}
-                    logoUrl={logoUrl}
                 />
-            ) : (
-                <TopBar
-                    eyebrow={t('role.admin')}
-                    title={ADMIN_TAB_TITLES[activeDashboardTab] || t('admin.dashboard')}
-                    trailing={
-                        <div className="flex items-center gap-1.5" data-tour="admin-header">
-                            <AdminMorePagesDrawer onTutorial={startTutorial} />
-                            <Button
-                                onClick={startTutorial}
-                                variant="outline"
-                                size="sm"
-                                className="hidden h-9 rounded-full sm:inline-flex"
-                            >
-                                <HelpCircle className="mr-1.5 h-4 w-4" />
-                                {t('common.tutorial')}
-                            </Button>
-                        </div>
-                    }
-                >
-                    <AdminMobileSectionStrip
-                        activeTab={activeDashboardTab}
-                        onTabChange={setActiveDashboardTab}
-                        leaveCount={leaveRequests?.length || 0}
-                    />
-                </TopBar>
-            )}
+            </TopBar>
 
             {/* Main Dashboard Tabs — hub TabBar owns phone chrome; section tabs below */}
             <div className={cn(
@@ -8495,20 +8634,22 @@ ${balanceBlock.html}
                 <DashboardAnalyticsWidget
                     shifts={shifts}
                     variant={nativeApp ? 'app' : 'glass'}
-                    accent="slate"
+                    accent="brand"
                 />
+                <AdminDashProvider value={adminDash}>
                 <Tabs value={activeDashboardTab} onValueChange={setActiveDashboardTab} className="mt-4 w-full">
                     <TabsList
                         data-section-nav
                         className={cn(
-                        'h-auto w-full grid-cols-4 gap-1 rounded-2xl border border-white/70 bg-white/45 p-1 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.45)] backdrop-blur-2xl lg:grid-cols-7',
-                        nativeApp ? 'hidden' : 'hidden md:grid'
+                        'h-auto w-full grid-cols-4 gap-1 rounded-[var(--g-r-lg,1rem)] border border-[var(--g-hairline)] bg-[var(--g-surface)] p-1 shadow-[0_1px_2px_rgb(15_29_51/0.04)] lg:grid-cols-7',
+                        // Phone/tablet: AdminMobileSectionStrip. lg+ (hub sidebar): this grid.
+                        'hidden lg:grid'
                     )} data-tour="admin-tabs">
-                        <TabsTrigger value="time-tracker" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-time-tracker">
+                        <TabsTrigger value="time-tracker" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-time-tracker">
                             <Clock className="mr-1.5 h-4 w-4" />
                             {t('admin.timeTracker')}
                         </TabsTrigger>
-                        <TabsTrigger value="leaves" className="relative rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-leaves">
+                        <TabsTrigger value="leaves" className="relative rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-leaves">
                             <Calendar className="mr-1.5 h-4 w-4" />
                             {t('admin.leaves')}
                             {leaveRequests && leaveRequests.length > 0 && (
@@ -8520,23 +8661,23 @@ ${balanceBlock.html}
                                 </Badge>
                             )}
                         </TabsTrigger>
-                        <TabsTrigger value="payslip-report" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-payslip">
+                        <TabsTrigger value="payslip-report" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-payslip">
                             <Receipt className="mr-1.5 h-4 w-4" />
                             {t('admin.payslip')}
                         </TabsTrigger>
-                        <TabsTrigger value="timesheet-report" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-timesheet">
+                        <TabsTrigger value="timesheet-report" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-timesheet">
                             <FileText className="mr-1.5 h-4 w-4" />
                             {t('admin.timesheet')}
                         </TabsTrigger>
-                        <TabsTrigger value="worker-info" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-worker-info">
+                        <TabsTrigger value="worker-info" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-worker-info">
                             <Users className="mr-1.5 h-4 w-4" />
                             {t('admin.workers')}
                         </TabsTrigger>
-                        <TabsTrigger value="sites" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-sites">
+                        <TabsTrigger value="sites" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-sites">
                             <MapPin className="mr-1.5 h-4 w-4" />
                             {t('admin.sites')}
                         </TabsTrigger>
-                        <TabsTrigger value="vehicles" className="rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white lg:text-sm">
+                        <TabsTrigger value="vehicles" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm">
                             <Car className="mr-1.5 h-4 w-4" />
                             {t('admin.vehicles')}
                         </TabsTrigger>
@@ -8544,1284 +8685,38 @@ ${balanceBlock.html}
 
                     {/* Time Tracker Tab */}
                     <TabsContent value="time-tracker" className="mt-6">
-                        <section className={cn(glassPanel, 'p-4 sm:p-5')}>
-                        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                            <div>
-                                <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                    <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand-soft text-brand">
-                                        <Clock className="h-4 w-4" />
-                                    </span>
-                                    {t('admin.timeTracker')}
-                                </h2>
-                                <p className="mt-0.5 text-xs text-slate-500">
-                                    {t('ui.shown', { count: filteredShifts.length })}
-                                    {shifts.length ? ` · ${t('ui.loaded', { count: shifts.length })}` : ''}
-                                    {inProgressCount ? <span className="font-medium text-sky-600"> · {t('ui.activeCount', { count: inProgressCount })}</span> : null}
-                                    {unapprovedCount ? <span className="font-medium text-amber-600"> · {t('ui.unapprovedCount', { count: unapprovedCount })}</span> : null}
-                                </p>
-                            </div>
-                            <div className={cn(
-                                nativeApp
-                                    ? 'flex w-full gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-                                    : 'grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap'
-                            )}>
-                            <Button
-                                onClick={() => {
-                                    setCreateShiftData({
-                                        worker_id: '',
-                                        site_id: '',
-                                        work_date: '',
-                                        entry_time: '',
-                                        leave_time: '',
-                                        breaks: [{ lunch_start: '', lunch_end: '' }],
-                                        leave_type: '__none__'
-                                    });
-                                    setShowCreateShiftDialog(true);
-                                }}
-                                className={cn('h-10 rounded-xl bg-brand hover:bg-brand-hover', nativeApp && 'shrink-0')}
-                                data-tour="admin-action-create-shift"
-                            >
-                                <PlusCircle className="mr-1.5 h-4 w-4" />
-                                {t('ui.createShift')}
-                            </Button>
-                            <Button
-                                onClick={exportToExcel}
-                                variant="outline"
-                                className={cn('h-10 rounded-xl border-emerald-200 bg-emerald-50/70 text-emerald-800 hover:bg-emerald-100', nativeApp && 'shrink-0')}
-                                data-tour="admin-action-export"
-                            >
-                                <FileSpreadsheet className="mr-1.5 h-4 w-4" />
-                                {t('ui.exportExcel')}
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    setPrintSelectedWorkerType('');
-                                    setPrintWorkerTypeDialog(true);
-                                }}
-                                variant="outline"
-                                className={cn('h-10 rounded-xl border-sky-200 bg-sky-50/70 text-sky-800 hover:bg-sky-100', nativeApp && 'shrink-0')}
-                                data-tour="admin-action-print"
-                            >
-                                <Printer className="mr-1.5 h-4 w-4" />
-                                {t('ui.print')}
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    setPassOutPayslipMode('');
-                                    setShowPassOutPayslipDialog(true);
-                                }}
-                                variant="outline"
-                                className={cn('h-10 rounded-xl border-violet-200 bg-violet-50/70 text-violet-800 hover:bg-violet-100', nativeApp && 'shrink-0')}
-                                data-tour="admin-action-passout"
-                            >
-                                <Download className="mr-1.5 h-4 w-4" />
-                                {t('ui.passOutPayslip')}
-                            </Button>
-                            <Button
-                                onClick={() => {
-                                    setPassOutTimesheetMode('');
-                                    setShowPassOutTimesheetDialog(true);
-                                }}
-                                variant="outline"
-                                className={cn('h-10 rounded-xl border-teal-200 bg-teal-50/70 text-teal-800 hover:bg-teal-100', nativeApp && 'shrink-0')}
-                                data-tour="admin-action-passout-timesheet"
-                            >
-                                <FileText className="mr-1.5 h-4 w-4" />
-                                {t('ui.passOutTimesheet')}
-                            </Button>
-                            <Button
-                                onClick={() => setShowDeleteDialog(true)}
-                                variant="destructive"
-                                className={cn('h-10 rounded-xl', nativeApp && 'shrink-0')}
-                                data-tour="admin-action-delete-all"
-                            >
-                                <Trash2 className="mr-1.5 h-4 w-4" />
-                                {t('ui.deleteAll')}
-                            </Button>
-                            </div>
-                        </div>
-
-                        <div className="mb-4 space-y-3" data-tour="admin-filters">
-                                    <div className="relative">
-                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                                            <Input
-                                                placeholder={t('ui.searchShifts')}
-                                                value={searchTerm}
-                                                onChange={(e) => setSearchTerm(e.target.value)}
-                                                className="h-11 rounded-xl border-slate-200 bg-white/80 pl-10"
-                                                data-tour="admin-filter-search"
-                                            />
-                                    </div>
-                                    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
-                                        <Tabs value={filter} onValueChange={setFilter} data-tour="admin-filter-status" className="w-full lg:w-auto">
-                                            <TabsList className="grid h-auto w-full grid-cols-2 gap-1 rounded-xl bg-slate-100/80 p-1 sm:grid-cols-4 sm:inline-flex sm:w-auto">
-                                                <TabsTrigger value="all" className="rounded-lg px-2 text-xs sm:px-3 sm:text-sm">{t('ui.all')}</TabsTrigger>
-                                                <TabsTrigger value="unapproved" className="rounded-lg px-2 text-xs data-[state=active]:bg-amber-100 data-[state=active]:text-amber-900 sm:px-3 sm:text-sm">
-                                                    {t('ui.unapproved')}{unapprovedCount ? ` (${unapprovedCount})` : ''}
-                                                </TabsTrigger>
-                                                <TabsTrigger value="completed" className="rounded-lg px-2 text-xs data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-900 sm:px-3 sm:text-sm">{t('ui.done')}</TabsTrigger>
-                                                <TabsTrigger value="in_progress" className="rounded-lg px-2 text-xs data-[state=active]:bg-sky-100 data-[state=active]:text-sky-900 sm:px-3 sm:text-sm">{t('ui.active')}</TabsTrigger>
-                                            </TabsList>
-                                        </Tabs>
-                                        <Tabs value={dateFilter} onValueChange={(value) => {
-                                            setDateFilter(value);
-                                            if (value !== 'month') setSelectedMonth('');
-                                            if (value !== 'year') setSelectedYear(new Date().getFullYear().toString());
-                                        }} data-tour="admin-filter-date" className="w-full lg:w-auto">
-                                            <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl bg-slate-100/80 p-1 sm:inline-flex sm:w-auto">
-                                                <TabsTrigger value="all" className="rounded-lg px-2 text-xs sm:px-3 sm:text-sm">{t('ui.allDates')}</TabsTrigger>
-                                                <TabsTrigger value="month" className="rounded-lg px-2 text-xs sm:px-3 sm:text-sm">{t('ui.month')}</TabsTrigger>
-                                                <TabsTrigger value="year" className="rounded-lg px-2 text-xs sm:px-3 sm:text-sm">{t('ui.year')}</TabsTrigger>
-                                            </TabsList>
-                                        </Tabs>
-                                        {dateFilter === 'month' && (
-                                            <select
-                                                value={selectedMonth}
-                                                onChange={(e) => setSelectedMonth(e.target.value)}
-                                                className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-3 text-sm sm:w-auto"
-                                            >
-                                                <option value="">{t('ui.currentMonth')}</option>
-                                                {Array.from({ length: 12 }, (_, i) => {
-                                                    const date = new Date();
-                                                    date.setMonth(date.getMonth() - i);
-                                                    const year = date.getFullYear();
-                                                    const month = String(date.getMonth() + 1).padStart(2, '0');
-                                                    const monthName = date.toLocaleString('default', { month: 'long' });
-                                                    return (
-                                                        <option key={`${year}-${month}`} value={`${year}-${month}`}>
-                                                            {monthName} {year}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
-                                        )}
-                                        {dateFilter === 'year' && (
-                                            <select
-                                                value={selectedYear}
-                                                onChange={(e) => setSelectedYear(e.target.value)}
-                                                className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-3 text-sm sm:w-auto"
-                                            >
-                                                {Array.from({ length: 5 }, (_, i) => {
-                                                    const year = new Date().getFullYear() - i;
-                                                    return (
-                                                        <option key={year} value={year.toString()}>
-                                                            {year}
-                                                        </option>
-                                                    );
-                                                })}
-                                            </select>
-                                        )}
-                                        <Tabs
-                                            value={workerTypeFilter}
-                                            onValueChange={setWorkerTypeFilter}
-                                            data-tour="admin-filter-worker-type"
-                                            className="w-full lg:w-auto"
-                                        >
-                                            <TabsList className="grid h-auto w-full grid-cols-3 gap-1 rounded-xl bg-slate-100/80 p-1 sm:inline-flex sm:w-auto">
-                                                <TabsTrigger value="all" className="rounded-lg px-2 text-xs sm:px-3 sm:text-sm">{t('ui.allWorkers')}</TabsTrigger>
-                                                <TabsTrigger value="local" className="rounded-lg px-2 text-xs data-[state=active]:bg-sky-100 data-[state=active]:text-sky-900 sm:px-3 sm:text-sm">{t('ui.local')}</TabsTrigger>
-                                                <TabsTrigger value="foreign" className="rounded-lg px-2 text-xs data-[state=active]:bg-emerald-100 data-[state=active]:text-emerald-900 sm:px-3 sm:text-sm">{t('ui.foreign')}</TabsTrigger>
-                                            </TabsList>
-                                        </Tabs>
-                                        <select
-                                            value={siteFilter}
-                                            onChange={(e) => setSiteFilter(e.target.value)}
-                                            className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-3 text-sm lg:max-w-xs"
-                                            data-tour="admin-filter-site"
-                                        >
-                                            <option value="all">{t('ui.allSites')}</option>
-                                            {uniqueSites.map(site => (
-                                                <option key={site} value={site}>{site}</option>
-                                            ))}
-                                        </select>
-                                        <Input
-                                            placeholder={t('ui.filterWorkerId')}
-                                            value={workerIdFilter}
-                                            onChange={(e) => setWorkerIdFilter(e.target.value)}
-                                            className="h-10 w-full min-w-0 rounded-xl border-slate-200 bg-white/80 sm:max-w-xs"
-                                            data-tour="admin-filter-worker-id"
-                                        />
-                                    </div>
-                        </div>
-
-                        {nativeApp && isLoading ? (
-                                <NativeListSkeleton rows={3} label="Loading shifts" />
-                            ) : nativeApp && isShiftsError && !shifts.length && !timeTrackerFormOpen ? (
-                                <NativeErrorState error={shiftsError} onRetry={() => refetch()} retrying={isFetching} className="shadow-none" />
-                            ) : isLoading ? (
-                                <div className="flex items-center justify-center py-16">
-                                    <Loader2 className="h-7 w-7 animate-spin text-slate-600" />
-                                </div>
-                            ) : timeTrackerFormOpen ? (
-                                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-16 text-center">
-                                    <Clock className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                                    <h3 className="text-base font-semibold text-slate-700">Shift list paused</h3>
-                                    <p className="mt-1 text-sm text-slate-500">Live updates and this list stay frozen until you close the form.</p>
-                                </div>
-                            ) : filteredShifts.length === 0 ? (
-                                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-16 text-center">
-                                        <Clock className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                                        <h3 className="text-base font-semibold text-slate-700">No shifts found</h3>
-                                        <p className="mt-1 text-sm text-slate-500">Shifts will appear here when workers clock in/out</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {filteredShifts.slice(0, shiftLimit).map((shift) => {
-                                            const isSundayShift = isSunday(shift.work_date);
-                                            const isHolidayShift = isPublicHoliday(shift.work_date);
-
-                                            return (
-                                                <div
-                                                    key={shift.id}
-                                                    className={cn(
-                                                                        'overflow-hidden rounded-2xl border bg-white/90',
-                                                                        isSundayShift || isHolidayShift
-                                                                            ? 'border-red-200 bg-red-50/70'
-                                                                            : shift.has_left
-                                                                              ? 'border-emerald-200/80'
-                                                                              : 'border-sky-200/80'
-                                                    )}
-                                                >
-                                                    <div className="p-4">
-                                                            <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                                                                <button
-                                                                    type="button"
-                                                                    onClick={() => toggleCardExpansion(shift.id)}
-                                                                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
-                                                                >
-                                                                    <span className={cn(
-                                                                        'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'
-                                                                    )}>
-                                                                        <Clock className="h-5 w-5" />
-                                                                    </span>
-                                                                    <span className="min-w-0 flex-1">
-                                                                        <span className="flex items-center gap-2">
-                                                                            <span className="truncate font-semibold text-slate-900">
-                                                                                {shift.workers?.employee_name}
-                                                                            </span>
-                                                                            {expandedCards.has(shift.id) ? (
-                                                                                <ChevronUp className="h-4 w-4 shrink-0 text-slate-400" />
-                                                                            ) : (
-                                                                                <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-                                                                            )}
-                                                                        </span>
-                                                                        <span className="mt-0.5 block text-xs text-slate-500">
-                                                                            ID {shift.worker_id}
-                                                                        </span>
-                                                                    </span>
-                                                                </button>
-                                                                <div className="flex w-full min-w-0 flex-wrap gap-2 sm:w-auto sm:justify-end">
-                                                                    <ShiftApprovalButtons
-                                                                        shift={shift}
-                                                                        onApprove={handleApproveShift}
-                                                                        onDecline={handleDeclineShift}
-                                                                        busy={approvingShiftId === shift.id}
-                                                                    />
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-9 flex-1 rounded-xl border-brand-soft text-xs text-brand hover:bg-brand-soft sm:flex-initial sm:text-sm"
-                                                                        onClick={() => openEditShiftDialog(shift)}
-                                                                        data-tour="admin-edit-shift"
-                                                                    >
-                                                                        <Edit2 className="mr-1 h-4 w-4" />
-                                                                        {t('ui.edit')}
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="destructive"
-                                                                        className="h-9 flex-1 rounded-xl text-xs sm:flex-initial sm:text-sm"
-                                                                        onClick={() => {
-                                                                            setPendingDeleteShiftId(shift.id);
-                                                                            setShowIndividualDeletePinDialog(true);
-                                                                        }}
-                                                                        disabled={deleteShiftMutation.isPending}
-                                                                    >
-                                                                        <Trash2 className="mr-1 h-4 w-4" />
-                                                                        {t('ui.delete')}
-                                                                    </Button>
-                                                                </div>
-                                                            </div>
-
-                                                            <div className="flex flex-wrap items-center gap-2">
-                                                                            <Badge variant="outline"
-                                                                                className={shift.has_left ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-sky-50 border-sky-200 text-sky-800'}
-                                                                            >
-                                                                                {shift.has_left ? t('ui.completed') : t('ui.inProgress')}
-                                                                            </Badge>
-                                                                            <ShiftApprovalStatusBadge shift={shift} />
-                                                                            {isSundayShift && (
-                                                                                <Badge variant="destructive">{t('ui.sunday')}</Badge>
-                                                                            )}
-                                                                            {isHolidayShift && (
-                                                                                <Badge variant="destructive">{t('ui.holiday')}</Badge>
-                                                                            )}
-                                                                            <span className="text-sm text-slate-500 flex items-center gap-1">
-                                                                                <Calendar className="w-3 h-3" />
-                                                                                {formatDate(shift.work_date)}
-                                                                            </span>
-                                                                            <span className="text-sm text-slate-500 flex items-center gap-1">
-                                                                                <MapPin className="w-3 h-3" />
-                                                                                {shift.sites?.site_name}
-                                                                            </span>
-                                                                        </div>
-                                                                        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
-                                                                            {shift.entry_time && (
-                                                                                <span className="text-slate-600">
-                                                                                    {t('ui.entry')}: {formatTime(shift.entry_time)}
-                                                                                </span>
-                                                                            )}
-                                                                            {shift.breaks && shift.breaks.length > 0 && (
-                                                                                <div className="space-y-1">
-                                                                                    {shift.breaks.map((breakItem, breakIndex) => (
-                                                                                        <div key={breakIndex} className="text-xs text-slate-600">
-                                                                                            {t('ui.breakN', { n: breakIndex + 1 })}: {breakItem.break_start ? formatTime(breakItem.break_start) : t('ui.notSet')} - {breakItem.break_end ? formatTime(breakItem.break_end) : t('ui.notSet')}
-                                                                                        </div>
-                                                                                    ))}
-                                                                                </div>
-                                                                            )}
-                                                                            {shift.leave_time && (
-                                                                                <span className="text-slate-600">
-                                                                                    {t('ui.exit')}: {formatTime(shift.leave_time)}
-                                                                                </span>
-                                                                            )}
-                                                                            <ShiftApprovalMeta shift={shift} />
-                                                                        </div>
-                                                                        {shift.has_left && (() => {
-                                                                            const recalc = calculateShiftHours(
-                                                                                shift.entry_time,
-                                                                                shift.leave_time,
-                                                                                shift.breaks || [],
-                                                                                shift.work_date
-                                                                            );
-                                                                            const breakHours = recalc.breakHours || shift.break_hours || 0;
-                                                                            const basicH = recalc.basicHours;
-                                                                            const sunPhH = recalc.sundayHours;
-                                                                            const otH = recalc.otHours;
-                                                                            return (
-                                                                                <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
-                                                                                    {basicH > 0 && (
-                                                                                        <span className="text-green-600 font-medium">
-                                                                                            {t('ui.basic')}: {basicH.toFixed(2)}h
-                                                                                        </span>
-                                                                                    )}
-                                                                                    <span className="text-slate-600 font-medium">
-                                                                                        {t('ui.break')}: {breakHours.toFixed(2)}h
-                                                                                    </span>
-                                                                                    {sunPhH > 0 && (
-                                                                                        <span className="text-orange-600 font-medium">
-                                                                                            {t('ui.sunPh')}: {sunPhH.toFixed(2)}h
-                                                                                        </span>
-                                                                                    )}
-                                                                                    {otH > 0 && (
-                                                                                        <span className="text-blue-600 font-medium">
-                                                                                            OT: {otH.toFixed(2)}h
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                            );
-                                                                        })()}
-
-                                                            {expandedCards.has(shift.id) && (
-                                                                <div className="mt-4 pt-4 border-t border-slate-200">
-                                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                                                                        <div>
-                                                                            <h4 className="font-medium text-slate-700 mb-2">Time Details</h4>
-                                                                            <div className="space-y-1">
-                                                                                <p>{t('ui.entry')}: {shift.entry_time ? formatTime(shift.entry_time) : t('ui.notRecorded')}</p>
-                                                                                {shift.break_hours && shift.break_hours > 0 ? (
-                                                                                    <p className="flex items-center gap-1">
-                                                                                        <Coffee className="w-3 h-3" />
-                                                                                        Break Hours: {shift.break_hours.toFixed(1)} hrs
-                                                                                    </p>
-                                                                                ) : (
-                                                                                    shift.breaks && shift.breaks.length > 0 && shift.breaks.map((breakItem, index) => (
-                                                                                        <p key={breakItem.id || `${shift.id}-break-${index}`} className="flex items-center gap-1">
-                                                                                            <Coffee className="w-3 h-3" />
-                                                                                            Break {index + 1}: {formatTime(breakItem.break_start)}
-                                                                                            {breakItem.break_end ? ` - ${formatTime(breakItem.break_end)}` : ' (Ongoing)'}
-                                                                                        </p>
-                                                                                    ))
-                                                                                )}
-                                                                                <p>{t('ui.exit')}: {shift.leave_time ? formatTime(shift.leave_time) : t('ui.notRecorded')}</p>
-                                                                                {shift.edited_by && (
-                                                                                    <p className="text-xs text-slate-500 mt-2 italic">
-                                                                                        Edited By: {shift.edited_by}
-                                                                                    </p>
-                                                                                )}
-                                                                            </div>
-                                                                        </div>
-                                                                        {shift.has_left && (() => {
-                                                                            const recalc = calculateShiftHours(
-                                                                                shift.entry_time,
-                                                                                shift.leave_time,
-                                                                                shift.breaks || [],
-                                                                                shift.work_date
-                                                                            );
-                                                                            const breakHours = recalc.breakHours || shift.break_hours || 0;
-                                                                            const totalH = recalc.basicHours + recalc.sundayHours + recalc.otHours;
-                                                                            return (
-                                                                                <div>
-                                                                                    <h4 className="font-medium text-slate-700 mb-2">Hours Breakdown</h4>
-                                                                                    <div className="space-y-1">
-                                                                                        <p>Basic Hours: {recalc.basicHours.toFixed(2)}</p>
-                                                                                        <p>Sun/PH Hours: {recalc.sundayHours.toFixed(2)}</p>
-                                                                                        <p>OT Hours: {recalc.otHours.toFixed(2)}</p>
-                                                                                        <p>Break Hours: {breakHours.toFixed(2)}</p>
-                                                                                        <p>Total Hours: {totalH.toFixed(2)}</p>
-                                                                                    </div>
-                                                                                </div>
-                                                                            );
-                                                                        })()}
-                                                                    </div>
-                                                                </div>
-                                                            )}
-                                                    </div>
-                                                </div>
-                                            );
-                                        })}
-                                        {filteredShifts.length > shiftLimit ? (
-                                            <button
-                                                type="button"
-                                                className="g-btn g-btn--secondary g-btn--block"
-                                                onClick={() => setShiftLimit((n) => n + SHIFT_PAGE)}
-                                            >
-                                                Show more ({filteredShifts.length - shiftLimit} more)
-                                            </button>
-                                        ) : null}
-                                </div>
-                            )}
-                        </section>
+                        {activeDashboardTab === 'time-tracker' && (
+                            <Suspense fallback={<PageLoader />}>
+                                <TimeTrackerTab />
+                            </Suspense>
+                        )}
                     </TabsContent>
 
                     {/* Leaves Tab */}
                     <TabsContent value="leaves" className="mt-6">
-                        <div className="space-y-4">
-                            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                                <div className={cn(glassPanel, 'px-4 py-4')}>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pending manager</p>
-                                    <p className="mt-1 text-2xl font-semibold tracking-tight text-amber-700">{leaveDashboardStats.pending_manager}</p>
-                                </div>
-                                <div className={cn(glassPanel, 'px-4 py-4')}>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Pending admin</p>
-                                    <p className="mt-1 text-2xl font-semibold tracking-tight text-emerald-700">
-                                        {leaveDashboardStats.pending_admin + leaveDashboardStats.pending}
-                                    </p>
-                                </div>
-                                <div className={cn(glassPanel, 'px-4 py-4')}>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Overdue (&gt;72h)</p>
-                                    <p className="mt-1 text-2xl font-semibold tracking-tight text-red-700">{leaveDashboardStats.overdue}</p>
-                                </div>
-                                <div className={cn(glassPanel, 'px-4 py-4')}>
-                                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">By type</p>
-                                    <div className="mt-1 max-h-16 space-y-0.5 overflow-y-auto text-xs text-slate-700">
-                                        {Object.keys(leaveDashboardStats.byType || {}).length === 0 ? (
-                                            <p className="text-slate-400">No data</p>
-                                        ) : (
-                                            Object.entries(leaveDashboardStats.byType)
-                                                .sort((a, b) => b[1] - a[1])
-                                                .slice(0, 4)
-                                                .map(([type, count]) => (
-                                                    <p key={type} className="truncate">
-                                                        <span className="font-medium">{count}</span> {type}
-                                                    </p>
-                                                ))
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-
-                            <section className={cn(glassPanel, 'p-4 sm:p-5')} data-tour="admin-leaves-panel">
-                                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                            <div>
-                                                    <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                                    <Calendar className="h-5 w-5 text-emerald-600" />
-                                                    Leave approvals
-                                                    <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                                                    {leaveRequests?.length ?? 0} pending
-                                                    </span>
-                                                    </h2>
-                                                    <p className="mt-0.5 max-w-2xl text-xs text-slate-500">
-                                                        Review pending requests. Edit before approving. MC/Hospitalization may need an attachment.
-                                                    </p>
-                                            </div>
-                                            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-                                                <Button
-                                                    type="button"
-                                                    className="h-10 rounded-xl bg-slate-800 hover:bg-slate-900"
-                                                    onClick={() => setShowCreateLeaveDialog(true)}
-                                                >
-                                                    <PlusCircle className="mr-1.5 h-4 w-4" />
-                                                    Create leave
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                    onClick={() => setShowLeaveHistory(true)}
-                                                    data-tour="admin-leaves-history"
-                                                >
-                                                    <Calendar className="mr-1.5 h-4 w-4" />
-                                                    View history
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                    onClick={() => {
-                                                        setLeavePolicyForm({
-                                                            ...DEFAULT_LEAVE_POLICY,
-                                                            ...(leavePolicySettings || {}),
-                                                        });
-                                                        setShowLeavePolicyDialog(true);
-                                                    }}
-                                                >
-                                                    <Settings className="mr-2 h-4 w-4" />
-                                                    Policy
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                    onClick={handleExportLeaveReport}
-                                                >
-                                                    <FileSpreadsheet className="mr-2 h-4 w-4" />
-                                                    {t('ui.exportExcel')}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                        {leaveRequests?.length > 0 && (
-                                            <div className="mb-4 flex flex-wrap items-center gap-2">
-                                                <label className="flex items-center gap-2 text-xs text-slate-600">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="h-4 w-4 rounded border-slate-300"
-                                                        checked={
-                                                            selectedLeaveIds.length > 0 &&
-                                                            selectedLeaveIds.length === leaveRequests.length
-                                                        }
-                                                        onChange={() => {
-                                                            if (selectedLeaveIds.length === leaveRequests.length) {
-                                                                setSelectedLeaveIds([]);
-                                                            } else {
-                                                                setSelectedLeaveIds(leaveRequests.map((r) => r.id));
-                                                            }
-                                                        }}
-                                                    />
-                                                    Select all pending
-                                                </label>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    className="h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                                                    disabled={!selectedLeaveIds.length || bulkLeaveStatusMutation.isPending}
-                                                    onClick={() =>
-                                                        bulkLeaveStatusMutation.mutate({
-                                                            leaveIds: selectedLeaveIds,
-                                                            status: 'approved',
-                                                        })
-                                                    }
-                                                >
-                                                    Approve selected ({selectedLeaveIds.length})
-                                                </Button>
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    variant="destructive"
-                                                    className="h-9 rounded-xl"
-                                                    disabled={!selectedLeaveIds.length || bulkLeaveStatusMutation.isPending}
-                                                    onClick={() => {
-                                                        const reason = promptLeaveRejectReason();
-                                                        if (!reason) return;
-                                                        bulkLeaveStatusMutation.mutate({
-                                                            leaveIds: selectedLeaveIds,
-                                                            status: 'rejected',
-                                                            rejectionReason: reason,
-                                                        });
-                                                    }}
-                                                >
-                                                    Reject selected
-                                                </Button>
-                                            </div>
-                                        )}
-
-                                    {isLoadingLeaveRequests ? (
-                                        <div className="flex items-center justify-center py-16">
-                                            <Loader2 className="h-9 w-9 animate-spin text-slate-400" />
-                                        </div>
-                                    ) : leaveRequests?.length === 0 ? (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-14 text-center">
-                                            <Calendar className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                                            <h4 className="text-base font-semibold text-slate-800">No pending requests</h4>
-                                            <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">You’re all caught up. New worker submissions will show here.</p>
-                                        </div>
-                                    ) : (
-                                        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-                                            {leaveRequests?.map((request) => {
-                                                const durationLabel = (() => {
-                                                    if (request.leave_duration === 'half_day_morning') return 'Half day — morning';
-                                                    if (request.leave_duration === 'half_day_afternoon') return 'Half day — afternoon';
-                                                    return 'Full day';
-                                                })();
-                                                const days = countRequestedLeaveDays(request);
-                                                const checked = selectedLeaveIds.includes(request.id);
-                                                const needsAttachment =
-                                                    requiresMedicalAttachment({
-                                                        leaveType: request.leave_type,
-                                                        requestedDays: days,
-                                                        policy: leavePolicySettings || DEFAULT_LEAVE_POLICY,
-                                                    }) && !request.attachment_path;
-                                                return (
-                                                <div key={request.id} className="flex flex-col rounded-2xl border border-slate-200/80 bg-white/90">
-                                                    <div className="flex flex-col p-4">
-                                                        <div className="mb-3 flex flex-col gap-2">
-                                                            <div className="flex min-w-0 items-start gap-2">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
-                                                                    checked={checked}
-                                                                    onChange={() => {
-                                                                        setSelectedLeaveIds((prev) =>
-                                                                            prev.includes(request.id)
-                                                                                ? prev.filter((id) => id !== request.id)
-                                                                                : [...prev, request.id]
-                                                                        );
-                                                                    }}
-                                                                />
-                                                                <div className="min-w-0 flex-1">
-                                                                <p className="break-words text-base font-semibold leading-snug text-slate-900">{request.employee_name || 'Unknown'}</p>
-                                                                <p className="mt-0.5 font-mono text-xs text-slate-500">ID {request.employee_id}</p>
-                                                                </div>
-                                                            </div>
-                                                            <div className="flex flex-wrap gap-1">
-                                                                <Badge className="bg-emerald-100 text-emerald-900">
-                                                                    {normalizeLeaveType(request.leave_type)}
-                                                                </Badge>
-                                                                <Badge variant="outline" className="text-xs">
-                                                                    {getLeaveStatusLabel(request.status)}
-                                                                </Badge>
-                                                            </div>
-                                                        </div>
-                                                        <p className="mb-3 text-xs text-slate-500">
-                                                                    Submitted {format(new Date(request.created_at), 'MMM d, yyyy')}
-                                                        </p>
-
-                                                        <div className="space-y-3">
-                                                                {request.manager_name && (
-                                                                    <p className="mt-1 text-xs text-slate-500">
-                                                                        Manager: {request.manager_name}
-                                                                        {request.manager_approved_at ? ` · ${formatDate(request.manager_approved_at)}` : ''}
-                                                                    </p>
-                                                                )}
-                                                                {request.edited_by && (
-                                                                    <p className="mt-1 text-xs italic text-slate-500">
-                                                                        Edited by {request.edited_by}
-                                                                        {request.edited_at ? ` · ${formatDate(request.edited_at)}` : ''}
-                                                                        {request.amend_count > 0 ? ` · amended ${request.amend_count}×` : ''}
-                                                                    </p>
-                                                                )}
-                                                                {needsAttachment && (
-                                                                    <p className="mt-1 text-xs font-medium text-red-600">
-                                                                        Attachment required before approve
-                                                                    </p>
-                                                                )}
-                                                            </div>
-
-                                                            <dl className="space-y-2 rounded-xl border border-slate-100 bg-slate-50/50 px-3 py-3 text-sm">
-                                                                <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                                                                    <dt className="shrink-0 text-slate-500">Period</dt>
-                                                                    <dd className="text-right font-medium text-slate-800">
-                                                                        {formatDate(request.from_date)} → {formatDate(request.to_date)}
-                                                                    </dd>
-                                                                </div>
-                                                                <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                                                                    <dt className="shrink-0 text-slate-500">Days</dt>
-                                                                    <dd className="text-right text-slate-800">{days}</dd>
-                                                                </div>
-                                                                <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                                                                    <dt className="shrink-0 text-slate-500">Duration</dt>
-                                                                    <dd className="text-right text-slate-800">{durationLabel}</dd>
-                                                                </div>
-                                                                {request.reason ? (
-                                                                    <div>
-                                                                        <dt className="mb-1 text-slate-500">Reason</dt>
-                                                                        <dd className="break-words text-slate-800">{request.reason}</dd>
-                                                                    </div>
-                                                                ) : null}
-                                                            </dl>
-
-                                                        <div className="mt-auto flex flex-col gap-2 pt-3">
-                                                            <div className="flex gap-2">
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                className="h-9 flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700"
-                                                                onClick={() => updateLeaveStatus.mutate({
-                                                                    id: request.id,
-                                                                    status: 'approved',
-                                                                    adminNotes: ''
-                                                                })}
-                                                                disabled={updateLeaveStatus.isPending || needsAttachment}
-                                                                title={needsAttachment ? 'Attachment required' : undefined}
-                                                            >
-                                                                <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
-                                                                Approve
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="destructive"
-                                                                className="h-9 flex-1 rounded-xl"
-                                                                onClick={() => {
-                                                                    const reason = promptLeaveRejectReason();
-                                                                    if (!reason) return;
-                                                                    updateLeaveStatus.mutate({
-                                                                        id: request.id,
-                                                                        status: 'rejected',
-                                                                        adminNotes: reason,
-                                                                        rejectionReason: reason,
-                                                                    });
-                                                                }}
-                                                                disabled={updateLeaveStatus.isPending}
-                                                            >
-                                                                <XCircle className="mr-1.5 h-3.5 w-3.5" />
-                                                                Reject
-                                                            </Button>
-                                                            </div>
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-9 w-full rounded-xl border-slate-200 bg-white"
-                                                                onClick={() => {
-                                                                    setEditingLeave(request);
-                                                                    setLeaveEditData({
-                                                                        leave_type: normalizeLeaveType(request.leave_type),
-                                                                        leave_duration: request.leave_duration,
-                                                                        from_date: request.from_date,
-                                                                        to_date: request.to_date,
-                                                                    });
-                                                                    setLeaveEditSoftWarnings([]);
-                                                                    setLeaveEditHardWarnings([]);
-                                                                    setShowEditLeaveDialog(true);
-                                                                }}
-                                                            >
-                                                                <Edit2 className="mr-1.5 h-3.5 w-3.5" />
-                                                                Edit before approval
-                                                            </Button>
-                                                            <Button
-                                                                type="button"
-                                                                size="sm"
-                                                                variant="outline"
-                                                                className="h-9 w-full rounded-xl border-slate-200 bg-white"
-                                                                onClick={() => handlePrintSingleLeaveForm(request)}
-                                                                disabled={isPrintingLeaveForms}
-                                                            >
-                                                                <Printer className="mr-1.5 h-3.5 w-3.5" />
-                                                                Print leave form
-                                                            </Button>
-                                                            {request.attachment_path && (
-                                                                <Button
-                                                                    type="button"
-                                                                    size="sm"
-                                                                    variant="outline"
-                                                                    className="h-9 w-full rounded-xl border-slate-200 bg-white"
-                                                                    onClick={() => openLeaveAttachment(request.attachment_path)}
-                                                                >
-                                                                    <Paperclip className="mr-1.5 h-3.5 w-3.5" />
-                                                                    View attachment
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-                            </section>
-
-                            <LeaveCalendar
-                                leaveRequests={allLeaveRequests}
-                                onSelectLeave={(leave) => setShowLeaveHistory(true)}
-                            />
-                        </div>
+                        {activeDashboardTab === 'leaves' && (
+                            <Suspense fallback={<PageLoader />}>
+                                <LeavesTab />
+                            </Suspense>
+                        )}
                     </TabsContent>
 
                     {/* Payslip Report Tab */}
                     <TabsContent value="payslip-report" className="mt-6">
-                        <section className={cn(glassPanel, 'p-4 sm:p-5')} data-tour="admin-payslip-panel">
-                                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                            <div>
-                                                    <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                                    <Receipt className="h-5 w-5 text-slate-700" />
-                                                    Payslip report
-                                                    {payslipReportData && payslipReportData.length > 0 && (
-                                                            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                                                                {payslipReportData.length} record{payslipReportData.length !== 1 ? 's' : ''}
-                                                            </span>
-                                                    )}
-                                                    </h2>
-                                                    <p className="mt-0.5 max-w-2xl text-xs text-slate-500">
-                                                        Passed-out payslips for the selected month. Print all for one job, or View / Print per row.
-                                                    </p>
-                                            </div>
-                                            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-end">
-                                            <div className="col-span-2 min-w-0 space-y-1.5 sm:col-span-1">
-                                                <AdminFieldLabel>Month</AdminFieldLabel>
-                                                <Input
-                                                    type="month"
-                                                    value={payslipReportMonth}
-                                                    onChange={(e) => setPayslipReportMonth(e.target.value)}
-                                                    className={cn(glassInput, 'h-10 w-full min-w-0 sm:max-w-[13rem]')}
-                                                />
-                                            </div>
-                                            <Button
-                                                onClick={() => fetchPayslipReport.mutate()}
-                                                disabled={fetchPayslipReport.isPending || !payslipReportMonth}
-                                                className="h-10 rounded-xl bg-slate-800 hover:bg-slate-900"
-                                            >
-                                                {fetchPayslipReport.isPending ? (
-                                                    <>
-                                                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                                                        Loading…
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <FileSpreadsheet className="mr-1.5 h-4 w-4" />
-                                                        Load payslips
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => handlePrintPayslipReportSummary()}
-                                                disabled={
-                                                    !payslipReportData ||
-                                                    payslipReportData.length === 0 ||
-                                                    fetchPayslipReport.isPending
-                                                }
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                            >
-                                                <Printer className="mr-1.5 h-4 w-4" />
-                                                {t('ui.print')} summary
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => handlePrintAllPassedOutPayslipReport()}
-                                                disabled={
-                                                    !payslipReportData ||
-                                                    payslipReportData.length === 0 ||
-                                                    fetchPayslipReport.isPending
-                                                }
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                            >
-                                                <Printer className="mr-1.5 h-4 w-4" />
-                                                {t('ui.print')} all
-                                            </Button>
-                                            </div>
-                                    </div>
-
-                                    {payslipReportData && payslipReportData.length > 0 && (
-                                            <>
-                                            <div className="space-y-3 md:hidden">
-                                                {payslipReportData.map((payslip) => (
-                                                    <div key={payslip.id} className="rounded-2xl border border-slate-200/80 bg-white/90 p-4">
-                                                        <div className="flex items-start justify-between gap-2">
-                                                            <div className="min-w-0">
-                                                                <p className="font-mono text-sm font-semibold text-slate-900">{payslip.worker_id}</p>
-                                                                <p className="text-xs capitalize text-slate-500">{payslip.worker_type}</p>
-                                                            </div>
-                                                            <p className="shrink-0 text-lg font-semibold tabular-nums text-emerald-950">${parseFloat(payslip.net_pay || 0).toFixed(2)}</p>
-                                                        </div>
-                                                        <dl className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1 text-xs text-slate-700">
-                                                            <div><dt className="text-slate-500">Basic</dt><dd className="font-medium tabular-nums">${parseFloat(payslip.basic_pay || 0).toFixed(2)}</dd></div>
-                                                            <div><dt className="text-slate-500">OT</dt><dd className="font-medium tabular-nums">${parseFloat(payslip.ot_pay || 0).toFixed(2)}</dd></div>
-                                                            <div><dt className="text-slate-500">Deductions</dt><dd className="font-medium tabular-nums">${parseFloat(payslip.total_deductions || 0).toFixed(2)}</dd></div>
-                                                            <div><dt className="text-slate-500">Additions</dt><dd className="font-medium tabular-nums">${parseFloat(payslip.total_additions || 0).toFixed(2)}</dd></div>
-                                                        </dl>
-                                                        <div className="mt-3 flex flex-col gap-2">
-                                                            <Button size="sm" variant="outline" className="h-11 w-full rounded-xl" onClick={() => handleViewPassedOutPayslipReport(payslip)}>
-                                                                <FileText className="mr-1.5 h-4 w-4" /> View
-                                                            </Button>
-                                                            <MoreMenu
-                                                                items={[
-                                                                    { label: 'Print', icon: <Printer className="h-4 w-4" />, onClick: () => handlePrintPassedOutPayslipReport(payslip) },
-                                                                    {
-                                                                        label: 'Edit',
-                                                                        icon: <Edit2 className="h-4 w-4" />,
-                                                                        onClick: () => {
-                                                                            setEditingPayslip(payslip);
-                                                                            setPayslipEditForm({
-                                                                                basic_pay: payslip.basic_pay?.toString() || '',
-                                                                                ot_pay: payslip.ot_pay?.toString() || '',
-                                                                                sun_ph_pay: payslip.sun_ph_pay?.toString() || '',
-                                                                                monthly_allowance: payslip.monthly_allowance?.toString() || '',
-                                                                                incentive_allowance: payslip.incentive_allowance?.toString() || '',
-                                                                                bonus: payslip.bonus?.toString() || '',
-                                                                                custom_additions: stripSysAdditions(payslip.custom_additions || []),
-                                                                                cpf_employee_deduction: payslip.cpf_employee_deduction?.toString() || '',
-                                                                                sinda_deduction: payslip.sinda_deduction?.toString() || '',
-                                                                                total_deductions: payslip.total_deductions?.toString() || '',
-                                                                                net_pay: payslip.net_pay?.toString() || '',
-                                                                                amount_paid: payslip.amount_paid != null ? String(payslip.amount_paid) : '',
-                                                                            });
-                                                                        },
-                                                                    },
-                                                                    {
-                                                                        label: 'Delete',
-                                                                        icon: <Trash2 className="h-4 w-4" />,
-                                                                        danger: true,
-                                                                        disabled: deletePayslip.isPending,
-                                                                        onClick: async () => {
-                                                                            if (await confirmAction({ title: 'Delete payslip?', message: 'Are you sure you want to delete this payslip? This action cannot be undone.', confirmLabel: 'Delete', destructive: true })) {
-                                                                                deletePayslip.mutate(payslip.id);
-                                                                            }
-                                                                        },
-                                                                    },
-                                                                ]}
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                            <div className="hidden md:block overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/90">
-                                                <table className="w-full min-w-[1040px] border-collapse text-sm">
-                                                    <thead>
-                                                        <tr className="border-b border-slate-200 bg-slate-100/90">
-                                                            <th colSpan={2} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                                Worker
-                                                            </th>
-                                                            <th colSpan={6} className="border-l-2 border-slate-200 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                                Earnings & components
-                                                            </th>
-                                                            <th colSpan={3} className="border-l-2 border-slate-300 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                                Totals
-                                                            </th>
-                                                            <th className="border-l-2 border-slate-300 px-3 py-3 text-center text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                                                Actions
-                                                            </th>
-                                                        </tr>
-                                                        <tr className="border-b border-slate-200 bg-slate-50/90">
-                                                            <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-slate-600">ID</th>
-                                                            <th className="whitespace-nowrap px-4 py-2.5 text-left text-xs font-medium text-slate-600">Type</th>
-                                                            <th className="whitespace-nowrap border-l-2 border-slate-200 px-3 py-2.5 text-right text-xs font-medium text-slate-600">Basic</th>
-                                                            <th className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-slate-600">OT</th>
-                                                            <th className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-slate-600">Sun/PH</th>
-                                                            <th className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-slate-600">Monthly</th>
-                                                            <th className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-slate-600">Incentive</th>
-                                                            <th className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-slate-600">Bonus</th>
-                                                            <th className="whitespace-nowrap border-l-2 border-slate-300 px-3 py-2.5 text-right text-xs font-medium text-slate-600">Additions</th>
-                                                            <th className="whitespace-nowrap px-3 py-2.5 text-right text-xs font-medium text-slate-600">Deductions</th>
-                                                            <th className="whitespace-nowrap bg-emerald-50/80 px-3 py-2.5 text-right text-xs font-semibold text-emerald-900">Net pay</th>
-                                                            <th className="whitespace-nowrap border-l-2 border-slate-300 px-3 py-2.5 text-center text-xs font-medium text-slate-600" />
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-slate-100">
-                                                    {payslipReportData.map((payslip) => (
-                                                        <tr key={payslip.id} className="transition-colors hover:bg-slate-50/80">
-                                                            <td className="whitespace-nowrap px-4 py-2.5 font-mono text-xs text-slate-800">{payslip.worker_id}</td>
-                                                            <td className="whitespace-nowrap px-4 py-2.5 capitalize text-slate-700">{payslip.worker_type}</td>
-                                                            <td className="whitespace-nowrap border-l-2 border-slate-100 px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.basic_pay || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.ot_pay || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.sun_ph_pay || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.monthly_allowance || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.incentive_allowance || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.bonus || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap border-l-2 border-slate-200 px-3 py-2.5 text-right tabular-nums font-medium text-slate-900">${parseFloat(payslip.total_additions || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2.5 text-right tabular-nums text-slate-800">${parseFloat(payslip.total_deductions || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap bg-emerald-50/50 px-3 py-2.5 text-right text-sm font-semibold tabular-nums text-emerald-950">${parseFloat(payslip.net_pay || 0).toFixed(2)}</td>
-                                                            <td className="whitespace-nowrap border-l-2 border-slate-200 px-2 py-2">
-                                                                <div className="flex flex-wrap items-center justify-end gap-1.5">
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-8 rounded-lg border-slate-200 text-xs"
-                                                                        onClick={() => handleViewPassedOutPayslipReport(payslip)}
-                                                                    >
-                                                                        <FileText className="mr-1 h-3.5 w-3.5" /> View
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-8 rounded-lg border-slate-200 text-xs"
-                                                                        onClick={() => handlePrintPassedOutPayslipReport(payslip)}
-                                                                    >
-                                                                        <Printer className="mr-1 h-3.5 w-3.5" /> Print
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-8 rounded-lg border-slate-200 px-2"
-                                                                        onClick={() => {
-                                                                            setEditingPayslip(payslip);
-                                                                            setPayslipEditForm({
-                                                                                basic_pay: payslip.basic_pay?.toString() || '',
-                                                                                ot_pay: payslip.ot_pay?.toString() || '',
-                                                                                sun_ph_pay: payslip.sun_ph_pay?.toString() || '',
-                                                                                monthly_allowance: payslip.monthly_allowance?.toString() || '',
-                                                                                incentive_allowance: payslip.incentive_allowance?.toString() || '',
-                                                                                bonus: payslip.bonus?.toString() || '',
-                                                                                custom_additions: stripSysAdditions(payslip.custom_additions || []),
-                                                                                cpf_employee_deduction: payslip.cpf_employee_deduction?.toString() || '',
-                                                                                sinda_deduction: payslip.sinda_deduction?.toString() || '',
-                                                                                total_deductions: payslip.total_deductions?.toString() || '',
-                                                                                net_pay: payslip.net_pay?.toString() || '',
-                                                                                amount_paid: payslip.amount_paid != null ? String(payslip.amount_paid) : ''
-                                                                            });
-                                                                        }}
-                                                                    >
-                                                                        <Edit2 className="w-4 h-4" />
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="destructive"
-                                                                        className="h-8 rounded-lg"
-                                                                        onClick={async () => {
-                                                                            if (await confirmAction({ title: 'Delete payslip?', message: 'Are you sure you want to delete this payslip? This action cannot be undone.', confirmLabel: 'Delete', destructive: true })) {
-                                                                                deletePayslip.mutate(payslip.id);
-                                                                            }
-                                                                        }}
-                                                                        disabled={deletePayslip.isPending}
-                                                                    >
-                                                                        <Trash2 className="w-4 h-4" />
-                                                                    </Button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                            </div>
-                                            </>
-                                    )}
-
-                                    {payslipReportData && payslipReportData.length === 0 && (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-14 text-center">
-                                                <FileSpreadsheet className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                                                <h4 className="text-base font-semibold text-slate-800">No payslips found</h4>
-                                                <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Choose a month and load payslips, or try a different period.</p>
-                                        </div>
-                                    )}
-                        </section>
-                        <PayBalancesPanel />
+                        {activeDashboardTab === 'payslip-report' && (
+                            <Suspense fallback={<PageLoader />}>
+                                <PayslipReportTab />
+                            </Suspense>
+                        )}
                     </TabsContent>
 
                     {/* Timesheet Report Tab - Passed Out Timesheets (Approval Workflow) */}
                     <TabsContent value="timesheet-report" className="mt-6">
-                        <section className={cn(glassPanel, 'p-4 sm:p-5')} data-tour="admin-timesheet-panel">
-                                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                            <div>
-                                                    <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                                    <FileText className="h-5 w-5 text-slate-700" />
-                                                    Passed out timesheets
-                                                    {passedOutTimesheetsData.length > 0 && (
-                                                            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                                                                {passedOutTimesheetsData.length} record{passedOutTimesheetsData.length !== 1 ? 's' : ''}
-                                                            </span>
-                                                    )}
-                                                    </h2>
-                                                    <p className="mt-0.5 max-w-2xl text-xs text-slate-500">
-                                                        Review approval status, then approve or return items waiting on admin.
-                                                    </p>
-                                            </div>
-                                            <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-end">
-                                            <div className="col-span-2 space-y-1.5 sm:col-span-1">
-                                                <AdminFieldLabel>Month</AdminFieldLabel>
-                                                <Input
-                                                    type="month"
-                                                    value={timesheetReportMonth}
-                                                    onChange={(e) => setTimesheetReportMonth(e.target.value)}
-                                                    className={cn(glassInput, 'h-10 w-full min-w-[200px] sm:w-52')}
-                                                />
-                                            </div>
-                                            <Button
-                                                onClick={() => queryClient.invalidateQueries({ queryKey: ['adminPassedOutTimesheets', timesheetReportMonth] })}
-                                                disabled={isFetchingAdminTimesheets || !timesheetReportMonth}
-                                                className="h-10 rounded-xl bg-slate-800 hover:bg-slate-900"
-                                                data-tour="admin-timesheet-load"
-                                            >
-                                                {isFetchingAdminTimesheets ? (
-                                                    <>
-                                                        <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
-                                                        Loading…
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <FileSpreadsheet className="mr-1.5 h-4 w-4" />
-                                                        Load timesheets
-                                                    </>
-                                                )}
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => handlePrintTimesheetReportSummary()}
-                                                disabled={passedOutTimesheetsData.length === 0 || isFetchingAdminTimesheets}
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                            >
-                                                <Printer className="mr-1.5 h-4 w-4" />
-                                                {t('ui.print')} summary
-                                            </Button>
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                onClick={() => handlePrintAllPassedOutTimesheets()}
-                                                disabled={passedOutTimesheetsData.length === 0 || isFetchingAdminTimesheets}
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                            >
-                                                <Printer className="mr-1.5 h-4 w-4" />
-                                                {t('ui.print')} all
-                                            </Button>
-                                            </div>
-                                    </div>
-
-                                    {passedOutTimesheetsData.length > 0 && (
-                                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                            {passedOutTimesheetsData.map((ts) => {
-                                                const statusConfig = {
-                                                    pending_worker: { bg: 'bg-amber-50/90 border-amber-200', text: 'text-amber-900', label: 'Not approved yet' },
-                                                    returned_to_worker: { bg: 'bg-blue-50/90 border-blue-200', text: 'text-blue-900', label: `Returned back to worker for re-approval${ts.manager_name ? ` by ${ts.manager_name}` : ''}` },
-                                                    awaiting_manager: { bg: 'bg-lime-50/90 border-lime-300', text: 'text-lime-900', label: 'Submitted by employee, awaiting manager' },
-                                                    awaiting_admin: { bg: 'bg-lime-50/90 border-lime-300', text: 'text-lime-900', label: 'Submitted by employee, awaiting admin' },
-                                                    approved: { bg: 'bg-emerald-50/90 border-emerald-300', text: 'text-emerald-900', label: `Approved by ${ts.manager_name || 'manager/admin'}` },
-                                                    declined_by_worker: { bg: 'bg-red-50/90 border-red-200', text: 'text-red-900', label: `Declined by worker${ts.worker_decline_reason ? `: ${ts.worker_decline_reason}` : ''}` },
-                                                    declined_by_manager: {
-                                                        bg: 'bg-red-50/90 border-red-200',
-                                                        text: 'text-red-900',
-                                                        label: (() => {
-                                                            const workerPart = ts.worker_decline_reason ? `Declined by worker: ${ts.worker_decline_reason}` : null;
-                                                            const managerPart = `Declined by manager${ts.manager_name ? ` (${ts.manager_name})` : ''}${ts.manager_decline_reason ? `: ${ts.manager_decline_reason}` : ''}`.trim() || 'Declined by manager';
-                                                            return [workerPart, managerPart].filter(Boolean).join('. ');
-                                                        })()
-                                                    }
-                                                };
-                                                const cfg = statusConfig[ts.status] || statusConfig.pending_worker;
-                                                const monthLabel = `${String(ts.month).padStart(2, '0')}/${ts.year}`;
-                                                const isDeclined = ts.status === 'declined_by_worker' || ts.status === 'declined_by_manager';
-                                                const isAwaitingAdmin = ts.status === 'awaiting_admin';
-                                                return (
-                                                    <div
-                                                        key={ts.id}
-                                                        className={`flex flex-col rounded-2xl border p-4 ${cfg.bg}`}
-                                                    >
-                                                                <div className="min-w-0">
-                                                                    <p className="break-words text-base font-semibold leading-snug text-slate-900">{ts.worker_name}</p>
-                                                                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600">
-                                                                        <span className="max-w-full break-words font-mono">ID {ts.worker_id}</span>
-                                                                        <span className="shrink-0 rounded-md bg-white/80 px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-200/80">{monthLabel}</span>
-                                                                        {(ts.revision || 1) > 1 && (
-                                                                            <span className="shrink-0 rounded-md bg-white/80 px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-200/80">Rev {ts.revision}</span>
-                                                                        )}
-                                                                        {ts.is_stale && (
-                                                                            <span className="shrink-0 rounded-md bg-orange-100 px-2 py-0.5 font-semibold text-orange-800 ring-1 ring-orange-300">Out of date</span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            <p className={`mt-3 text-sm leading-snug ${cfg.text}`}>{cfg.label}</p>
-                                                            {ts.is_stale && (
-                                                                <p className="mt-1 text-xs leading-snug text-orange-800">
-                                                                    Shifts changed after this was passed out. Update it so the worker approves the latest hours.
-                                                                </p>
-                                                            )}
-                                                            <div className="mt-auto flex flex-col gap-2 pt-3">
-                                                            {ts.is_stale && !isDeclined && (
-                                                                <Button
-                                                                    size="sm"
-                                                                    className="h-9 w-full rounded-xl bg-orange-600 hover:bg-orange-700"
-                                                                    onClick={() => recreateAndResendTimesheet.mutate(ts)}
-                                                                    disabled={recreateAndResendTimesheet.isPending}
-                                                                >
-                                                                    Update timesheet
-                                                                </Button>
-                                                            )}
-                                                            {isAwaitingAdmin && (
-                                                                <>
-                                                                    <Button size="sm" className="h-9 w-full rounded-xl bg-emerald-600 hover:bg-emerald-700" onClick={() => adminApproveTimesheet.mutate(ts)} disabled={adminApproveTimesheet.isPending}>
-                                                                        Approve
-                                                                    </Button>
-                                                                    <Button size="sm" variant="outline" className="h-9 w-full rounded-xl border-slate-200 bg-white" onClick={() => adminResendToWorker.mutate(ts)} disabled={adminResendToWorker.isPending}>
-                                                                        Return to worker
-                                                                    </Button>
-                                                                    <Button size="sm" variant="destructive" className="h-9 w-full rounded-xl" onClick={() => setAdminDeclineTimesheetDialog(ts)}>
-                                                                        Decline
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                            {isDeclined && (
-                                                                <>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="outline"
-                                                                        className="h-9 w-full rounded-xl border-slate-200 bg-white"
-                                                                        onClick={() => resendSameTimesheet.mutate(ts)}
-                                                                        disabled={resendSameTimesheet.isPending || recreateAndResendTimesheet.isPending}
-                                                                    >
-                                                                        Resend same timesheet
-                                                                    </Button>
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="h-9 w-full rounded-xl bg-amber-600 hover:bg-amber-700"
-                                                                        onClick={() => recreateAndResendTimesheet.mutate(ts)}
-                                                                        disabled={resendSameTimesheet.isPending || recreateAndResendTimesheet.isPending}
-                                                                    >
-                                                                        Update and resend
-                                                                    </Button>
-                                                                </>
-                                                            )}
-                                                                    <div className="flex gap-2">
-                                                                    <Button size="sm" variant="outline" className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs" onClick={() => handleViewPassedOutTimesheet(ts)}>
-                                                                        <FileText className="mr-1 h-3.5 w-3.5" /> View
-                                                                    </Button>
-                                                                    <Button size="sm" variant="outline" className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs" onClick={() => handleDownloadPassedOutTimesheet(ts)}>
-                                                                        <Download className="mr-1 h-3.5 w-3.5" /> Print
-                                                                    </Button>
-                                                                    {(ts.revision || 1) > 1 && (
-                                                                        <Button size="sm" variant="outline" className="h-9 flex-1 rounded-xl border-slate-200 bg-white text-xs" onClick={() => openTimesheetHistory(ts)}>
-                                                                            <History className="mr-1 h-3.5 w-3.5" /> History
-                                                                        </Button>
-                                                                    )}
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        className="h-9 w-9 shrink-0 rounded-xl px-0 text-red-600 hover:bg-red-50 hover:text-red-700"
-                                                                        onClick={async () => {
-                                                                            if (await confirmAction({ title: 'Delete timesheet?', message: 'Delete this timesheet? This cannot be undone.', confirmLabel: 'Delete', destructive: true })) {
-                                                                                deletePassedOutTimesheet.mutate(ts.id);
-                                                                            }
-                                                                        }}
-                                                                        disabled={deletePassedOutTimesheet.isPending}
-                                                                        title="Delete"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                    </div>
-                                                            </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
-
-                                    {passedOutTimesheetsData.length === 0 && timesheetReportMonth && (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-14 text-center">
-                                            <FileText className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                                            <h4 className="text-base font-semibold text-slate-800">No timesheets found</h4>
-                                            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">
-                                                No passed-out timesheets for this month. Use Pass out timesheet to send timesheets to workers.
-                                            </p>
-                                        </div>
-                                    )}
-
-                                    {!timesheetReportMonth && (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-12 text-center text-sm text-slate-600">
-                                            Select a month above, then click <span className="font-medium text-slate-800">Load timesheets</span>.
-                                        </div>
-                                    )}
-                        </section>
+                        {activeDashboardTab === 'timesheet-report' && (
+                            <Suspense fallback={<PageLoader />}>
+                                <TimesheetReportTab />
+                            </Suspense>
+                        )}
                     </TabsContent>
 
                     {/* Edit Payslip Dialog */}
@@ -9971,484 +8866,19 @@ ${balanceBlock.html}
                     
                     {/* Worker Information Tab */}
                     <TabsContent value="worker-info" className="mt-6">
-                        <div className="space-y-4" data-tour="admin-worker-info-panel">
-                            <section className={cn(glassPanel, 'p-5 sm:p-6')}>
-                                <div className="mb-5 flex gap-4">
-                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-soft via-white to-sky-50 shadow-sm ring-1 ring-brand-soft">
-                                        <Users className="h-6 w-6 text-brand" />
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h2 className="text-lg font-semibold tracking-tight text-slate-900">{t('ui.workerDirectory')}</h2>
-                                        <p className="mt-0.5 max-w-2xl text-sm text-slate-500">
-                                            {t('ui.workerDirectoryHint')}
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                                    <AdminChoiceCard
-                                        icon={User}
-                                        tone="emerald"
-                                        title={t('ui.addWorker')}
-                                        subtitle={t('ui.addWorkerHint')}
-                                        onClick={handleAddWorkerClick}
-                                        data-tour="admin-worker-add"
-                                    />
-                                    <AdminChoiceCard
-                                        icon={Edit2}
-                                        tone="sky"
-                                        title={t('ui.editWorker')}
-                                        subtitle={t('ui.editWorkerHint')}
-                                        onClick={handleEditWorkerClick}
-                                    />
-                                    <AdminChoiceCard
-                                        icon={Search}
-                                        tone="amber"
-                                        title={t('ui.searchWorker')}
-                                        subtitle={t('ui.searchWorkerHint')}
-                                        onClick={handleWorkerSearchClick}
-                                    />
-                                    <AdminChoiceCard
-                                        icon={Users}
-                                        tone="violet"
-                                        title={t('ui.managers')}
-                                        subtitle={t('ui.managersHint')}
-                                        onClick={() => setShowManagerDialog(true)}
-                                    />
-                                    <AdminChoiceCard
-                                        icon={UserCheck}
-                                        tone="indigo"
-                                        title={t('ui.supervisors')}
-                                        subtitle={t('ui.supervisorsHint')}
-                                        onClick={() => setShowSupervisorDialog(true)}
-                                    />
-                                    <AdminChoiceCard
-                                        icon={Trash2}
-                                        tone="rose"
-                                        title={t('ui.deleteWorker')}
-                                        subtitle={t('ui.deleteWorkerHint')}
-                                        onClick={handleDeleteWorkerClick}
-                                    />
-                                </div>
-                            </section>
-
-                            <section className={cn(glassPanel, 'p-5 sm:p-6')}>
-                                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                        <div className="flex gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow-sm ring-1 ring-emerald-100/80">
-                                                <User className="h-5 w-5 text-emerald-700" />
-                                            </div>
-                                            <div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h2 className="text-lg font-semibold tracking-tight text-slate-900">{t('ui.localWorkers')}</h2>
-                                                {!isLoadingLocalWorkers && localWorkers && (
-                                                    <>
-                                                        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                                                            {t('ui.total', { count: localWorkers.length })}
-                                                        </span>
-                                                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                                                            {t('ui.activeCount', { count: localWorkersDirectory.active.length })}
-                                                        </span>
-                                                        {localWorkersDirectory.leftCompany.length > 0 && (
-                                                            <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                                                                {t('ui.notInCompany', { count: localWorkersDirectory.leftCompany.length })}
-                                                            </span>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                            <p className="mt-0.5 text-sm text-slate-500">{t('ui.localWorkersHint')}</p>
-                                            </div>
-                                        </div>
-                                    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-                                            <Button
-                                                variant="outline"
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                onClick={() => exportWorkersToExcel('local')}
-                                            >
-                                                <FileSpreadsheet className="mr-1.5 h-4 w-4" />
-                                                {t('ui.export')}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                onClick={() => printWorkerDetails('local')}
-                                            >
-                                                <Printer className="mr-1.5 h-4 w-4" />
-                                                {t('ui.print')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    {isLoadingLocalWorkers ? (
-                                        <div className="flex items-center justify-center py-12">
-                                            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                                        </div>
-                                    ) : localWorkers && localWorkers.length > 0 ? (
-                                        <>
-                                        <div className="space-y-3 md:hidden">
-                                            {[...localWorkersDirectory.active, ...localWorkersDirectory.leftCompany].map((w) => {
-                                                const notInCompany = workerIsNotInCompany(w);
-                                                return (
-                                                    <div
-                                                        key={w.employee_id}
-                                                        className={cn(
-                                                            'rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-sm',
-                                                            notInCompany && 'border-red-200 bg-red-50/80'
-                                                        )}
-                                                    >
-                                                        <p className="font-semibold text-slate-900">{w.employee_name}</p>
-                                                        <p className="font-mono text-xs text-slate-500">ID {w.employee_id} · {w.nric_fin}</p>
-                                                        <p className="mt-1 text-xs text-slate-600">{w.designation || '—'}</p>
-                                                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-slate-700">
-                                                            <span>Basic/day {formatAmount(w.basic_salary_per_day)}</span>
-                                                            <span>AL {w.annual_leave_balance}/{w.annual_leave_limit}</span>
-                                                            <span>MC {w.medical_leave_balance}/{w.medical_leave_limit}</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="nested-touch-scroll hidden max-h-[min(70vh,560px)] overflow-auto rounded-2xl border border-slate-200/80 bg-white/90 md:block">
-                                            <table className="w-full min-w-[1200px] border-collapse text-sm">
-                                                <thead>
-                                                    <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                                        <th className="sticky top-0 left-0 z-[45] w-24 min-w-[6rem] shrink-0 bg-slate-100 px-3 py-2.5 text-left shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08),0_2px_6px_-1px_rgba(0,0,0,0.08)]">ID</th>
-                                                        <th className="sticky top-0 left-24 z-[45] w-28 min-w-[7rem] shrink-0 bg-slate-100 px-3 py-2.5 text-left shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08),0_2px_6px_-1px_rgba(0,0,0,0.08)]">NRIC/FIN</th>
-                                                        <th className="sticky top-0 left-[13rem] z-[45] min-w-[12rem] max-w-[16rem] bg-slate-100 px-3 py-2.5 text-left shadow-[2px_0_8px_-2px_rgba(0,0,0,0.12),0_2px_6px_-1px_rgba(0,0,0,0.08)]">Name</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Designation</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Date joined</th>
-                                                        <th className="sticky top-0 z-40 min-w-[100px] bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Bank</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Basic/day</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Monthly allow.</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">OT rate</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Sun/PH rate</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">AL limit</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">MC limit</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">AL bal.</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">MC bal.</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">CPF emp %</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">CPF empr %</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">SINDA</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Cessation</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Rejoined</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 bg-white">
-                                                    {[...localWorkersDirectory.active, ...localWorkersDirectory.leftCompany].map((w, idx) => {
-                                                        const showLeftSectionHeader =
-                                                            localWorkersDirectory.leftCompany.length > 0 &&
-                                                            idx === localWorkersDirectory.active.length;
-                                                        const notInCompany = workerIsNotInCompany(w);
-                                                        const stickyBg = notInCompany ? 'bg-red-50/95 group-hover:bg-red-50' : 'bg-white group-hover:bg-slate-50';
-                                                        return (
-                                                        <React.Fragment key={w.employee_id}>
-                                                            {showLeftSectionHeader && (
-                                                                <tr className="bg-slate-100/90">
-                                                                    <td colSpan={19} className="border-y border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                                                        Workers not in company ({localWorkersDirectory.leftCompany.length})
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        <tr className={`group transition-colors hover:bg-slate-50/90 ${notInCompany ? 'bg-red-50/95 hover:bg-red-50' : ''}`}>
-                                                            <td className={`sticky left-0 z-20 w-24 min-w-[6rem] shrink-0 whitespace-nowrap px-3 py-2 font-mono text-xs shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] ${stickyBg} ${notInCompany ? 'font-semibold text-red-700' : 'text-slate-800'}`}>{w.employee_id}</td>
-                                                            <td className={`sticky left-24 z-20 w-28 min-w-[7rem] shrink-0 whitespace-nowrap px-3 py-2 text-slate-700 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] ${stickyBg}`}>{w.nric_fin}</td>
-                                                            <td className={`sticky left-[13rem] z-20 min-w-[12rem] max-w-[16rem] break-words px-3 py-2 font-medium text-slate-900 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.12)] ${stickyBg}`}>{w.employee_name}</td>
-                                                            <td className="max-w-[160px] break-words px-3 py-2 text-slate-700">{w.designation}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-slate-700">{w.date_joined}</td>
-                                                            <td className="max-w-[140px] break-all px-3 py-2 font-mono text-xs text-slate-600">{w.bank_account_number}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.basic_salary_per_day)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.monthly_allowance)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.ot_rate_per_hour)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.sun_ph_rate_per_day)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.annual_leave_limit}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.medical_leave_limit}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.annual_leave_balance}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.medical_leave_balance}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.cpf_employee_contribution}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.cpf_employer_contribution}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.sinda_contribution)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-slate-700">{w.date_of_cessation || '—'}</td>
-                                                            <td className="max-w-[200px] break-words px-3 py-2 text-slate-700">{formatRejoinDatesCell(w)}</td>
-                                                        </tr>
-                                                        </React.Fragment>
-                                                    );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        </>
-                                    ) : (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-10 text-center text-sm text-slate-500">
-                                            {t('ui.noLocalWorkers')}
-                                        </div>
-                                    )}
-                            </section>
-
-                            <section className={cn(glassPanel, 'p-5 sm:p-6')}>
-                                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                                        <div className="flex gap-3">
-                                            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-50 via-white to-brand-soft shadow-sm ring-1 ring-sky-100/80">
-                                                <Users className="h-5 w-5 text-sky-700" />
-                                            </div>
-                                            <div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h2 className="text-lg font-semibold tracking-tight text-slate-900">{t('ui.foreignWorkers')}</h2>
-                                                {!isLoadingForeignWorkers && foreignWorkers && (
-                                                    <>
-                                                        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700">
-                                                            {t('ui.total', { count: foreignWorkers.length })}
-                                                        </span>
-                                                        <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-800">
-                                                            {t('ui.activeCount', { count: foreignWorkersDirectory.active.length })}
-                                                        </span>
-                                                        {foreignWorkersDirectory.leftCompany.length > 0 && (
-                                                            <span className="rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-medium text-red-800">
-                                                                {t('ui.notInCompany', { count: foreignWorkersDirectory.leftCompany.length })}
-                                                            </span>
-                                                        )}
-                                                    </>
-                                                )}
-                                            </div>
-                                            <p className="mt-0.5 text-sm text-slate-500">{t('ui.foreignWorkersHint')}</p>
-                                            </div>
-                                        </div>
-                                        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
-                                            <Button
-                                                variant="outline"
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                onClick={() => exportWorkersToExcel('foreign')}
-                                            >
-                                                <FileSpreadsheet className="mr-1.5 h-4 w-4" />
-                                                {t('ui.export')}
-                                            </Button>
-                                            <Button
-                                                variant="outline"
-                                                className="h-10 rounded-xl border-slate-200 bg-white/70"
-                                                onClick={() => printWorkerDetails('foreign')}
-                                            >
-                                                <Printer className="mr-1.5 h-4 w-4" />
-                                                {t('ui.print')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    {isLoadingForeignWorkers ? (
-                                        <div className="flex items-center justify-center py-12">
-                                            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                                        </div>
-                                    ) : foreignWorkers && foreignWorkers.length > 0 ? (
-                                        <>
-                                        <div className="space-y-3 md:hidden">
-                                            {[...foreignWorkersDirectory.active, ...foreignWorkersDirectory.leftCompany].map((w) => {
-                                                const notInCompany = workerIsNotInCompany(w);
-                                                return (
-                                                    <div
-                                                        key={w.employee_id}
-                                                        className={cn(
-                                                            'rounded-2xl border border-slate-200/80 bg-white/90 p-4 text-sm',
-                                                            notInCompany && 'border-red-200 bg-red-50/80'
-                                                        )}
-                                                    >
-                                                        <p className="font-semibold text-slate-900">{w.employee_name}</p>
-                                                        <p className="font-mono text-xs text-slate-500">ID {w.employee_id} · {w.nric_fin}</p>
-                                                        <p className="mt-1 text-xs text-slate-600">{w.designation || '—'}</p>
-                                                        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums text-slate-700">
-                                                            <span>Basic/day {formatAmount(w.basic_salary_per_day)}</span>
-                                                            <span>AL {w.annual_leave_balance}/{w.annual_leave_limit}</span>
-                                                            <span>MC {w.medical_leave_balance}/{w.medical_leave_limit}</span>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                        <div className="nested-touch-scroll hidden max-h-[min(70vh,560px)] overflow-auto rounded-2xl border border-slate-200/80 bg-white/90 md:block">
-                                            <table className="w-full min-w-[1100px] border-collapse text-sm">
-                                                <thead>
-                                                    <tr className="border-b border-slate-200 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                                        <th className="sticky top-0 left-0 z-[45] w-24 min-w-[6rem] shrink-0 bg-slate-100 px-3 py-2.5 text-left shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08),0_2px_6px_-1px_rgba(0,0,0,0.08)]">ID</th>
-                                                        <th className="sticky top-0 left-24 z-[45] w-28 min-w-[7rem] shrink-0 bg-slate-100 px-3 py-2.5 text-left shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08),0_2px_6px_-1px_rgba(0,0,0,0.08)]">NRIC/FIN</th>
-                                                        <th className="sticky top-0 left-[13rem] z-[45] min-w-[12rem] max-w-[16rem] bg-slate-100 px-3 py-2.5 text-left shadow-[2px_0_8px_-2px_rgba(0,0,0,0.12),0_2px_6px_-1px_rgba(0,0,0,0.08)]">Name</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Designation</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Date joined</th>
-                                                        <th className="sticky top-0 z-40 min-w-[100px] bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Bank</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Basic/day</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Monthly allow.</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">OT rate</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Sun/PH rate</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">AL limit</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">MC limit</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">AL bal.</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-right tabular-nums shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">MC bal.</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Cessation</th>
-                                                        <th className="sticky top-0 z-40 whitespace-nowrap bg-slate-100 px-3 py-2.5 text-left shadow-[0_2px_6px_-1px_rgba(0,0,0,0.08)]">Rejoined</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody className="divide-y divide-slate-100 bg-white">
-                                                    {[...foreignWorkersDirectory.active, ...foreignWorkersDirectory.leftCompany].map((w, idx) => {
-                                                        const showLeftSectionHeader =
-                                                            foreignWorkersDirectory.leftCompany.length > 0 &&
-                                                            idx === foreignWorkersDirectory.active.length;
-                                                        const notInCompany = workerIsNotInCompany(w);
-                                                        const stickyBg = notInCompany ? 'bg-red-50/95 group-hover:bg-red-50' : 'bg-white group-hover:bg-slate-50';
-                                                        return (
-                                                        <React.Fragment key={w.employee_id}>
-                                                            {showLeftSectionHeader && (
-                                                                <tr className="bg-slate-100/90">
-                                                                    <td colSpan={16} className="border-y border-slate-200 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                                                        Workers not in company ({foreignWorkersDirectory.leftCompany.length})
-                                                                    </td>
-                                                                </tr>
-                                                            )}
-                                                        <tr className={`group transition-colors hover:bg-slate-50/90 ${notInCompany ? 'bg-red-50/95 hover:bg-red-50' : ''}`}>
-                                                            <td className={`sticky left-0 z-20 w-24 min-w-[6rem] shrink-0 whitespace-nowrap px-3 py-2 font-mono text-xs shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] ${stickyBg} ${notInCompany ? 'font-semibold text-red-700' : 'text-slate-800'}`}>{w.employee_id}</td>
-                                                            <td className={`sticky left-24 z-20 w-28 min-w-[7rem] shrink-0 whitespace-nowrap px-3 py-2 text-slate-700 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.08)] ${stickyBg}`}>{w.nric_fin}</td>
-                                                            <td className={`sticky left-[13rem] z-20 min-w-[12rem] max-w-[16rem] break-words px-3 py-2 font-medium text-slate-900 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.12)] ${stickyBg}`}>{w.employee_name}</td>
-                                                            <td className="max-w-[160px] break-words px-3 py-2 text-slate-700">{w.designation}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-slate-700">{w.date_joined}</td>
-                                                            <td className="max-w-[140px] break-all px-3 py-2 font-mono text-xs text-slate-600">{w.bank_account_number}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.basic_salary_per_day)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.monthly_allowance)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.ot_rate_per_hour)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{formatAmount(w.sun_ph_rate_per_day)}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.annual_leave_limit}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.medical_leave_limit}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.annual_leave_balance}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-right tabular-nums text-slate-800">{w.medical_leave_balance}</td>
-                                                            <td className="whitespace-nowrap px-3 py-2 text-slate-700">{w.date_of_cessation || '—'}</td>
-                                                            <td className="max-w-[200px] break-words px-3 py-2 text-slate-700">{formatRejoinDatesCell(w)}</td>
-                                                        </tr>
-                                                        </React.Fragment>
-                                                        );
-                                                    })}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        </>
-                                    ) : (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-10 text-center text-sm text-slate-500">
-                                            No foreign workers found.
-                                        </div>
-                                    )}
-                            </section>
-                        </div>
+                        {activeDashboardTab === 'worker-info' && (
+                            <Suspense fallback={<PageLoader />}>
+                                <WorkerInfoTab />
+                            </Suspense>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="sites" className="mt-6">
-                        <section className={cn(glassPanel, 'p-5 sm:p-6')} data-tour="admin-sites-panel">
-                                    <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                                            <div className="flex gap-4">
-                                                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-50 via-white to-teal-50 shadow-sm ring-1 ring-sky-100/80">
-                                                        <MapPin className="h-6 w-6 text-sky-600" />
-                                                    </div>
-                                                    <div>
-                                                    <h2 className="flex flex-wrap items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                                    Work sites
-                                                    {!isLoadingSites && allSites.length > 0 && (
-                                                        <span className="rounded-full bg-sky-50 px-2.5 py-0.5 text-xs font-medium text-sky-800">
-                                                            {allSites.length} site{allSites.length !== 1 ? 's' : ''}
-                                                        </span>
-                                                    )}
-                                                    </h2>
-                                                    <p className="mt-0.5 max-w-xl text-sm text-slate-500">
-                                                        Locations for shifts and attendance. Each site can have a QR token for scanning.
-                                                    </p>
-                                                    </div>
-                                            </div>
-                                    <Button className="h-11 rounded-xl bg-sky-600/95 px-5 shadow-lg shadow-sky-600/20 hover:bg-sky-700" onClick={openAddSiteDialog} data-tour="admin-sites-add">
-                                        Add site
-                                    </Button>
-                                    </div>
-
-                                {isLoadingSites ? (
-                                    <div className="flex items-center justify-center py-16">
-                                        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
-                                    </div>
-                                ) : allSites.length === 0 ? (
-                                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-14 text-center">
-                                        <MapPin className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                                        <h4 className="text-base font-semibold text-slate-800">No sites yet</h4>
-                                        <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Create a site to get coordinates and a QR token for worker check-in.</p>
-                                    </div>
-                                ) : (
-                                    <div className="overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/90">
-                                        <table className="w-full min-w-[880px] border-separate border-spacing-0 text-sm">
-                                            <thead>
-                                                <tr className="border-b border-slate-200 bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
-                                                    <th className="sticky left-0 z-[3] min-w-[160px] border-b border-r border-slate-200 bg-slate-50/95 px-4 py-3">Site name</th>
-                                                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3">Site ID</th>
-                                                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right tabular-nums">Latitude</th>
-                                                    <th className="whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right tabular-nums">Longitude</th>
-                                                    <th className="min-w-[200px] border-b border-slate-200 px-4 py-3">QR token</th>
-                                                    <th className="min-w-[220px] whitespace-nowrap border-b border-slate-200 px-4 py-3 text-right">Actions</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100 bg-white">
-                                                {allSites.map((site) => (
-                                                    <tr key={site.id} className="group transition-colors hover:bg-slate-50/90">
-                                                        <td className="sticky left-0 z-[2] border-r border-slate-100 bg-white px-4 py-3 font-medium text-slate-900 shadow-[4px_0_12px_-6px_rgba(15,23,42,0.08)] group-hover:bg-slate-50/90">
-                                                            {site.site_name}
-                                                        </td>
-                                                        <td className="whitespace-nowrap px-4 py-3 font-mono text-xs text-slate-700">{site.id}</td>
-                                                        <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-700">
-                                                            {site.latitude ?? '—'}
-                                                        </td>
-                                                        <td className="whitespace-nowrap px-4 py-3 text-right font-mono text-xs tabular-nums text-slate-700">
-                                                            {site.longitude ?? '—'}
-                                                        </td>
-                                                        <td className="max-w-[280px] break-all px-4 py-3 font-mono text-xs text-slate-600">
-                                                            {site.qr_token ?? '—'}
-                                                        </td>
-                                                        <td className="w-0 min-w-[220px] align-middle px-3 py-2">
-                                                            <div className="hidden items-center justify-end gap-1.5 md:flex">
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-8 rounded-lg border-slate-200 bg-white text-xs"
-                                                                        onClick={() => openSiteQrPreview(site)}
-                                                                        title="View or download QR code"
-                                                                    >
-                                                                        <QrCode className="mr-1 h-3.5 w-3.5 shrink-0" />
-                                                                        QR
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="outline"
-                                                                        size="sm"
-                                                                        className="h-8 rounded-lg border-slate-200 bg-white text-xs"
-                                                                        onClick={() => openEditSiteDialog(site)}
-                                                                        title="Edit site"
-                                                                    >
-                                                                        <Edit2 className="mr-1 h-3.5 w-3.5 shrink-0" />
-                                                                        Edit
-                                                                    </Button>
-                                                                    <Button
-                                                                        type="button"
-                                                                        variant="destructive"
-                                                                        size="sm"
-                                                                        className="h-8 rounded-lg text-xs"
-                                                                        onClick={() => setPendingDeleteSite(site)}
-                                                                        title="Delete site"
-                                                                    >
-                                                                        <Trash2 className="mr-1 h-3.5 w-3.5 shrink-0" />
-                                                                        Delete
-                                                                    </Button>
-                                                            </div>
-                                                            <div className="flex justify-end md:hidden">
-                                                                <MoreMenu
-                                                                    items={[
-                                                                        { label: 'QR code', icon: <QrCode className="h-4 w-4" />, onClick: () => openSiteQrPreview(site) },
-                                                                        { label: 'Edit', icon: <Edit2 className="h-4 w-4" />, onClick: () => openEditSiteDialog(site) },
-                                                                        { label: 'Delete', icon: <Trash2 className="h-4 w-4" />, danger: true, onClick: () => setPendingDeleteSite(site) },
-                                                                    ]}
-                                                                />
-                                                            </div>
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                )}
-                        </section>
+                        {activeDashboardTab === 'sites' && (
+                            <Suspense fallback={<PageLoader />}>
+                                <SitesTab />
+                            </Suspense>
+                        )}
                     </TabsContent>
 
                     <TabsContent value="vehicles" className="mt-6">
@@ -10459,6 +8889,7 @@ ${balanceBlock.html}
                         )}
                     </TabsContent>
                 </Tabs>
+                </AdminDashProvider>
             </div>
 
     <Dialog
@@ -10914,7 +9345,7 @@ ${balanceBlock.html}
                         <Button
                             onClick={handleMultiPrintLoadWorkers}
                             disabled={!multiPrintMonth || !multiPrintIds.trim()}
-                            className="h-11 rounded-xl bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                            className="h-11 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] w-full sm:w-auto"
                         >
                             Next
                         </Button>
@@ -11075,7 +9506,7 @@ ${balanceBlock.html}
                             </div>
                             <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
                                 <div
-                                    className="h-1.5 rounded-full bg-violet-600 transition-all duration-200 ease-out"
+                                    className="h-1.5 rounded-full bg-[var(--g-brand)] transition-all duration-200 ease-out"
                                     style={{ width: `${multiPrintProgress.total > 0 ? (multiPrintProgress.current / multiPrintProgress.total) * 100 : 0}%` }}
                                 />
                             </div>
@@ -11094,7 +9525,7 @@ ${balanceBlock.html}
                         <Button
                             onClick={handleMultiPrintAll}
                             disabled={multiPrintWorkers.length === 0 || multiPrintProgress.isGenerating}
-                            className="h-11 rounded-xl bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                            className="h-11 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] w-full sm:w-auto"
                         >
                             {multiPrintProgress.isGenerating ? (
                                 <>
@@ -11875,6 +10306,7 @@ ${balanceBlock.html}
                                                 Passwords are stored hashed and cannot be viewed. Reset via Edit Worker.
                                             </p>
                                         </div>
+                                        <WorkerAccessPanel employeeId={worker.employee_id} />
                                     </div>
                                 </div>
 
@@ -14881,7 +13313,7 @@ ${balanceBlock.html}
                     </Button>
                     <Button
                         onClick={passOutPayslipIndividual}
-                        className="h-11 rounded-xl bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                        className="h-11 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] w-full sm:w-auto"
                     >
                         <Download className="w-4 h-4 mr-2" />
                         Pass Out Payslip
@@ -14947,7 +13379,7 @@ ${balanceBlock.html}
                             <Button
                                 onClick={handlePassOutAllWorkersPeriodSubmit}
                                 disabled={!passOutPayslipMonth}
-                                className="h-11 rounded-xl bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                                className="h-11 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] w-full sm:w-auto"
                             >
                                 Next
                             </Button>
@@ -15153,7 +13585,7 @@ ${balanceBlock.html}
                                 </div>
                                 <div className="w-full bg-slate-200 rounded-full h-1.5 overflow-hidden">
                                     <div
-                                        className="bg-purple-600 h-1.5 rounded-full transition-all duration-200 ease-out"
+                                        className="bg-[var(--g-brand)] h-1.5 rounded-full transition-all duration-200 ease-out"
                                         style={{
                                             width: `${passOutPayslipProgress.total > 0 ? (passOutPayslipProgress.current / passOutPayslipProgress.total) * 100 : 0}%`
                                         }}
@@ -15176,7 +13608,7 @@ ${balanceBlock.html}
                             <Button
                                 onClick={handlePassOutPayslipAllWorkers}
                                 disabled={passOutPayslipAllWorkers.length === 0 || passOutPayslipProgress.isGenerating}
-                                className="h-11 rounded-xl bg-violet-600 hover:bg-violet-700 w-full sm:w-auto"
+                                className="h-11 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] w-full sm:w-auto"
                             >
                                 {passOutPayslipProgress.isGenerating ? (
                                     <>

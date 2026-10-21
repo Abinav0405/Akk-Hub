@@ -570,7 +570,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                   <div className="font-semibold">Invoice {detail.invoice.invoice_no}</div>
                   <p><Money value={detail.invoice.amount} /> · {formatDate(detail.invoice.invoice_date)}</p>
                   <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="outline" className="border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900" onClick={() => exportInvoice('jsr', detail, 'print')}>Invoice PDF</Button>
+                    <Button size="sm" variant="outline" className="border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800" onClick={() => exportInvoice('jsr', detail, 'print')}>Invoice PDF</Button>
                     <Button size="sm" variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900" onClick={() => exportInvoice('jsr', detail, 'excel')}>Invoice Excel</Button>
                   </div>
                 </Card>
@@ -601,7 +601,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                   }}
                 />
                 <div className="flex flex-col gap-2 border-t border-border pt-2 sm:flex-row">
-                  <Button size="sm" variant="outline" className="w-full border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900 sm:w-auto" onClick={() => exportRecord('jsr', detail.id, 'print', { record: detail })}>PDF</Button>
+                  <Button size="sm" variant="outline" className="w-full border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800 sm:w-auto" onClick={() => exportRecord('jsr', detail.id, 'print', { record: detail })}>PDF</Button>
                   <Button size="sm" variant="outline" className="w-full border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 sm:w-auto" onClick={() => exportRecord('jsr', detail.id, 'excel', { record: detail })}>Excel</Button>
                 </div>
               </DialogFooter>
@@ -645,7 +645,7 @@ function ExportOnlyLabel({ row }) {
 const JSR_STAGES = [
   { id: 'all', label: 'All JSRs', dot: 'bg-slate-900', tone: '', hint: 'total', empty: 'none yet', statuses: [] },
   { id: 'review', label: 'Awaiting review', dot: 'bg-amber-500', tone: 'text-amber-700', hint: 'needs action', empty: 'all clear', statuses: ['draft', 'submitted', 'rejected'] },
-  { id: 'client', label: 'With client', dot: 'bg-sky-500', tone: 'text-sky-700', hint: 'pending sign-off', empty: 'none', statuses: ['approved', 'passedout', 'clientreview', 'c-approved', 'c-certified', 'c-partial', 'c-rejected'] },
+  { id: 'client', label: 'With client', dot: 'bg-brand', tone: 'text-slate-800', hint: 'pending sign-off', empty: 'none', statuses: ['approved', 'passedout', 'clientreview', 'c-approved', 'c-certified', 'c-partial', 'c-rejected'] },
   { id: 'billing', label: 'Invoicing · payment', dot: 'bg-emerald-500', tone: 'text-emerald-700', hint: 'to collect', empty: 'none', statuses: ['paymentcert', 'invoiceprepared', 'invoicesubmitted', 'paymentpending', 'paid', 'claimed'] },
 ];
 
@@ -674,10 +674,18 @@ function jsrNextStep(r, can) {
   return { label: 'Open' };
 }
 
+/** Month key "YYYY-MM" from the package's photo/work date (package_date). */
+function packageMonthKey(p) {
+  const m = String(p?.package_date || '').match(/^(\d{4})-(\d{2})/);
+  return m ? `${m[1]}-${m[2]}` : '';
+}
+
 function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onCancel, onSaved, canSubmit, canSaveDraft }) {
   const [sites, setSites] = useState([]);
   const [packages, setPackages] = useState([]);
   const [pkgSearch, setPkgSearch] = useState('');
+  const [pkgMonth, setPkgMonth] = useState('');
+  const [pkgSiteF, setPkgSiteF] = useState(draft.site_id || '');
   const [pick, setPick] = useState('');
   const [qty, setQty] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -696,17 +704,74 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
     listAllSites().then((s) => setSites((s || []).filter((x) => x.is_active !== false))).catch(() => setSites([]));
   }, []);
 
+  // Eligible packages for every site (same RPC as before), so Site + Month filters can narrow the list.
   useEffect(() => {
-    if (!draft.site_id) { setPackages([]); setPkgSearch(''); return; }
-    setPkgSearch('');
-    listJsrPackages(draft.site_id).then(setPackages).catch(() => setPackages([]));
-  }, [draft.site_id]);
+    if (!sites.length) {
+      setPackages([]);
+      return undefined;
+    }
+    let cancelled = false;
+    Promise.all(
+      sites.map((s) =>
+        listJsrPackages(s.id)
+          .then((rows) =>
+            (rows || []).map((p) => ({
+              ...p,
+              site_id: s.id,
+              site_name: p.site_name || s.name,
+              section_label: p.section_label || s.section_label,
+            }))
+          )
+          .catch(() => [])
+      )
+    )
+      .then((lists) => {
+        if (cancelled) return;
+        const merged = lists.flat().sort((a, b) => {
+          const da = String(a.package_date || '');
+          const db = String(b.package_date || '');
+          return db.localeCompare(da) || String(b.display_id || '').localeCompare(String(a.display_id || ''));
+        });
+        setPackages(merged);
+      })
+      .catch(() => {
+        if (!cancelled) setPackages([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sites]);
 
   const total = (draft.items || []).reduce((a, it) => a + Number(it.amount || 0), 0);
   const selectedSite = sites.find((s) => s.id === draft.site_id);
 
+  const pkgSiteOptions = useMemo(() => {
+    const seen = new Map();
+    (packages || []).forEach((p) => {
+      if (!p.site_id || seen.has(p.site_id)) return;
+      seen.set(p.site_id, p.site_name || sites.find((s) => s.id === p.site_id)?.name || 'Site');
+    });
+    return [...seen.entries()]
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [packages, sites]);
+
+  const pkgMonthOptions = useMemo(() => {
+    const set = new Set();
+    (packages || []).forEach((p) => {
+      if (pkgSiteF && p.site_id !== pkgSiteF) return;
+      const key = packageMonthKey(p);
+      if (key) set.add(key);
+    });
+    return [...set].sort().reverse();
+  }, [packages, pkgSiteF]);
+
+  const filtersActive = Boolean(pkgSearch.trim() || pkgMonth || pkgSiteF);
+
   const filteredPackages = useMemo(() => {
     return (packages || []).filter((p) => {
+      if (pkgSiteF && p.site_id !== pkgSiteF) return false;
+      if (pkgMonth && packageMonthKey(p) !== pkgMonth) return false;
       const enriched = { ...p, section_label: p.section_label || selectedSite?.section_label };
       return matchesQuery(
         [
@@ -716,13 +781,41 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
           p.street_name,
           p.lcb_id,
           p.place,
+          p.site_name,
         ],
         pkgSearch
       );
     });
-  }, [packages, pkgSearch, selectedSite?.section_label]);
+  }, [packages, pkgSearch, pkgMonth, pkgSiteF, selectedSite?.section_label]);
+
+  const clearPkgFilters = () => {
+    setPkgSearch('');
+    setPkgMonth('');
+    setPkgSiteF('');
+  };
 
   const patch = (k, v) => setDraft((d) => ({ ...d, [k]: v }));
+
+  const onFormSite = (id) => {
+    setPkgSiteF(id);
+    setDraft((d) => ({
+      ...d,
+      site_id: id,
+      package_ids: id
+        ? d.package_ids.filter((pid) => packages.find((p) => p.id === pid)?.site_id === id)
+        : d.package_ids,
+    }));
+  };
+
+  const onPkgSiteFilter = (id) => {
+    setPkgSiteF(id);
+    if (!id) return;
+    setDraft((d) => ({
+      ...d,
+      site_id: id,
+      package_ids: d.package_ids.filter((pid) => packages.find((p) => p.id === pid)?.site_id === id),
+    }));
+  };
 
   const onCompany = (id) => {
     const next = (lookups.contracts || []).filter((c) => c.company_id === id && c.is_active !== false)[0];
@@ -740,12 +833,25 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
     setDraft((d) => ({ ...d, contract_id: id, loa: ct?.loa || d.loa, sc_work: ct?.sc_work || d.sc_work }));
   };
 
-  const togglePkg = (id, place) => {
+  const togglePkg = (pkg) => {
+    const id = pkg.id;
+    const place = pkg.place;
+    const pkgSiteId = pkg.site_id;
     setDraft((d) => {
       const has = d.package_ids.includes(id);
-      const package_ids = has ? d.package_ids.filter((x) => x !== id) : [...d.package_ids, id];
-      return { ...d, package_ids, location: !has && !d.location && place ? place : d.location };
+      if (has) {
+        return { ...d, package_ids: d.package_ids.filter((x) => x !== id) };
+      }
+      const switching = pkgSiteId && d.site_id && d.site_id !== pkgSiteId;
+      const package_ids = [...(switching ? [] : d.package_ids), id];
+      return {
+        ...d,
+        site_id: pkgSiteId || d.site_id,
+        package_ids,
+        location: !d.location && place ? place : d.location,
+      };
     });
+    if (pkgSiteId) setPkgSiteF(pkgSiteId);
   };
 
   const addItem = () => {
@@ -834,7 +940,7 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
           </select>
         </Field>
         <Field label="Site">
-          <select className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={draft.site_id} onChange={(e) => patch('site_id', e.target.value)}>
+          <select className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={draft.site_id} onChange={(e) => onFormSite(e.target.value)}>
             <option value="">Select site</option>
             {sites.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
@@ -860,20 +966,50 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
 
       <Card className="p-4">
         <h3 className="mb-2 font-semibold">1 · Select photo packages</h3>
-        <p className="mb-3 text-sm text-muted-foreground">Pending or approved packages for this site. Photos stay linked to the JSR.</p>
+        <p className="mb-3 text-sm text-muted-foreground">Pending or approved packages. Filter by month or site, then tick the ones to link. Photos stay on the JSR.</p>
         {packages.length > 0 ? (
-          <SearchField
-            className="mb-3 max-w-md"
-            value={pkgSearch}
-            onChange={setPkgSearch}
-            placeholder="Search packages by site, section, PKG id, or description…"
-          />
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+            <SearchField
+              className="max-w-md sm:min-w-[16rem] sm:flex-1"
+              value={pkgSearch}
+              onChange={setPkgSearch}
+              placeholder="Search packages by site, section, PKG id, or description…"
+            />
+            <select
+              aria-label="Filter packages by site"
+              className={filterSelect(pkgSiteF)}
+              value={pkgSiteF}
+              onChange={(e) => onPkgSiteFilter(e.target.value)}
+            >
+              <option value="">All sites</option>
+              {pkgSiteOptions.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <select
+              aria-label="Filter packages by month"
+              className={filterSelect(pkgMonth)}
+              value={pkgMonth}
+              onChange={(e) => setPkgMonth(e.target.value)}
+            >
+              <option value="">All months</option>
+              {pkgMonthOptions.map((m) => (
+                <option key={m} value={m}>{monthName(m)}</option>
+              ))}
+            </select>
+            {filtersActive ? (
+              <Button type="button" variant="ghost" className="h-10 min-h-0 px-3" onClick={clearPkgFilters}>
+                Clear filters
+              </Button>
+            ) : null}
+          </div>
         ) : null}
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead></TableHead>
               <TableHead>Package</TableHead>
+              <TableHead>Site</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Photos</TableHead>
               <TableHead>Status</TableHead>
@@ -881,19 +1017,24 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
           </TableHeader>
           <TableBody>
             {packages.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-muted-foreground">No eligible photo packages for this site.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-muted-foreground">No eligible photo packages yet.</TableCell></TableRow>
             ) : filteredPackages.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-muted-foreground">No packages match “{pkgSearch.trim()}”.</TableCell></TableRow>
+              <TableRow>
+                <TableCell colSpan={6} className="text-muted-foreground">
+                  {filtersActive ? 'No packages match these filters.' : 'No packages to show.'}
+                </TableCell>
+              </TableRow>
             ) : filteredPackages.map((p) => (
               <TableRow key={p.id}>
                 <TableCell>
-                  <input type="checkbox" checked={draft.package_ids.includes(p.id)} onChange={() => togglePkg(p.id, p.place)} />
+                  <input type="checkbox" checked={draft.package_ids.includes(p.id)} onChange={() => togglePkg(p)} />
                 </TableCell>
                 <TableCell>
                   <PackagePickerLabel
                     pkg={{ ...p, section_label: p.section_label || selectedSite?.section_label }}
                   />
                 </TableCell>
+                <TableCell className="text-muted-foreground">{p.site_name || '—'}</TableCell>
                 <TableCell>{formatDate(p.package_date)}</TableCell>
                 <TableCell>{p.photo_count}</TableCell>
                 <TableCell>{p.approval_status}</TableCell>

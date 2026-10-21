@@ -5,6 +5,11 @@ import {
     toSingaporeDateStr,
 } from '@/modules/timesheet/lib/timeUtils';
 import { approveFields } from '@/modules/timesheet/lib/shiftApproval';
+import {
+    SAFE_WORKER_DIRECTORY_COLUMNS,
+    isHubAdmin,
+    mayQueryLocalWorkerDetails,
+} from '@/modules/timesheet/lib/workerPrivacy';
 
 export const PAID_LEAVE_TYPES = [
     'Annual Leave',
@@ -114,10 +119,21 @@ export async function adjustLeaveBalance(supabase, {
     return Number(data);
 }
 
-export async function resolveWorkerWithTable(supabase, employeeId, selectColumns = '*') {
+export async function resolveWorkerWithTable(
+    supabase,
+    employeeId,
+    selectColumns = SAFE_WORKER_DIRECTORY_COLUMNS,
+) {
+    // Default and non-admin '*' resolve to directory-safe columns (no NRIC/bank/pay).
+    // Admins may still pass '*' for HR workflows.
+    let columns = selectColumns || SAFE_WORKER_DIRECTORY_COLUMNS;
+    if (columns === '*' && !isHubAdmin()) {
+        columns = SAFE_WORKER_DIRECTORY_COLUMNS;
+    }
+
     const foreignResult = await supabase
         .from('worker_details')
-        .select(selectColumns)
+        .select(columns)
         .eq('employee_id', employeeId)
         .maybeSingle();
 
@@ -125,9 +141,14 @@ export async function resolveWorkerWithTable(supabase, employeeId, selectColumns
         return { worker: foreignResult.data, table: 'worker_details' };
     }
 
+    // Managers/supervisors must not read local_worker_details (even id-only lookups).
+    if (!mayQueryLocalWorkerDetails()) {
+        throw foreignResult.error || new Error(`Worker ${employeeId} not found`);
+    }
+
     const localResult = await supabase
         .from('local_worker_details')
-        .select(selectColumns)
+        .select(columns)
         .eq('employee_id', employeeId)
         .maybeSingle();
 
@@ -143,16 +164,16 @@ export async function fetchWorkerDirectoryMap(supabase, employeeIds, columns = '
     const map = new Map();
     if (!ids.length) return map;
 
-    const [foreignRes, localRes] = await Promise.all([
-        supabase.from('worker_details').select(columns).in('employee_id', ids),
-        supabase.from('local_worker_details').select(columns).in('employee_id', ids),
-    ]);
-
+    const foreignRes = await supabase.from('worker_details').select(columns).in('employee_id', ids);
     for (const worker of foreignRes.data || []) {
         map.set(worker.employee_id, worker);
     }
-    for (const worker of localRes.data || []) {
-        if (!map.has(worker.employee_id)) map.set(worker.employee_id, worker);
+
+    if (mayQueryLocalWorkerDetails()) {
+        const localRes = await supabase.from('local_worker_details').select(columns).in('employee_id', ids);
+        for (const worker of localRes.data || []) {
+            if (!map.has(worker.employee_id)) map.set(worker.employee_id, worker);
+        }
     }
 
     return map;

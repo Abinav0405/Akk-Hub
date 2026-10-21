@@ -1,4 +1,5 @@
 import { supabaseTimesheet } from '@/core/supabase'
+import { mayQueryLocalWorkerDetails } from '@/modules/timesheet/lib/workerPrivacy';
 
 /** Normalize worker IDs for consistent map lookups. */
 export function normalizeWorkerId(id) {
@@ -9,6 +10,7 @@ export function normalizeWorkerId(id) {
 /**
  * Resolve employee names from worker_details and local_worker_details.
  * Keys are normalized string employee IDs.
+ * Managers/supervisors never query local_worker_details (product: local HR is admin-only).
  */
 export async function fetchWorkerNameMap(workerIds) {
     const uniqueIds = [...new Set((workerIds || []).map(normalizeWorkerId).filter(Boolean))];
@@ -29,10 +31,13 @@ export async function fetchWorkerNameMap(workerIds) {
         .filter((n) => Number.isFinite(n));
 
     const idVariants = [...new Set([...uniqueIds, ...numericIds.map(String), ...numericIds])];
+    const includeLocal = mayQueryLocalWorkerDetails();
 
     const [foreignRes, localRes] = await Promise.all([
         supabaseTimesheet.from('worker_details').select('employee_id, employee_name').in('employee_id', idVariants),
-        supabaseTimesheet.from('local_worker_details').select('employee_id, employee_name').in('employee_id', idVariants),
+        includeLocal
+            ? supabaseTimesheet.from('local_worker_details').select('employee_id, employee_name').in('employee_id', idVariants)
+            : Promise.resolve({ data: [], error: null }),
     ]);
 
     if (foreignRes.error) console.warn('worker_details name lookup:', foreignRes.error);
@@ -43,10 +48,11 @@ export async function fetchWorkerNameMap(workerIds) {
 
     const missing = uniqueIds.filter((id) => !nameMap.has(id));
     if (missing.length > 0) {
-        const [foreignAll, localAll] = await Promise.all([
-            supabaseTimesheet.from('worker_details').select('employee_id, employee_name'),
-            supabaseTimesheet.from('local_worker_details').select('employee_id, employee_name'),
-        ]);
+        // Full-table fallback is admin/worker only — never dump local directory to manager sessions.
+        const foreignAll = await supabaseTimesheet.from('worker_details').select('employee_id, employee_name');
+        const localAll = includeLocal
+            ? await supabaseTimesheet.from('local_worker_details').select('employee_id, employee_name')
+            : { data: [] };
         const missingSet = new Set(missing);
         for (const w of [...(foreignAll.data || []), ...(localAll.data || [])]) {
             const key = normalizeWorkerId(w.employee_id);

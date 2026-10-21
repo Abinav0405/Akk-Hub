@@ -82,7 +82,7 @@ function FormModulesSettings() {
                                         variant={m.enabled ? 'default' : 'outline'}
                                         className={cn(
                                             'h-9 min-w-[4.5rem] rounded-xl',
-                                            m.enabled && 'bg-emerald-600 hover:bg-emerald-700'
+                                            m.enabled && 'bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)]'
                                         )}
                                         disabled={toggleMut.isPending}
                                         onClick={() =>
@@ -117,21 +117,21 @@ export default function AdminCompanyForms() {
             title="Company forms"
             subtitle="Review submissions, edit questions, and enable form modules"
             icon={ClipboardList}
-            tone="teal"
-            eyebrow="Settings"
+            tone="indigo"
+            eyebrow="Admin"
         >
             <Tabs defaultValue="review" className="space-y-4">
-                <TabsList className="grid h-auto w-full max-w-xl grid-cols-3 gap-0.5 rounded-xl bg-slate-100/80 p-1">
-                    <TabsTrigger value="review" className="rounded-lg px-1 text-xs sm:px-3 sm:text-sm">
+                <TabsList className="grid h-auto w-full max-w-xl grid-cols-3 gap-0.5 rounded-xl border border-[var(--g-hairline)] bg-[var(--g-surface)] p-1">
+                    <TabsTrigger value="review" className="rounded-lg px-1 text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white sm:px-3 sm:text-sm">
                         Review
                     </TabsTrigger>
-                    <TabsTrigger value="questions" className="rounded-lg px-1 text-xs sm:px-3 sm:text-sm">
+                    <TabsTrigger value="questions" className="rounded-lg px-1 text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white sm:px-3 sm:text-sm">
                         <PencilLine className="mr-0 h-4 w-4 sm:mr-1.5" />
                         <span className="hidden sm:inline">Questions</span>
                         <span className="sm:hidden">Qs</span>
                     </TabsTrigger>
-                    <TabsTrigger value="modules" className="rounded-lg px-1 text-xs sm:px-3 sm:text-sm">
-                        <Settings2 className="mr-0 h-4 w-4 sm:mr-1.5" />
+                    <TabsTrigger value="modules" className="rounded-lg px-1 text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white sm:px-3 sm:text-sm">
+                                        <Settings2 className="mr-0 h-4 w-4 sm:mr-1.5" />
                         <span className="hidden sm:inline">Modules</span>
                         <span className="sm:hidden">Mods</span>
                     </TabsTrigger>

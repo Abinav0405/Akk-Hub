@@ -24,6 +24,7 @@ export const DEFAULT_BRANDING = {
   overlay_x_pct: 3,
   overlay_y_pct: 72,
   overlay_scale_pct: 100,
+  overlay_opacity_pct: 48,
   gps_x_pct: null,
   gps_y_pct: null,
   verify_x_pct: 78,
@@ -40,6 +41,8 @@ export const LOGO_SIZE_MIN = 2;
 export const LOGO_SIZE_MAX = 30;
 export const OVERLAY_SCALE_MIN = 50;
 export const OVERLAY_SCALE_MAX = 220;
+export const OVERLAY_OPACITY_MIN = 15;
+export const OVERLAY_OPACITY_MAX = 100;
 export const VERIFY_SCALE_MIN = 50;
 export const VERIFY_SCALE_MAX = 220;
 
@@ -134,18 +137,6 @@ function normalizeBranding(row) {
   const overlayCell = isOverlayPosition(row.overlay_position) ? row.overlay_position : DEFAULT_BRANDING.overlay_position;
   const [logoX, logoY] = pctFromRow(row, 'logo_x_pct', 'logo_y_pct', logoCell, 'br');
   const [overlayX, overlayY] = pctFromRow(row, 'overlay_x_pct', 'overlay_y_pct', overlayCell, 'bl');
-  const gpsOwn = hasFinitePct(row.gps_x_pct) && hasFinitePct(row.gps_y_pct);
-  const gpsCell = isOverlayPosition(row.gps_position) ? row.gps_position : null;
-  let gpsX = null;
-  let gpsY = null;
-  if (gpsOwn) {
-    gpsX = clampPct(row.gps_x_pct, 62);
-    gpsY = clampPct(row.gps_y_pct, 86);
-  } else if (gpsCell) {
-    const mapped = cellToPct(gpsCell, [62, 86]);
-    gpsX = mapped[0];
-    gpsY = mapped[1];
-  }
   const [verifyX, verifyY] = hasFinitePct(row.verify_x_pct) && hasFinitePct(row.verify_y_pct)
     ? [clampPct(row.verify_x_pct, 78), clampPct(row.verify_y_pct, 0)]
     : [DEFAULT_BRANDING.verify_x_pct, DEFAULT_BRANDING.verify_y_pct];
@@ -159,14 +150,16 @@ function normalizeBranding(row) {
     logo_position: logoCell,
     overlay_position: overlayCell,
     overlay_lines: overlayLines,
-    gps_position: gpsX != null ? (gpsCell || pctToCell(gpsX, gpsY)) : null,
+    // GPS (±accuracy) stays in the details box — ignore legacy separate-chip coords.
+    gps_position: null,
     logo_x_pct: logoX,
     logo_y_pct: logoY,
     overlay_x_pct: overlayX,
     overlay_y_pct: overlayY,
     overlay_scale_pct: clampInt(row.overlay_scale_pct, OVERLAY_SCALE_MIN, OVERLAY_SCALE_MAX, 100),
-    gps_x_pct: gpsX,
-    gps_y_pct: gpsY,
+    overlay_opacity_pct: clampInt(row.overlay_opacity_pct, OVERLAY_OPACITY_MIN, OVERLAY_OPACITY_MAX, DEFAULT_BRANDING.overlay_opacity_pct),
+    gps_x_pct: null,
+    gps_y_pct: null,
     verify_x_pct: verifyX,
     verify_y_pct: verifyY,
     verify_scale_pct: clampInt(row.verify_scale_pct, VERIFY_SCALE_MIN, VERIFY_SCALE_MAX, 100),
@@ -217,14 +210,12 @@ export async function staffUpdateCompanyBranding({
   logoPosition,
   overlayPosition,
   overlayLines,
-  gpsPosition,
   logoXPct,
   logoYPct,
   overlayXPct,
   overlayYPct,
   overlayScalePct,
-  gpsXPct,
-  gpsYPct,
+  overlayOpacityPct,
   verifyXPct,
   verifyYPct,
   verifyScalePct,
@@ -234,9 +225,6 @@ export async function staffUpdateCompanyBranding({
   const logoY = clampPct(logoYPct, DEFAULT_BRANDING.logo_y_pct);
   const overlayX = clampPct(overlayXPct, DEFAULT_BRANDING.overlay_x_pct);
   const overlayY = clampPct(overlayYPct, DEFAULT_BRANDING.overlay_y_pct);
-  const gpsOwn = hasFinitePct(gpsXPct) && hasFinitePct(gpsYPct);
-  const gpsX = gpsOwn ? clampPct(gpsXPct, 62) : null;
-  const gpsY = gpsOwn ? clampPct(gpsYPct, 86) : null;
   const verifyX = clampPct(verifyXPct, DEFAULT_BRANDING.verify_x_pct);
   const verifyY = clampPct(verifyYPct, DEFAULT_BRANDING.verify_y_pct);
   const { error } = await supabaseProgress.rpc('staff_update_company_branding', {
@@ -249,14 +237,15 @@ export async function staffUpdateCompanyBranding({
     p_manager_token: portalManagerToken(),
     p_overlay_position: isOverlayPosition(overlayPosition) ? overlayPosition : pctToCell(overlayX, overlayY),
     p_overlay_lines: overlayLines ?? [...OVERLAY_LINE_KEYS],
-    p_gps_position: gpsOwn ? (gpsPosition || pctToCell(gpsX, gpsY)) : null,
+    p_gps_position: null,
     p_logo_x_pct: logoX,
     p_logo_y_pct: logoY,
     p_overlay_x_pct: overlayX,
     p_overlay_y_pct: overlayY,
     p_overlay_scale_pct: clampInt(overlayScalePct, OVERLAY_SCALE_MIN, OVERLAY_SCALE_MAX, 100),
-    p_gps_x_pct: gpsX,
-    p_gps_y_pct: gpsY,
+    p_overlay_opacity_pct: clampInt(overlayOpacityPct, OVERLAY_OPACITY_MIN, OVERLAY_OPACITY_MAX, 48),
+    p_gps_x_pct: null,
+    p_gps_y_pct: null,
     p_verify_x_pct: verifyX,
     p_verify_y_pct: verifyY,
     p_verify_scale_pct: clampInt(verifyScalePct, VERIFY_SCALE_MIN, VERIFY_SCALE_MAX, 100),
@@ -354,12 +343,10 @@ export const OVERLAY_FRAME_STYLE = {
   containerName: 'spt-overlay',
 };
 
-/** Flex unit (logo + company name) — top-left of the unit, % of frame. */
+/** Logo-only stamp — top-left of the unit, % of frame. */
 export function brandMarkLiveStyle(branding) {
   const x = clampPct(branding?.logo_x_pct, DEFAULT_BRANDING.logo_x_pct);
   const y = clampPct(branding?.logo_y_pct, DEFAULT_BRANDING.logo_y_pct);
-  const sizePct = clampInt(branding?.logo_size_pct, LOGO_SIZE_MIN, LOGO_SIZE_MAX, 8);
-  const nameCqi = Math.max(0.7, 1.8 * (sizePct / 8));
   return {
     position: 'absolute',
     zIndex: 2,
@@ -369,16 +356,9 @@ export function brandMarkLiveStyle(branding) {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    gap: `${Math.max(0.25, 0.4 * (sizePct / 8))}cqi`,
     width: 'max-content',
     maxWidth: '92%',
     pointerEvents: 'none',
-    color: '#fff',
-    textShadow: '0 1px 2px rgba(0,0,0,0.8)',
-    textAlign: 'left',
-    fontSize: `${nameCqi}cqi`,
-    lineHeight: 1.15,
-    fontWeight: 700,
     opacity: clampInt(branding?.logo_opacity_pct, 40, 100, 92) / 100,
   };
 }
@@ -398,6 +378,7 @@ export function overlayBlockLiveStyle(branding, { xPct, yPct } = {}) {
   const x = clampPct(xPct ?? branding?.overlay_x_pct, DEFAULT_BRANDING.overlay_x_pct);
   const y = clampPct(yPct ?? branding?.overlay_y_pct, DEFAULT_BRANDING.overlay_y_pct);
   const scale = clampInt(branding?.overlay_scale_pct, OVERLAY_SCALE_MIN, OVERLAY_SCALE_MAX, 100) / 100;
+  const opacity = clampInt(branding?.overlay_opacity_pct, OVERLAY_OPACITY_MIN, OVERLAY_OPACITY_MAX, 48) / 100;
   return {
     position: 'absolute',
     zIndex: 3,
@@ -408,7 +389,7 @@ export function overlayBlockLiveStyle(branding, { xPct, yPct } = {}) {
     width: 'max-content',
     padding: `${2.5 * scale}cqi ${2.8 * scale}cqi`,
     borderRadius: `${0.8 * scale}cqi`,
-    background: 'rgba(0,0,0,0.45)',
+    background: `rgba(0,0,0,${opacity})`,
     color: '#fff',
     textShadow: '0 1px 2px rgba(0,0,0,0.75)',
     textAlign: 'left',

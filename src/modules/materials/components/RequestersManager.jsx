@@ -405,9 +405,11 @@ export default function RequestersManager() {
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-mono text-sm">
-                                                        {visiblePasswords[requester.id]
-                                                            ? requester.password_hash
-                                                            : '••••••••'}
+                                                        {!visiblePasswords[requester.id]
+                                                            ? '••••••••'
+                                                            : String(requester.password_hash || '').startsWith('$2')
+                                                              ? 'Encrypted (set a new one to change)'
+                                                              : requester.password_hash}
                                                     </span>
                                                     <button
                                                         type="button"

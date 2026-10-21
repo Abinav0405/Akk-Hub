@@ -34,37 +34,6 @@ export function overlayStripHeight(width, lineCount) {
   return overlayMetrics(width, lineCount).blockH;
 }
 
-function wrapCanvasText(ctx, text, maxWidth, maxLines = 2) {
-  const words = String(text || '').trim().split(/\s+/).filter(Boolean);
-  if (!words.length) return [];
-  const lines = [];
-  let current = words[0];
-  for (let i = 1; i < words.length; i += 1) {
-    const next = `${current} ${words[i]}`;
-    if (ctx.measureText(next).width <= maxWidth) {
-      current = next;
-    } else {
-      lines.push(current);
-      current = words[i];
-      if (lines.length === maxLines - 1) {
-        const rest = [current, ...words.slice(i + 1)].join(' ');
-        if (ctx.measureText(rest).width <= maxWidth) {
-          current = rest;
-        } else {
-          let clipped = rest;
-          while (clipped.length > 1 && ctx.measureText(`${clipped}…`).width > maxWidth) {
-            clipped = clipped.slice(0, -1);
-          }
-          current = `${clipped}…`;
-        }
-        break;
-      }
-    }
-  }
-  lines.push(current);
-  return lines.slice(0, maxLines);
-}
-
 function overlayCorner(position, fallback = 'bl') {
   return isOverlayPosition(position) ? position : fallback;
 }
@@ -100,9 +69,10 @@ function normalizeBlockSpec(spec) {
       xPct: spec.xPct ?? spec.stackXPct,
       yPct: spec.yPct ?? spec.stackYPct,
       scalePct: spec.scalePct ?? spec.stackScalePct ?? 100,
+      opacityPct: spec.opacityPct ?? 48,
     };
   }
-  return { position: spec || 'bl', xPct: null, yPct: null, scalePct: 100 };
+  return { position: spec || 'bl', xPct: null, yPct: null, scalePct: 100, opacityPct: 48 };
 }
 
 /** Draws a stacked overlay block at a stored top-left % (dark pad + white text). */
@@ -128,7 +98,8 @@ export function drawOverlayBlock(ctx, width, height, lines, spec = 'bl') {
     block.position
   );
 
-  ctx.fillStyle = 'rgba(0,0,0,0.48)';
+  const alpha = Math.max(0, Math.min(1, (Number(block.opacityPct) || 48) / 100));
+  ctx.fillStyle = `rgba(0,0,0,${alpha})`;
   ctx.fillRect(scrimX, top, scrimW, blockH);
 
   ctx.textAlign = 'left';
@@ -152,17 +123,19 @@ export function drawOverlayOnCanvas(ctx, width, height, lines, position = 'bl') 
   drawOverlayBlock(ctx, width, height, lines, position);
 }
 
-export function drawOverlayLayout(ctx, width, height, layout) {
+export function drawOverlayLayout(ctx, width, height, layout, branding = {}) {
   if (!layout) return { top: 0, bottom: 0 };
   const reserved = { top: 0, bottom: 0 };
   const stackLines = (layout.stack || []).map((row) => (typeof row === 'string' ? row : row.text));
   const scalePct = layout.stackScalePct ?? layout.scalePct ?? 100;
+  const opacityPct = branding.overlay_opacity_pct ?? layout.stackOpacityPct ?? 48;
   if (stackLines.length) {
     drawOverlayBlock(ctx, width, height, stackLines, {
       position: layout.stackPosition || 'bl',
       xPct: layout.stackXPct,
       yPct: layout.stackYPct,
       scalePct,
+      opacityPct,
     });
   }
   if (layout.gps?.text) {
@@ -171,6 +144,7 @@ export function drawOverlayLayout(ctx, width, height, layout) {
       xPct: layout.gps.xPct,
       yPct: layout.gps.yPct,
       scalePct,
+      opacityPct,
     });
   }
   return reserved;
@@ -405,65 +379,34 @@ export function getBrandLogoImage(src) {
 const brightLogoCache = new Map();
 
 /**
- * Stamps logo + company name as one unit at the stored top-left % of frame.
- * `reserved` is ignored — placements are absolute so GPS text length cannot
- * shift the logo after save.
+ * Stamps the company logo only at the stored top-left % of frame.
+ * Company name is for letterheads / documents — not burned into photos.
+ * `reserved` is ignored — placements are absolute so overlay text length
+ * cannot shift the logo after save.
  */
 export function drawBrandMark(ctx, width, height, logoImg, branding = {}, _opts = {}) {
-  const name = String(branding.company_name || '').trim();
-  if (!logoImg && !name) return null;
+  if (!logoImg) return null;
   const sizePct = Math.max(2, Math.min(30, Number(branding.logo_size_pct) || 8));
   const opacity = Math.max(0.4, Math.min(1, (Number(branding.logo_opacity_pct) || 92) / 100));
-  const nativeW = logoImg ? (logoImg.naturalWidth || logoImg.width || 1) : 1;
-  const nativeH = logoImg ? (logoImg.naturalHeight || logoImg.height || 1) : 1;
-  const lw = logoImg ? Math.round(width * (sizePct / 100)) : 0;
-  const lh = logoImg ? Math.max(1, Math.round(lw * (nativeH / nativeW))) : 0;
-  const fontSize = Math.max(1, Math.round(width * 0.018 * (sizePct / 8)));
-  const lineH = Math.round(fontSize * 1.15);
-  const gap = Math.round(width * 0.01 * Math.max(0.5, sizePct / 8));
-  const maxNameW = Math.round(width * 0.42);
-
-  ctx.save();
-  ctx.font = `700 ${fontSize}px 'DM Sans', Arial, sans-serif`;
-  const nameLines = name ? wrapCanvasText(ctx, name, maxNameW, 2) : [];
-  const nameH = nameLines.length * lineH;
-  const nameW = nameLines.reduce((w, line) => Math.max(w, ctx.measureText(line).width), 0);
-
-  const unitW = lw + (nameH ? gap + Math.ceil(nameW) : 0);
-  const unitH = Math.max(lh, nameH);
+  const nativeW = logoImg.naturalWidth || logoImg.width || 1;
+  const nativeH = logoImg.naturalHeight || logoImg.height || 1;
+  const lw = Math.round(width * (sizePct / 100));
+  const lh = Math.max(1, Math.round(lw * (nativeH / nativeW)));
   const { x: vx, y: vy } = originFromPct(
     width,
     height,
     branding.logo_x_pct,
     branding.logo_y_pct,
-    unitW,
-    unitH,
+    lw,
+    lh,
     branding.logo_position || 'br'
   );
 
+  ctx.save();
   ctx.globalAlpha = opacity;
-  const logoX = vx;
-  const logoY = vy + Math.round((unitH - lh) / 2);
-  const nameX = vx + lw + (lw ? gap : 0);
-  const nameY = vy + Math.round((unitH - nameH) / 2);
-
-  if (logoImg && lw && lh) {
-    ctx.drawImage(logoImg, logoX, logoY, lw, lh);
-  }
-  if (nameLines.length) {
-    ctx.globalAlpha = Math.max(opacity, 0.85);
-    ctx.fillStyle = '#ffffff';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.shadowColor = 'rgba(0,0,0,0.75)';
-    ctx.shadowBlur = 3;
-    ctx.shadowOffsetY = 1;
-    nameLines.forEach((line, i) => {
-      ctx.fillText(line, nameX, nameY + i * lineH);
-    });
-  }
+  ctx.drawImage(logoImg, vx, vy, lw, lh);
   ctx.restore();
-  return { x: vx, y: vy, w: unitW, h: unitH };
+  return { x: vx, y: vy, w: lw, h: lh };
 }
 
 export function drawLogo(ctx, width, height, logoImg, branding = {}, opts = {}) {
@@ -491,12 +434,14 @@ export function paintPhotoOverlays(ctx, width, height, {
   if (layout) {
     const stackLines = (layout.stack || []).map((row) => (typeof row === 'string' ? row : row.text));
     const scalePct = layout.stackScalePct ?? layout.scalePct ?? branding.overlay_scale_pct ?? 100;
+    const opacityPct = branding.overlay_opacity_pct ?? 48;
     if (stackLines.length) {
       boxes.stack = drawOverlayBlock(ctx, width, height, stackLines, {
         position: layout.stackPosition || branding.overlay_position || 'bl',
         xPct: layout.stackXPct ?? branding.overlay_x_pct,
         yPct: layout.stackYPct ?? branding.overlay_y_pct,
         scalePct,
+        opacityPct,
       });
     }
     if (layout.gps?.text) {
@@ -505,6 +450,7 @@ export function paintPhotoOverlays(ctx, width, height, {
         xPct: layout.gps.xPct ?? branding.gps_x_pct,
         yPct: layout.gps.yPct ?? branding.gps_y_pct,
         scalePct,
+        opacityPct,
       });
     }
   }

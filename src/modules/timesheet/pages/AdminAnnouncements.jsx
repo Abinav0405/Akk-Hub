@@ -213,7 +213,7 @@ export default function AdminAnnouncements() {
             title="Announcements"
             subtitle={`${activeCount} active`}
             icon={Megaphone}
-            tone="violet"
+            tone="indigo"
             maxWidth="max-w-5xl"
         >
                 <div className={cn(glassPanel, 'space-y-3 p-5')}>
@@ -222,7 +222,7 @@ export default function AdminAnnouncements() {
                             <Button
                                 onClick={() => createAnnouncement.mutate()}
                                 disabled={createAnnouncement.isPending || imageBusy}
-                                className="min-h-11 rounded-xl bg-violet-600 hover:bg-violet-700"
+                                className="min-h-11 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)]"
                             >
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Post
@@ -269,7 +269,7 @@ export default function AdminAnnouncements() {
                                 <p className="text-sm text-slate-600">No announcements yet.</p>
                             ) : (
                                 list.map((a) => (
-                                    <div key={a.id} className="rounded-2xl border border-violet-100 bg-white/80 p-4">
+                                    <div key={a.id} className="rounded-[var(--g-r-lg)] border border-[var(--g-hairline)] bg-[var(--g-surface)] p-4">
                                         <div className="flex flex-wrap items-start justify-between gap-2">
                                             <div className="min-w-0 flex-1 space-y-2">
                                                 <p className="truncate font-semibold text-slate-900">{a.title}</p>

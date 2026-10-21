@@ -1,8 +1,9 @@
 /**
  * Admin — Timesheet Manager AdminLogin.jsx (same UI and password-reset dialog).
  * Supabase Auth on the Timesheet project.
+ * App: Face ID / fingerprint unlock of a credential saved only after a password login.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Lock, Mail, Shield } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,6 +11,7 @@ import LoginForm from '@/ui/auth/LoginForm';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/ui/dialog';
+import BiometricPrompt from '@/ui/biometric/BiometricPrompt';
 import { isAppUI, useSheetLayout } from '@/core/platform';
 import { useLanguage } from '@/core/i18n';
 import {
@@ -19,6 +21,8 @@ import {
     requestAdminPasswordReset,
     signInAdmin,
 } from '@/core/auth/timesheetSession';
+import { getBiometricCopy } from '@/core/auth/biometric';
+import { usePortalBiometricLogin } from '@/core/auth/usePortalBiometricLogin';
 import { finishHubLogin } from '@/pages/login/finishLogin';
 
 export default function AdminLogin() {
@@ -41,6 +45,47 @@ export default function AdminLogin() {
         if (appUI) setFormError(message);
         else toast.error(message);
     };
+
+    const completeAdminLogin = useCallback(
+        (admin, pw) => {
+            finishHubLogin({
+                navigate,
+                location,
+                role: 'admin',
+                name: admin.name,
+                connect: { id: admin.email, email: admin.email, password: pw },
+            });
+        },
+        [navigate, location],
+    );
+
+    const signInWithCreds = useCallback(async ({ loginId, password: pw }) => {
+        const result = await signInAdmin({ email: loginId, password: pw });
+        if (!result.ok) return { ok: false, error: result.error };
+        return { ok: true, admin: result.admin };
+    }, []);
+
+    const onUnlocked = useCallback(
+        (creds, result) => {
+            if (result?.admin) completeAdminLogin(result.admin, creds.password);
+        },
+        [completeAdminLogin],
+    );
+
+    const {
+        showBioShortcut,
+        savedBioMode,
+        BioIcon,
+        startBiometricLogin,
+        afterPasswordSuccess,
+        promptProps,
+        bioAttemptsRef,
+    } = usePortalBiometricLogin({
+        role: 'admin',
+        signInWithCreds,
+        onUnlocked,
+        setNotice,
+    });
 
     useEffect(() => {
         const expired = consumeSessionExpiredMessage();
@@ -83,12 +128,11 @@ export default function AdminLogin() {
                 reportError(result.cause ? parseLoginError(result.cause, result.error) : result.error);
                 return;
             }
-            finishHubLogin({
-                navigate,
-                location,
-                role: 'admin',
-                name: result.admin.name,
-                connect: { id: result.admin.email, email: result.admin.email, password },
+            afterPasswordSuccess({
+                loginId: result.admin.email,
+                displayName: result.admin.name,
+                password,
+                finish: () => completeAdminLogin(result.admin, password),
             });
         } catch (error) {
             console.error('Login error:', error);
@@ -147,7 +191,7 @@ export default function AdminLogin() {
                             if (formError) setFormError('');
                         },
                         placeholder: t('login.emailPlaceholder'),
-                        autoFocus: true,
+                        autoFocus: !showBioShortcut,
                         autoComplete: 'username',
                     },
                     {
@@ -165,20 +209,37 @@ export default function AdminLogin() {
                     },
                 ]}
                 footer={
-                    <div className="text-center">
-                        <button
-                            type="button"
-                            onClick={() => {
-                                setResetEmail(email);
-                                setShowForgot(true);
-                            }}
-                            className="text-sm text-slate-600 underline underline-offset-2 hover:text-slate-900"
-                        >
-                            {t('hub.login.forgotPassword')}
-                        </button>
-                    </div>
+                    <>
+                        {showBioShortcut && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    bioAttemptsRef.current = 0;
+                                    void startBiometricLogin(savedBioMode);
+                                }}
+                                className="mx-auto mb-3 flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-medium text-[#007aff] active:opacity-60"
+                            >
+                                <BioIcon className="h-5 w-5" strokeWidth={1.75} />
+                                {t('hub.login.bioWith', { name: getBiometricCopy(savedBioMode).name })}
+                            </button>
+                        )}
+                        <div className="text-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setResetEmail(email);
+                                    setShowForgot(true);
+                                }}
+                                className="text-sm text-slate-600 underline underline-offset-2 hover:text-slate-900"
+                            >
+                                {t('hub.login.forgotPassword')}
+                            </button>
+                        </div>
+                    </>
                 }
             />
+
+            <BiometricPrompt {...promptProps} />
 
             <Dialog open={showForgot} onOpenChange={setShowForgot}>
                 <DialogContent className="max-w-md">

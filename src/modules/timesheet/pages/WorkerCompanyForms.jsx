@@ -117,7 +117,7 @@ export default function WorkerCompanyForms() {
                                 'flex items-center gap-3 p-4 text-left transition hover:bg-white/80'
                             )}
                         >
-                            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-50 text-[#dc6b2f]">
+                            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-[#dc6b2f]">
                                 <ClipboardList className="h-5 w-5" />
                             </span>
                             <span className="min-w-0 flex-1">

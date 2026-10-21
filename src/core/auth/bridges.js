@@ -13,13 +13,13 @@
  */
 import { useSyncExternalStore } from 'react';
 import { local } from '@/core/storage';
-import { getAdminProfile, getStoredRoleSession, isAdminAuthenticated } from '@/core/auth/timesheetSession';
+import { getAdminProfile, getRoleSessionToken, getStoredRoleSession, isAdminAuthenticated } from '@/core/auth/timesheetSession';
 import * as materials from '@/core/auth/materialsSession';
 import * as progressWorker from '@/core/auth/progress/workerSession';
 import * as progressManager from '@/core/auth/progress/managerSession';
 import * as progressAdmin from '@/core/auth/progress/adminSession';
 import * as progressExporter from '@/core/auth/progress/exporterSession';
-import { isBackendConfigured } from '@/core/supabase';
+import { UNIFIED, isBackendConfigured, supabaseCore } from '@/core/supabase';
 
 export const MODULES = ['timesheet', 'materials', 'progress'];
 
@@ -164,6 +164,11 @@ export function moduleConnection(hubRole, module) {
     const role = moduleRoleFor(hubRole, module);
     if (!role) return 'unavailable';
     if (!isBackendConfigured(module)) return 'not-configured';
+    // One backend: an admin switches each area on/off per worker (core.worker_access).
+    if (UNIFIED && role === 'worker') {
+        const access = local.getJSON('hub', 'access');
+        if (access && access.owner === currentHubOwner() && access[module] === false) return 'unavailable';
+    }
     // Old links without an owner marker intentionally reconnect once. It is safer than
     // allowing a newly signed-in person to use the previous person's persisted session.
     if (!hasCurrentOwner(module)) return 'disconnected';
@@ -182,6 +187,18 @@ export function moduleConnection(hubRole, module) {
         return progressConnectedFor(role) ? 'connected' : 'disconnected';
     }
     return 'disconnected';
+}
+
+/** Worker area access on the one backend ({ materials, progress }) or null when unknown. */
+export function getWorkerAccess() {
+    if (!UNIFIED) return null;
+    const access = local.getJSON('hub', 'access');
+    return access && access.owner === currentHubOwner() ? access : null;
+}
+
+export function useWorkerAccess() {
+    useSyncExternalStore(subscribe, () => version, () => version);
+    return getWorkerAccess();
 }
 
 export function useModuleConnection(hubRole, module) {
@@ -263,10 +280,59 @@ export async function connectModule({ hubRole, module, id, email, password }) {
 }
 
 /**
+ * One backend, workers: the hub (Attendance) session token opens Materials and Site photos
+ * when the worker's access is on — no second login, works after face / fingerprint sign-in too.
+ * Safe to call often (app start, area screens); resolves to the access object or null.
+ */
+let linking = null;
+export function linkHubWorker() {
+    if (!UNIFIED) return Promise.resolve(null);
+    if (linking) return linking;
+    linking = (async () => {
+        const session = getStoredRoleSession();
+        const token = getRoleSessionToken();
+        if (session?.role !== 'worker' || !token) return null;
+        const { data, error } = await supabaseCore.rpc('my_access', { p_session_token: token });
+        if (error) throw error;
+        if (!data) return null; // session ended — the hub's own guard signs the worker out
+        const owner = currentHubOwner() || session.id;
+        local.setJSON('hub', 'access', { ...data, owner });
+        if (data.materials) {
+            materials.setWorkerSession({ workerId: data.employee_id, workerName: session.name, token });
+            setConnectionOwner('materials', owner);
+        } else if (materials.getWorkerSession()?.token === token) {
+            materials.clearWorkerSession();
+        }
+        if (data.progress) {
+            progressWorker.adoptHubSession(token, { name: session.name, employeeCode: data.employee_id });
+            setConnectionOwner('progress', owner);
+        } else if (progressWorker.getWorkerSessionToken() === token) {
+            progressWorker.clearWorkerSession();
+        }
+        notify();
+        return data;
+    })()
+        .catch(() => null)
+        .finally(() => {
+            linking = null;
+        });
+    return linking;
+}
+
+/**
  * Best-effort silent connect of every module after a hub password sign-in.
  * Never throws; resolves to { materials: 'connected'|'failed'|'skipped', progress: … }.
  */
 export async function autoConnectModules({ hubRole, id, email, password }) {
+    if (UNIFIED && hubRole === 'worker') {
+        const access = await linkHubWorker();
+        const outcome = {
+            materials: access?.materials ? 'connected' : 'skipped',
+            progress: access?.progress ? 'connected' : 'skipped',
+        };
+        local.setJSON('hub', 'lastAutoConnect', { at: Date.now(), outcome });
+        return outcome;
+    }
     const outcome = {};
     await Promise.all(
         ['materials', 'progress'].map(async (module) => {

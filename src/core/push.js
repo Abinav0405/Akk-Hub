@@ -16,7 +16,7 @@
  * name like "AdminDashboard") opens that screen — also on cold start (queued until the router is up).
  */
 import { Capacitor } from '@capacitor/core';
-import { supabaseMaterials, supabaseProgress, supabaseTimesheet } from '@/core/supabase';
+import { FN, supabaseMaterials, supabaseProgress, supabaseTimesheet } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { legacyPath } from '@/app/paths';
 
@@ -147,7 +147,7 @@ async function registerTimesheet(token, identity) {
     if (roleSession) headers['x-akk-role-session'] = roleSession;
     const secret = import.meta.env.VITE_PUSH_REGISTER_SECRET;
     if (secret) headers['x-akk-push-secret'] = secret;
-    const { data, error } = await supabaseTimesheet.functions.invoke('register-device-token', { body, headers });
+    const { data, error } = await supabaseTimesheet.functions.invoke(FN.registerAttendance, { body, headers });
     if (error || data?.error) throw error || new Error(data.error);
 }
 
@@ -186,7 +186,7 @@ async function registerMaterials(token, identity) {
         if (!worker?.workerId || !pendingMaterialsPassword) return; // their endpoint needs the password once
         // Keep password until success so a failed invoke can retry on the next register call.
         const password = pendingMaterialsPassword;
-        const { data, error } = await supabaseMaterials.functions.invoke('register-device-token', {
+        const { data, error } = await supabaseMaterials.functions.invoke(FN.registerMaterials, {
             body: { action: 'register', fcm_token: token, platform: 'android', role: 'worker', worker_id: worker.workerId, password },
             headers,
         });
@@ -197,7 +197,7 @@ async function registerMaterials(token, identity) {
     const staff = await materials.getStaffSession();
     const { data: s } = await supabaseMaterials.auth.getSession();
     if (!staff?.email || !s?.session?.access_token) return;
-    const { data, error } = await supabaseMaterials.functions.invoke('register-device-token', {
+    const { data, error } = await supabaseMaterials.functions.invoke(FN.registerMaterials, {
         body: { action: 'register', fcm_token: token, platform: 'android', role: identity.role, admin_email: staff.email },
         headers: { ...headers, Authorization: `Bearer ${s.session.access_token}` },
     });
@@ -284,8 +284,8 @@ export async function unregisterPushDevice() {
     storeToken(null);
     if (!token) return false;
     const tasks = [
-        supabaseTimesheet.functions.invoke('register-device-token', { body: { unregister_token: token } }),
-        supabaseMaterials.functions.invoke('register-device-token', { body: { action: 'unregister', fcm_token: token } }),
+        supabaseTimesheet.functions.invoke(FN.registerAttendance, { body: { unregister_token: token } }),
+        supabaseMaterials.functions.invoke(FN.registerMaterials, { body: { action: 'unregister', fcm_token: token } }),
         (async () => {
             const { getWorkerSessionToken } = await import('@/core/auth/progress/workerSession');
             const session = getWorkerSessionToken();

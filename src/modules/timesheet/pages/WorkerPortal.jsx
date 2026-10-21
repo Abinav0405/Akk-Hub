@@ -85,10 +85,7 @@ import {
 } from '@/modules/timesheet/lib/vehicleTracking';
 import { requestVehicleTrackingPermissions, getGpsErrorMessage, isNativeAppVehicleTrackingDisabled, getUseWebsiteForDrivingMessage } from '@/modules/timesheet/lib/vehicleTrackingNotification';
 import { formatDuration } from '@/modules/timesheet/lib/vehicleJourneyStats';
-import {
-    useMobileTouchOptimized,
-    usePauseRefetchWhileTouching,
-} from '@/modules/timesheet/lib/mobileTouch';
+import { usePauseRefetchWhileTouching } from '@/modules/timesheet/lib/mobileTouch';
 import { registerNativeBackHandler } from '@/core/nativeShell';
 import { getSingaporeGreeting } from '@/ui/native/NativeChrome';
 
@@ -185,7 +182,6 @@ export default function WorkerPortal() {
         ((typeof localStorage !== 'undefined' && localStorage.getItem(storageKey('timesheet', 'workerId'))) || '').trim(),
     );
     const [workerName, setWorkerName] = useState(() => localStorage.getItem(storageKey('timesheet', 'workerName')) || '');
-    const mobileTouch = useMobileTouchOptimized();
     const pauseRefetchWhileTouching = usePauseRefetchWhileTouching();
     const [showPayslipDownloadDialog, setShowPayslipDownloadDialog] = useState(false);
     /** In-app HTML preview (mobile-friendly: full-screen read; Download exports PDF) */
@@ -1887,7 +1883,7 @@ export default function WorkerPortal() {
             />
 
             <main className={cn('wh-content app-page-content', activeScan && 'wh-content--scan')}>
-                <AnimatePresence mode={mobileTouch ? 'sync' : 'wait'}>
+                <AnimatePresence mode="wait">
                     {!activeScan ? (
                         <motion.div
                             key="dashboard"
@@ -1946,6 +1942,24 @@ export default function WorkerPortal() {
                                     onResume={() => void runDriverJourneyAction('resume')}
                                 />
                             )}
+
+                            <HomeDock
+                                loading={nativeShiftLoading}
+                                canClockIn={canClockIn}
+                                hasBreakTarget={dockHasBreakTarget}
+                                onBreak={dockOnBreak}
+                                canClockOut={dockCanClockOut}
+                                onClockIn={startClockInScan}
+                                onBreakScan={startDockBreak}
+                                onClockOut={startDockClockOut}
+                                copy={{
+                                    attendance: t('worker.attendance'),
+                                    scanToClockIn: tt('worker.scanToClockIn', 'Scan to clock in'),
+                                    break: t('worker.break'),
+                                    endBreak: t('worker.endBreak'),
+                                    clockOut: t('worker.clockOut'),
+                                }}
+                            />
 
                             <ActionTiles
                                 tour="worker-shortcuts"
@@ -2141,15 +2155,15 @@ export default function WorkerPortal() {
                                 <ol className="mt-1.5 list-inside list-decimal space-y-1 leading-relaxed">
                                     {activeScan === 'driver' ? (
                                         <>
-                                            <li>Scan the QR sticker inside the vehicle to start.</li>
+                                            <li>Use the live camera to scan the QR sticker inside the vehicle.</li>
                                             <li>When you arrive, tap <strong>Finish ride</strong> on the driver card — you do not need GPS to clock out.</li>
-                                            <li>Allow location when starting so the map can track the trip.</li>
+                                            <li>Allow location when starting so the map can track the trip. Library photo is a fallback only.</li>
                                         </>
                                     ) : (
                                         <>
                                             <li>Stay within range of the site (location is checked).</li>
                                             <li>Allow camera and location when the browser asks.</li>
-                                            <li>Point at the site QR, or use Scan photo from gallery.</li>
+                                            <li>Point at the site QR in the live view, or use a photo from your library.</li>
                                         </>
                                     )}
                                 </ol>
@@ -2158,26 +2172,6 @@ export default function WorkerPortal() {
                     )}
                 </AnimatePresence>
             </main>
-
-            {!activeScan ? (
-                <HomeDock
-                    loading={nativeShiftLoading}
-                    canClockIn={canClockIn}
-                    hasBreakTarget={dockHasBreakTarget}
-                    onBreak={dockOnBreak}
-                    canClockOut={dockCanClockOut}
-                    onClockIn={startClockInScan}
-                    onBreakScan={startDockBreak}
-                    onClockOut={startDockClockOut}
-                    copy={{
-                        attendance: t('worker.attendance'),
-                        scanToClockIn: tt('worker.scanToClockIn', 'Scan to clock in'),
-                        break: t('worker.break'),
-                        endBreak: t('worker.endBreak'),
-                        clockOut: t('worker.clockOut'),
-                    }}
-                />
-            ) : null}
 
             {/* Notifications (bell) */}
             <Dialog open={showNotifications} onOpenChange={setShowNotifications}>
@@ -2283,7 +2277,7 @@ export default function WorkerPortal() {
                             Request annual leave (AL) or medical leave (MC). Foreign workers: manager then admin approval. Local workers: admin approval.
                         </DialogDescription>
                         {workerBalance && !isLoadingBalance && (
-                            <div className="mt-4 rounded-xl border border-orange-100 bg-orange-50/80 p-3">
+                            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-100/80 p-3">
                                 <h4 className="mb-2 text-sm font-medium text-slate-800">Your Current Leave Balance</h4>
                                 <div className="flex flex-col gap-1.5 text-sm sm:flex-row sm:flex-wrap sm:gap-4">
                                     <span className="text-slate-700">
@@ -2353,7 +2347,7 @@ export default function WorkerPortal() {
                                             onClick={() => handleLeaveDurationChange(opt.value)}
                                             className={`rounded-xl border px-2 py-3 text-center text-xs font-medium transition-colors sm:text-sm ${
                                                 selected
-                                                    ? 'border-[#dc6b2f] bg-orange-50 text-[#c45d28] shadow-sm'
+                                                    ? 'border-[#dc6b2f] bg-slate-100 text-[#c45d28] shadow-sm'
                                                     : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
                                             }`}
                                         >

@@ -10,6 +10,12 @@ import { getPostLoginRedirect } from '@/core/auth/timesheetSession';
 
 export function finishHubLogin({ navigate, location, role, name, curtain = 'welcome', connect }) {
     notifyIdentity();
+    if (role === 'worker') {
+        // One backend: the worker's session opens every area they have access to (no password needed).
+        import('@/core/auth/bridges')
+            .then((m) => m.linkHubWorker())
+            .catch(() => {});
+    }
     if (connect?.password) {
         // Fire and forget — module screens show a Connect card for anything that didn't link.
         import('@/core/auth/bridges')

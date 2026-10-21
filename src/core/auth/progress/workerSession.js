@@ -52,6 +52,12 @@ function persistWorkerSession(token, profile) {
   localStorage.setItem(K('workerId'), profile.employeeCode || '');
 }
 
+/** One AKK Hub backend: the worker's hub (Attendance) session also opens Site photos. */
+export function adoptHubSession(token, profile) {
+  forgetVerified('pr:worker:');
+  persistWorkerSession(token, profile);
+}
+
 export function setStoredWorkerName(name) {
   try {
     localStorage.setItem(K('workerName'), name || '');

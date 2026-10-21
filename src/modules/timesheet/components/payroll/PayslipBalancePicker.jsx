@@ -35,7 +35,7 @@ export default function PayslipBalancePicker({ balances = [], selection = {}, on
                         const on = b.id in selection;
                         const toWorker = b.direction === 'owed_to_worker';
                         return (
-                            <div key={b.id} className={cn('rounded-lg border bg-white px-3 py-2', on ? 'border-blue-300' : 'border-slate-200')}>
+                            <div key={b.id} className={cn('rounded-lg border bg-white px-3 py-2', on ? 'border-slate-200' : 'border-slate-200')}>
                                 <label className="flex cursor-pointer items-start gap-2">
                                     <input type="checkbox" className="mt-1 h-4 w-4" checked={on} onChange={() => toggle(b)} />
                                     <span className="min-w-0 flex-1">

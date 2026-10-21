@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabaseMaterials } from '@/core/supabase'
+import { supabaseMaterials, FN } from '@/core/supabase'
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
 import { Badge } from '@/ui/badge';
@@ -17,7 +17,7 @@ const EMPTY_FORM = { display_name: '', email: '', password: '' };
 async function invokeStaff(body) {
     const { data: sessionData } = await supabaseMaterials.auth.getSession();
     const token = sessionData?.session?.access_token;
-    const { data, error } = await supabaseMaterials.functions.invoke('manage-staff', {
+    const { data, error } = await supabaseMaterials.functions.invoke(FN.manageStaff, {
         body,
         headers: token ? { Authorization: `Bearer ${token}` } : {},
     });

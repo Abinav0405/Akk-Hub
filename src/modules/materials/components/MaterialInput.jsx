@@ -210,7 +210,7 @@ export default function MaterialInput({ materials, setMaterials, isReturn = fals
                                                             className={`w-full block px-3 py-3 text-left border-b border-slate-100 last:border-0 ${
                                                                 outOfStock
                                                                     ? 'bg-slate-50 cursor-not-allowed'
-                                                                    : 'bg-white active:bg-orange-50 hover:bg-orange-50 cursor-pointer'
+                                                                    : 'bg-white active:bg-slate-100 hover:bg-slate-100 cursor-pointer'
                                                             }`}
                                                         >
                                                             {/* Stacked layout — avoids sideways crush / overlap on narrow screens */}

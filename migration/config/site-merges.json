@@ -1,0 +1,27 @@
+{
+  "_help": "Places that are the same physical site in different systems. Match is on the exact current name in each system. Any site not listed here becomes its own place. 'name' is the name shown for the merged place in the hub.",
+  "places": [
+    {
+      "name": "Kaki Bukit Office",
+      "attendance": "Kaki Bukit Office",
+      "materials": "Kaki Bukit Office",
+      "progress": "AKK KAKI BUKIT OFFICE AND STORE"
+    },
+    {
+      "name": "Pasir Ris Mall",
+      "attendance": "Pasir Ris Mall",
+      "materials": "Pasir Ris Mall",
+      "progress": "PASIR RIS MALL RESI AND COMMERCIAL"
+    },
+    {
+      "name": "SLM LTA",
+      "attendance": "SLM LTA",
+      "materials": "SLM LTA"
+    },
+    {
+      "name": "LCBC LTA",
+      "attendance": "LCBC LTA",
+      "materials": "LCB Maintenance"
+    }
+  ]
+}

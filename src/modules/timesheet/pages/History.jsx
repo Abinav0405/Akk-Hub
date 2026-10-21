@@ -224,7 +224,7 @@ export default function History() {
                     <Card className="border-0 shadow-md">
                         <CardContent className="p-4">
                             <div className="text-center">
-                                <p className="text-2xl font-bold text-blue-600">{totals.totalWorked.toFixed(2)}</p>
+                                <p className="text-2xl font-bold text-slate-800">{totals.totalWorked.toFixed(2)}</p>
                                 <p className="text-sm text-slate-600">Regular Hours</p>
                             </div>
                         </CardContent>
@@ -232,7 +232,7 @@ export default function History() {
                     <Card className="border-0 shadow-md">
                         <CardContent className="p-4">
                             <div className="text-center">
-                                <p className="text-2xl font-bold text-orange-600">{totals.totalSunday.toFixed(2)}</p>
+                                <p className="text-2xl font-bold text-slate-800">{totals.totalSunday.toFixed(2)}</p>
                                 <p className="text-sm text-slate-600">Sunday Hours</p>
                             </div>
                         </CardContent>
@@ -248,7 +248,7 @@ export default function History() {
                     <Card className="border-0 shadow-md">
                         <CardContent className="p-4">
                             <div className="text-center">
-                                <p className="text-2xl font-bold text-purple-600">{totals.totalBreak.toFixed(2)}</p>
+                                <p className="text-2xl font-bold text-slate-800">{totals.totalBreak.toFixed(2)}</p>
                                 <p className="text-sm text-slate-600">Break Hours</p>
                             </div>
                         </CardContent>
@@ -326,10 +326,10 @@ export default function History() {
                                             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                                                 <div className="flex items-start gap-4">
                                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
-                                                        shift.has_left ? 'bg-green-100' : 'bg-blue-100'
+                                                        shift.has_left ? 'bg-green-100' : 'bg-slate-100'
                                                     }`}>
                                                         <Clock className={`w-6 h-6 ${
-                                                            shift.has_left ? 'text-green-600' : 'text-blue-600'
+                                                            shift.has_left ? 'text-green-600' : 'text-slate-800'
                                                         }`} />
                                                     </div>
                                                     <div className="space-y-1">
@@ -361,17 +361,17 @@ export default function History() {
                                                                     Worked: {shift.worked_hours?.toFixed(2)}h
                                                                 </span>
                                                                 {shift.sunday_hours > 0 && (
-                                                                    <span className="text-orange-600 font-medium">
+                                                                    <span className="text-slate-800 font-medium">
                                                                         Sunday: {shift.sunday_hours?.toFixed(2)}h
                                                                     </span>
                                                                 )}
                                                                 {shift.ot_hours > 0 && (
-                                                                    <span className="text-blue-600 font-medium">
+                                                                    <span className="text-slate-800 font-medium">
                                                                         OT: {shift.ot_hours?.toFixed(2)}h
                                                                     </span>
                                                                 )}
                                                                 {shift.breaks && shift.breaks.length > 0 && (
-                                                                    <span className="text-purple-600 font-medium">
+                                                                    <span className="text-slate-800 font-medium">
                                                                         Break: {calculateBreakHours(shift.breaks).toFixed(2)}h
                                                                     </span>
                                                                 )}

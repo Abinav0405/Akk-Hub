@@ -1,4 +1,4 @@
-import { supabaseTimesheet } from '@/core/supabase'
+import { supabaseTimesheet, DB_SCHEMA } from '@/core/supabase'
 import {
     hasRoleSessionMarker,
     verifyAdminSession,
@@ -133,7 +133,7 @@ export async function startWorkerRealtimeNotifications(workerId, { isRetry = fal
             'postgres_changes',
             {
                 event: 'UPDATE',
-                schema: 'public',
+                schema: DB_SCHEMA.timesheet,
                 table: 'leave_requests',
                 filter: `employee_id=eq.${wid}`,
             },
@@ -162,7 +162,7 @@ export async function startWorkerRealtimeNotifications(workerId, { isRetry = fal
             'postgres_changes',
             {
                 event: 'INSERT',
-                schema: 'public',
+                schema: DB_SCHEMA.timesheet,
                 table: 'passed_out_payslips',
                 filter: `worker_id=eq.${wid}`,
             },
@@ -178,7 +178,7 @@ export async function startWorkerRealtimeNotifications(workerId, { isRetry = fal
             'postgres_changes',
             {
                 event: 'UPDATE',
-                schema: 'public',
+                schema: DB_SCHEMA.timesheet,
                 table: 'shifts',
                 filter: `worker_id=eq.${wid}`,
             },
@@ -208,7 +208,7 @@ export async function startWorkerRealtimeNotifications(workerId, { isRetry = fal
             'postgres_changes',
             {
                 event: 'INSERT',
-                schema: 'public',
+                schema: DB_SCHEMA.timesheet,
                 table: 'passed_out_timesheets',
                 filter: `worker_id=eq.${wid}`,
             },
@@ -226,7 +226,7 @@ export async function startWorkerRealtimeNotifications(workerId, { isRetry = fal
             'postgres_changes',
             {
                 event: 'UPDATE',
-                schema: 'public',
+                schema: DB_SCHEMA.timesheet,
                 table: 'passed_out_timesheets',
                 filter: `worker_id=eq.${wid}`,
             },
@@ -274,7 +274,7 @@ function subscribeAdminVehicleChannel({ isRetry = false } = {}) {
         .channel(`admin-rt-vehicles${isRetry ? '-r' : ''}`)
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'vehicle_journeys' },
+            { event: 'INSERT', schema: DB_SCHEMA.timesheet, table: 'vehicle_journeys' },
             (payload) => {
                 const row = payload.new;
                 if (!row) return;
@@ -284,7 +284,7 @@ function subscribeAdminVehicleChannel({ isRetry = false } = {}) {
         )
         .on(
             'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'vehicle_journeys' },
+            { event: 'UPDATE', schema: DB_SCHEMA.timesheet, table: 'vehicle_journeys' },
             (payload) => {
                 const n = payload.new;
                 const o = payload.old;
@@ -301,7 +301,7 @@ function subscribeAdminVehicleChannel({ isRetry = false } = {}) {
         )
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'vehicle_location_points' },
+            { event: 'INSERT', schema: DB_SCHEMA.timesheet, table: 'vehicle_location_points' },
             () => {
                 invalidateQuery(['vehicleJourneys', 'active']);
             }
@@ -336,7 +336,7 @@ export async function startAdminRealtimeNotifications({ isRetry = false } = {}) 
         .channel(`admin-rt-global${isRetry ? '-r' : ''}`)
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'shifts' },
+            { event: 'INSERT', schema: DB_SCHEMA.timesheet, table: 'shifts' },
             () => {
                 invalidateQuery(['shifts']);
                 invalidateQuery(['supervisor-shifts']);
@@ -344,7 +344,7 @@ export async function startAdminRealtimeNotifications({ isRetry = false } = {}) 
         )
         .on(
             'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'shifts' },
+            { event: 'UPDATE', schema: DB_SCHEMA.timesheet, table: 'shifts' },
             (payload) => {
                 const n = payload.new;
                 const o = payload.old;
@@ -363,21 +363,21 @@ export async function startAdminRealtimeNotifications({ isRetry = false } = {}) 
         )
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'leave_requests' },
+            { event: 'INSERT', schema: DB_SCHEMA.timesheet, table: 'leave_requests' },
             () => {
                 invalidateQuery(['leaveRequests']);
             }
         )
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'passed_out_payslips' },
+            { event: 'INSERT', schema: DB_SCHEMA.timesheet, table: 'passed_out_payslips' },
             () => {
                 invalidateQuery(['passedOutPayslips']);
             }
         )
         .on(
             'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'passed_out_timesheets' },
+            { event: 'INSERT', schema: DB_SCHEMA.timesheet, table: 'passed_out_timesheets' },
             () => {
                 invalidateQuery(['adminPassedOutTimesheets']);
                 invalidateQuery(['managerPassedOutTimesheets']);
@@ -386,7 +386,7 @@ export async function startAdminRealtimeNotifications({ isRetry = false } = {}) 
         )
         .on(
             'postgres_changes',
-            { event: 'UPDATE', schema: 'public', table: 'passed_out_timesheets' },
+            { event: 'UPDATE', schema: DB_SCHEMA.timesheet, table: 'passed_out_timesheets' },
             (payload) => {
                 const n = payload.new;
                 const o = payload.old;

@@ -36,6 +36,7 @@ import {
     Wallet,
 } from 'lucide-react';
 import { paths } from '@/app/paths';
+import { UNIFIED } from '@/core/supabase';
 import { sectionHref } from '@/app/useHubSection';
 
 /** A link to one section of a dashboard. */
@@ -140,7 +141,8 @@ export const NAV = {
     manager: {
         tabs: [
             { id: 'home', label: 'Home', labelKey: 'hub.nav.home', icon: House, to: paths.hubs.manager, end: true },
-            { id: 'time', label: 'Attendance', icon: Clock, to: TS_MANAGE, match: '/timesheet' },
+            // Shifts / leave / company forms live on the timesheet manager dashboard.
+            { id: 'time', label: 'Attendance', labelKey: 'hub.nav.attendance', icon: Clock, to: TS_MANAGE, match: '/timesheet' },
             { id: 'materials', label: 'Materials', labelKey: 'hub.nav.materials', icon: Boxes, to: paths.materials.manage, match: '/materials' },
             { id: 'site', label: 'Site work', icon: ClipboardList, to: PR_REVIEW, match: '/progress' },
             { id: 'account', label: 'Account', labelKey: 'hub.nav.account', icon: UserRound, to: paths.account },
@@ -172,19 +174,27 @@ export const NAV = {
                 tone: 'progress',
                 items: [
                     { id: 'ppackages', label: 'Photo packages', icon: ClipboardCheck, ...sec(PR_REVIEW, 'packages', true) },
+                    { id: 'psites', label: 'Sites', icon: MapPin, ...sec(PR_REVIEW, 'sites') },
                     { id: 'pworkers', label: 'Site employees', icon: Users, ...sec(PR_REVIEW, 'workers') },
                     { id: 'pjsr', label: 'JSR', icon: Receipt, ...sec(PR_REVIEW, 'jsr') },
-                    { id: 'pbranding', label: 'Branding & settings', icon: Palette, ...sec(PR_REVIEW, 'branding') },
                 ],
             },
-            { label: 'More', labelKey: 'hub.nav.more', items: [verifyItem, accountItem] },
+            {
+                label: 'Settings',
+                items: [
+                    { id: 'pbranding', label: 'Branding', icon: Palette, ...sec(PR_REVIEW, 'branding') },
+                    verifyItem,
+                    accountItem,
+                ],
+            },
         ],
     },
 
     admin: {
         tabs: [
             { id: 'home', label: 'Home', labelKey: 'hub.nav.home', icon: House, to: paths.hubs.admin, end: true },
-            { id: 'time', label: 'Attendance', icon: Clock, to: TS_ADMIN, match: '/timesheet' },
+            // Opens the timesheet admin dashboard (section strip + More pages drawer) — not a submenu.
+            { id: 'time', label: 'Attendance', labelKey: 'hub.nav.attendance', icon: Clock, to: TS_ADMIN, match: '/timesheet' },
             { id: 'materials', label: 'Materials', labelKey: 'hub.nav.materials', icon: Boxes, to: MAT_ADMIN, match: '/materials' },
             { id: 'site', label: 'Site work', icon: ClipboardList, to: PR_ADMIN, match: '/progress' },
             { id: 'account', label: 'Account', labelKey: 'hub.nav.account', icon: UserRound, to: paths.account },
@@ -221,6 +231,7 @@ export const NAV = {
                 tone: 'progress',
                 items: [
                     { id: 'ppackages', label: 'Photo packages', icon: ClipboardCheck, ...sec(PR_ADMIN, 'packages', true) },
+                    ...(UNIFIED ? [] : [{ id: 'psites', label: 'Sites', icon: MapPin, ...sec(PR_ADMIN, 'sites') }]),
                     { id: 'pexports', label: 'Export queue', icon: Send, ...sec(PR_ADMIN, 'exports') },
                     { id: 'pjsr', label: 'JSR & billing', icon: Receipt, ...sec(PR_ADMIN, 'jsr') },
                     { id: 'pclient', label: 'Client portal', labelKey: 'hub.nav.clientPortal', icon: Building2, to: paths.progress.clientLogin },
@@ -230,11 +241,15 @@ export const NAV = {
                 label: 'People & sites',
                 items: [
                     { id: 'people', label: 'Employees', icon: Users, ...sec(TS_ADMIN, 'worker-info') },
-                    { id: 'mrequesters', label: 'Material requesters', icon: UserRound, ...sec(MAT_ADMIN, 'requesters') },
+                    ...(UNIFIED ? [] : [{ id: 'mrequesters', label: 'Material requesters', icon: UserRound, ...sec(MAT_ADMIN, 'requesters') }]),
                     { id: 'mmanagers', label: 'Managers', icon: UserCog, ...sec(MAT_ADMIN, 'managers') },
-                    { id: 'paccess', label: 'App access', icon: ShieldCheck, ...sec(PR_ADMIN, 'users') },
-                    { id: 'tsites', label: 'Sites', icon: MapPin, ...sec(TS_ADMIN, 'sites') },
-                    { id: 'msites', label: 'Material sites', icon: MapPin, ...sec(MAT_ADMIN, 'sites') },
+                    ...(UNIFIED ? [] : [{ id: 'paccess', label: 'App access', icon: ShieldCheck, ...sec(PR_ADMIN, 'users') }]),
+                    ...(UNIFIED
+                        ? [{ id: 'sites', label: 'Sites', icon: MapPin, to: paths.adminSites }]
+                        : [
+                              { id: 'tsites', label: 'Sites', icon: MapPin, ...sec(TS_ADMIN, 'sites') },
+                              { id: 'msites', label: 'Material sites', icon: MapPin, ...sec(MAT_ADMIN, 'sites') },
+                          ]),
                     { id: 'tvehicles', label: 'Vehicles', icon: Car, ...sec(TS_ADMIN, 'vehicles') },
                 ],
             },
@@ -258,7 +273,7 @@ export const NAV = {
             {
                 label: 'Settings',
                 items: [
-                    { id: 'pbranding', label: 'Branding & reports', icon: Palette, ...sec(PR_ADMIN, 'branding') },
+                    { id: 'pbranding', label: 'Branding', icon: Palette, ...sec(PR_ADMIN, 'branding') },
                     verifyItem,
                     accountItem,
                 ],
@@ -267,8 +282,23 @@ export const NAV = {
     },
 };
 
-export function navFor(role) {
-    return NAV[role] || { tabs: [], groups: [] };
+/**
+ * @param {string} role
+ * @param {{ materials?: boolean, progress?: boolean } | null} [access] worker area access
+ *   (one backend). Areas switched off are left out of the menus instead of opening onto
+ *   "ask an admin".
+ */
+export function navFor(role, access = null) {
+    const nav = NAV[role] || { tabs: [], groups: [] };
+    if (role !== 'worker' || !access) return nav;
+    const hidden = [access.materials === false && '/materials', access.progress === false && '/progress'].filter(Boolean);
+    if (!hidden.length) return nav;
+    const keep = (item) => !hidden.some((p) => String(item.match || item.to || item.path || '').startsWith(p));
+    return {
+        ...nav,
+        tabs: nav.tabs.filter(keep),
+        groups: nav.groups.map((g) => ({ ...g, items: g.items.filter(keep) })).filter((g) => g.items.length),
+    };
 }
 
 /** Is this nav item the current screen? Handles plain paths, prefixes and ?section= links. */

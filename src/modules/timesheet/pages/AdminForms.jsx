@@ -103,7 +103,7 @@ export default function AdminForms() {
             title="Forms"
             subtitle="Meal & feedback surveys for workers"
             icon={ClipboardList}
-            tone="teal"
+            tone="indigo"
             maxWidth="max-w-5xl"
         >
                 <div className={cn(glassPanel, 'space-y-3 p-5')}>
@@ -112,7 +112,7 @@ export default function AdminForms() {
                             <Button
                                 onClick={() => createForm.mutate()}
                                 disabled={createForm.isPending}
-                                className="h-10 rounded-xl bg-teal-600 hover:bg-teal-700"
+                                className="h-10 rounded-xl bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)]"
                             >
                                 <PlusCircle className="mr-2 h-4 w-4" />
                                 Create

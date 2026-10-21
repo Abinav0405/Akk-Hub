@@ -60,10 +60,14 @@ import CompanyFormReviewPanel from '@/modules/timesheet/components/companyForms/
 import CompanyFormQuestionsEditor from '@/modules/timesheet/components/companyForms/CompanyFormQuestionsEditor';
 import RecommendedResultsEditor from '@/modules/timesheet/components/companyForms/RecommendedResultsEditor';
 import ManagerTimesheets from '@/modules/timesheet/pages/ManagerTimesheets';
-import { PortalBackdrop, glassPanel } from '@/ui/PortalShell';
+import { PortalBackdrop, glassPanel, ModuleSectionHead } from '@/ui/PortalShell';
 import { isNativeApp } from '@/core/platform';
-import { NativeIconButton, NativeNavBar } from '@/ui/native/NativeChrome';
-import { NativeErrorState, NativeListSkeleton } from '@/ui/native/NativeStates';
+import { NativeEmptyState, NativeErrorState, NativeListSkeleton } from '@/ui/native/NativeStates';
+import {
+    ManagerMobileSectionStrip,
+    MANAGER_TAB_TITLES,
+} from '@/modules/timesheet/components/admin/AdminNavChrome';
+
 
 const SHIFT_PAGE = 50;
 
@@ -1482,62 +1486,77 @@ export default function ManagerDashboard() {
     const managerDisplayName = getShiftActorName('manager') || localStorage.getItem(storageKey('timesheet', 'managerName')) || 'Manager';
     const unapprovedCount = shifts.filter((s) => matchesUnapprovedFilter(s)).length;
     const inProgressCount = shifts.filter((s) => !s.has_left).length;
+    // Observe LeavePanel cache so the strip badge updates without a second fetch.
+    const { data: pendingLeavesCache } = useQuery({
+        queryKey: ['managerPendingLeaves'],
+        queryFn: async () => [],
+        enabled: false,
+    });
+    const leaveCount = Array.isArray(pendingLeavesCache) ? pendingLeavesCache.length : 0;
 
     return (
-        <div className={cn('relative min-h-dvh-safe overflow-x-hidden bg-[#f8fafc]', NATIVE_APP && 'akk-screen')}>
-            {NATIVE_APP ? null : <PortalBackdrop emerald />}
+        <div className={cn('manager-dash-ui admin-dash-ui relative isolate min-h-dvh-safe overflow-x-hidden', NATIVE_APP ? 'akk-screen bg-[var(--g-bg)]' : 'bg-[var(--g-bg,#f3f4f6)]')}>
+            {NATIVE_APP ? null : <PortalBackdrop />}
             <AppTour
                 run={isTutorialRunning}
                 steps={managerTutorialSteps}
                 onClose={() => setIsTutorialRunning(false)}
             />
-            {NATIVE_APP ? (
-                <NativeNavBar
-                    data-tour="manager-header"
-                    leading={<img src="/Akk-logo.jpg" alt="" className="akk-navbar__logo" />}
-                    eyebrow={t('role.manager')}
-                    eyebrowTone="manage"
-                    title={managerDisplayName}
-                    trailing={
-                        <NativeIconButton icon={HelpCircle} label={t('common.tutorial')} onClick={() => setIsTutorialRunning(true)} />
-                    }
-                />
-            ) : (
-                <TopBar
-                    eyebrow={t('role.manager')}
-                    title={managerDisplayName}
-                    trailing={
+            <TopBar
+                eyebrow={t('role.manager')}
+                title={MANAGER_TAB_TITLES[managerTab] || managerDisplayName}
+                subtitle={managerDisplayName}
+                trailing={
+                    <div className="flex items-center gap-1.5" data-tour="manager-header">
                         <Button
                             onClick={() => setIsTutorialRunning(true)}
                             variant="outline"
                             size="sm"
-                            className="h-9 rounded-full"
+                            className="h-9 rounded-full border-[var(--g-hairline)]"
                         >
                             <HelpCircle className="mr-1.5 h-4 w-4" />
                             {t('common.tutorial')}
                         </Button>
-                    }
+                    </div>
+                }
+            >
+                <ManagerMobileSectionStrip
+                    activeTab={managerTab}
+                    onTabChange={setManagerTab}
+                    leaveCount={leaveCount}
                 />
-            )}
+            </TopBar>
 
-            <main className="app-page-content relative z-10 mx-auto max-w-7xl px-safe py-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
-                <DashboardAnalyticsWidget shifts={shifts} variant={NATIVE_APP ? 'app' : 'glass'} />
+            <main className="app-page-content relative z-10 mx-auto max-w-7xl px-safe py-5 pb-[calc(var(--g-tabbar-space,5.5rem)+1rem)]">
+                <DashboardAnalyticsWidget shifts={shifts} variant={NATIVE_APP ? 'app' : 'glass'} accent="brand" />
 
                 <Tabs value={managerTab} onValueChange={setManagerTab} className="mt-4 w-full">
-                    <TabsList data-section-nav className="akk-tabs-wrap grid h-auto w-full grid-cols-2 gap-1 rounded-2xl border border-white/70 bg-white/70 p-1 shadow-sm">
-                        <TabsTrigger value="time-tracker" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
+                    <TabsList
+                        data-section-nav
+                        className={cn(
+                            'h-auto w-full grid-cols-4 gap-1 rounded-[var(--g-r-lg,1rem)] border border-[var(--g-hairline)] bg-[var(--g-surface)] p-1 shadow-[0_1px_2px_rgb(15_29_51/0.04)]',
+                            'hidden lg:grid'
+                        )}
+                        data-tour="manager-tabs"
+                    >
+                        <TabsTrigger value="time-tracker" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm">
                             <Clock className="mr-1.5 h-4 w-4" />
                             {t('admin.timeTracker')}
                         </TabsTrigger>
-                        <TabsTrigger value="leaves" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
+                        <TabsTrigger value="leaves" className="relative rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm">
                             <Calendar className="mr-1.5 h-4 w-4" />
                             {t('admin.leaves')}
+                            {leaveCount > 0 ? (
+                                <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1.5 text-xs">
+                                    {leaveCount}
+                                </Badge>
+                            ) : null}
                         </TabsTrigger>
-                        <TabsTrigger value="company-forms" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
+                        <TabsTrigger value="company-forms" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm">
                             <FileText className="mr-1.5 h-4 w-4" />
                             {t('admin.companyForms')}
                         </TabsTrigger>
-                        <TabsTrigger value="timesheets" className="whitespace-normal rounded-xl text-xs data-[state=active]:bg-brand data-[state=active]:text-white sm:text-sm">
+                        <TabsTrigger value="timesheets" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm">
                             <Receipt className="mr-1.5 h-4 w-4" />
                             {t('admin.timesheet')}
                         </TabsTrigger>
@@ -1563,26 +1582,23 @@ export default function ManagerDashboard() {
 
                     <TabsContent value="time-tracker" className="mt-4">
                 <section className={cn(glassPanel, 'p-4 sm:p-5')}>
-                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                <Clock className="h-5 w-5 text-emerald-600" />
-                                {t('admin.timeTracker')}
-                            </h2>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                                {t('ui.shown', { count: filteredShifts.length })}
-                                {shifts.length ? ` · ${t('ui.loaded', { count: shifts.length })}` : ''}
-                                {inProgressCount ? ` · ${t('ui.activeCount', { count: inProgressCount })}` : ''}
-                                {unapprovedCount ? ` · ${t('ui.unapprovedCount', { count: unapprovedCount })}` : ''}
-                            </p>
-                        </div>
+                    <ModuleSectionHead
+                        icon={Clock}
+                        title={t('admin.timeTracker')}
+                        lede={[
+                            t('ui.shown', { count: filteredShifts.length }),
+                            shifts.length ? t('ui.loaded', { count: shifts.length }) : null,
+                            inProgressCount ? t('ui.activeCount', { count: inProgressCount }) : null,
+                            unapprovedCount ? t('ui.unapprovedCount', { count: unapprovedCount }) : null,
+                        ].filter(Boolean).join(' · ')}
+                        actions={
                         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                             <Button
                                 onClick={() => {
                                     resetCreateShiftForm();
                                     setShowCreateShiftDialog(true);
                                 }}
-                                className="h-10 rounded-xl bg-brand hover:bg-brand-hover"
+                                className="h-10 rounded-xl bg-[var(--g-brand)] text-white hover:bg-[var(--g-brand-press)]"
                                 data-tour="manager-create-shift"
                             >
                                 <PlusCircle className="mr-1.5 h-4 w-4" />
@@ -1591,7 +1607,7 @@ export default function ManagerDashboard() {
                             <Button
                                 onClick={exportToExcel}
                                 variant="outline"
-                                className="h-10 rounded-xl border-slate-200 bg-white/70"
+                                className="h-10 rounded-xl border-[var(--g-hairline)] bg-[var(--g-surface)]"
                                 data-tour="manager-export"
                             >
                                 <FileSpreadsheet className="mr-1.5 h-4 w-4" />
@@ -1600,21 +1616,22 @@ export default function ManagerDashboard() {
                             <Button
                                 onClick={() => setShowPrintDialog(true)}
                                 variant="outline"
-                                className="h-10 rounded-xl border-slate-200 bg-white/70"
+                                className="h-10 rounded-xl border-[var(--g-hairline)] bg-[var(--g-surface)]"
                             >
                                 <Printer className="mr-1.5 h-4 w-4" />
                                 {t('ui.printTimesheet')}
                             </Button>
                             <Button
                                 variant="outline"
-                                className="h-10 w-full rounded-xl border-slate-200 bg-white/70"
+                                className="h-10 w-full rounded-xl border-[var(--g-hairline)] bg-[var(--g-surface)]"
                                 onClick={() => setManagerTab('timesheets')}
                             >
                                 <FileText className="mr-1.5 h-4 w-4" />
                                 {t('ui.timesheets')}
                             </Button>
                         </div>
-                    </div>
+                        }
+                    />
 
                     <div className="mb-4 space-y-3" data-tour="manager-filters">
                         <div className="relative">
@@ -1623,7 +1640,7 @@ export default function ManagerDashboard() {
                                 placeholder={t('ui.searchShifts')}
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="h-11 rounded-xl border-slate-200 bg-white/80 pl-10"
+                                className="h-11 rounded-xl border-slate-200 bg-white pl-10"
                                 data-tour="manager-filter-search"
                             />
                         </div>
@@ -1653,7 +1670,7 @@ export default function ManagerDashboard() {
                                 <select
                                     value={selectedMonth}
                                     onChange={(e) => setSelectedMonth(e.target.value)}
-                                    className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-3 text-sm sm:w-auto"
+                                    className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm sm:w-auto"
                                 >
                                     <option value="">Current Month</option>
                                     {Array.from({ length: 12 }, (_, i) => {
@@ -1674,7 +1691,7 @@ export default function ManagerDashboard() {
                                 <select
                                     value={selectedYear}
                                     onChange={(e) => setSelectedYear(e.target.value)}
-                                    className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-3 text-sm sm:w-auto"
+                                    className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm sm:w-auto"
                                 >
                                     {Array.from({ length: 5 }, (_, i) => {
                                         const year = new Date().getFullYear() - i;
@@ -1689,7 +1706,7 @@ export default function ManagerDashboard() {
                             <select
                                 value={siteFilter}
                                 onChange={(e) => setSiteFilter(e.target.value)}
-                                className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white/80 px-3 text-sm lg:max-w-xs"
+                                className="h-10 w-full min-w-0 rounded-xl border border-slate-200 bg-white px-3 text-sm lg:max-w-xs"
                                 data-tour="manager-filter-site"
                             >
                                 <option value="all">{t('ui.allSites')}</option>
@@ -1701,7 +1718,7 @@ export default function ManagerDashboard() {
                                 placeholder={t('ui.filterWorkerId')}
                                 value={workerIdFilter}
                                 onChange={(e) => setWorkerIdFilter(e.target.value)}
-                                className="h-10 w-full min-w-0 rounded-xl border-slate-200 bg-white/80 sm:max-w-xs"
+                                className="h-10 w-full min-w-0 rounded-xl border-slate-200 bg-white sm:max-w-xs"
                                 data-tour="manager-filter-worker-id"
                             />
                         </div>
@@ -1713,14 +1730,14 @@ export default function ManagerDashboard() {
                         <NativeErrorState error={shiftsError} onRetry={() => refetch()} retrying={isRefetchingShifts} className="shadow-none" />
                     ) : isLoading ? (
                         <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                            <Loader2 className="h-7 w-7 animate-spin text-[var(--g-brand)]" />
                         </div>
                     ) : filteredShifts.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-16 text-center">
-                            <Clock className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                            <h3 className="text-base font-semibold text-slate-700">No shifts found</h3>
-                            <p className="mt-1 text-sm text-slate-500">Shifts will appear here when workers clock in/out</p>
-                        </div>
+                        <NativeEmptyState
+                            icon={Clock}
+                            title="No shifts found"
+                            message="Shifts will appear here when workers clock in/out"
+                        />
                     ) : (
                         <div className="space-y-2" data-tour="manager-shifts-list">
                             {filteredShifts.slice(0, shiftLimit).map((shift) => {
@@ -1731,7 +1748,7 @@ export default function ManagerDashboard() {
                                                 <div
                                                     key={shift.id}
                                                     className={cn(
-                                                        'akk-list-card overflow-hidden rounded-2xl border bg-white/90',
+                                                        'akk-list-card overflow-hidden rounded-[var(--g-r-lg)] border border-[var(--g-hairline)] bg-[var(--g-surface)]',
                                                         isSundayShift || isHolidayShift
                                                             ? 'border-red-200 bg-red-50/70'
                                                             : 'border-slate-200/80'
@@ -1746,7 +1763,7 @@ export default function ManagerDashboard() {
                                                                 >
                                                                     <span className={cn(
                                                                         'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'
+                                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-800'
                                                                     )}>
                                                                         <Clock className="h-5 w-5" />
                                                                     </span>
@@ -1788,7 +1805,7 @@ export default function ManagerDashboard() {
 
                                                             <div className="flex flex-wrap items-center gap-2">
                                                                             <Badge variant="outline"
-                                                                                className={shift.has_left ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-sky-50 border-sky-200 text-sky-800'}
+                                                                                className={shift.has_left ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-200 text-slate-800'}
                                                                             >
                                                                                 {shift.has_left ? t('ui.completed') : t('ui.inProgress')}
                                                                             </Badge>
@@ -1855,12 +1872,12 @@ export default function ManagerDashboard() {
                                                                                         {t('ui.break')}: {breakHours.toFixed(2)}h
                                                                                     </span>
                                                                                 {sunPhH > 0 && (
-                                                                                    <span className="text-orange-600 font-medium">
+                                                                                    <span className="text-slate-800 font-medium">
                                                                                         Sun/PH: {sunPhH.toFixed(2)}h
                                                                                     </span>
                                                                                 )}
                                                                                 {otH > 0 && (
-                                                                                    <span className="text-blue-600 font-medium">
+                                                                                    <span className="text-slate-800 font-medium">
                                                                                         OT: {otH.toFixed(2)}h
                                                                                     </span>
                                                                                 )}

@@ -8,6 +8,7 @@ import { isNativeApp, useWideLayout } from '@/core/platform';
 import { isNavItemActive, navFor } from '@/app/navigation';
 import { prefetchRoleScreens } from '@/app/prefetch';
 import { useIdentity, ROLE_LABELS, signOutEverywhere } from '@/core/auth/identity';
+import { useWorkerAccess } from '@/core/auth/bridges';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { useLanguage } from '@/core/i18n';
 
@@ -30,6 +31,7 @@ function initials(name) {
 /** Floating glass capsule — phones and tablets. */
 export function TabBar({ items, className }) {
     const { pathname, search } = useLocation();
+    const navigate = useNavigate();
     const labelOf = useNavLabel();
     if (!items?.length) return null;
     return (
@@ -37,12 +39,24 @@ export function TabBar({ items, className }) {
             {items.map((item) => {
                 const Icon = item.icon;
                 const active = isNavItemActive(item, pathname, search);
+                const target = item.to;
+                const targetPath = String(target || '').split('?')[0];
                 return (
                     <Link
                         key={item.id}
-                        to={item.to}
+                        to={target}
                         className={cn('g-tabbar__item', active && 'is-active')}
                         aria-current={active ? 'page' : undefined}
+                        onClick={(e) => {
+                            // Re-tap an already-highlighted module tab (e.g. Attendance while on
+                            // /timesheet/manage?section=leaves or /timesheet/manage/timesheets)
+                            // always returns to that tab's root screen — never a no-op.
+                            if (!active || !targetPath) return;
+                            const onRoot = pathname === targetPath && !search;
+                            if (onRoot) return;
+                            e.preventDefault();
+                            navigate(target);
+                        }}
                     >
                         <Icon strokeWidth={1.9} aria-hidden />
                         <span className="g-tabbar__label">{labelOf(item)}</span>
@@ -99,7 +113,7 @@ export function Sidebar({ groups, identity, onSignOut }) {
                     </div>
                 ))}
             </nav>
-            <div className="g-sidebar__foot g-card g-card--flat flex items-center gap-3 p-3">
+            <div className="g-sidebar__foot flex items-center gap-3 p-3">
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--g-brand-soft)] text-sm font-bold text-[var(--g-brand-text)]">
                     {initials(identity?.name)}
                 </span>
@@ -107,7 +121,14 @@ export function Sidebar({ groups, identity, onSignOut }) {
                     <p className="truncate text-sm font-semibold text-[var(--g-ink)]">{identity?.name}</p>
                     <p className="truncate text-xs text-[var(--g-muted)]">{ROLE_LABELS[identity?.role]}</p>
                 </div>
-                <button type="button" onClick={onSignOut} className="g-icon-btn g-icon-btn--plain" aria-label="Sign out">
+                {/* Keep Sign out inside the rail foot — not a viewport-fixed FAB over content. */}
+                <button
+                    type="button"
+                    onClick={onSignOut}
+                    className="g-icon-btn g-icon-btn--plain shrink-0"
+                    aria-label="Sign out"
+                    title="Sign out"
+                >
                     <LogOut aria-hidden />
                 </button>
             </div>
@@ -124,7 +145,8 @@ export default function HubLayout() {
     const wide = useWideLayout();
     const navigate = useNavigate();
     const { pathname } = useLocation();
-    const nav = navFor(identity?.role);
+    const workerAccess = useWorkerAccess();
+    const nav = navFor(identity?.role, workerAccess);
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -133,6 +155,12 @@ export default function HubLayout() {
     useEffect(() => {
         return prefetchRoleScreens(identity?.role);
     }, [identity?.role]);
+
+    // One backend: refresh which areas this worker may open (admins can change it any time).
+    useEffect(() => {
+        if (identity?.role !== 'worker') return;
+        import('@/core/auth/bridges').then((m) => m.linkHubWorker()).catch(() => {});
+    }, [identity?.role, identity?.id]);
 
     // Push (Android app): notification taps open screens through the router, and this phone is
     // registered for whoever is signed in (no-op on the website / when push isn't configured).

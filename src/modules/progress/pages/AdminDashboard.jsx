@@ -1,5 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
-import { Loader2, ClipboardList, Users, BarChart3, FileDown, Palette, FileText } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Loader2, ClipboardList, Users, BarChart3, FileDown, Palette, FileText, MapPin } from 'lucide-react';
 import ProgressPortalShell from '@/modules/progress/components/ProgressPortalShell';
 import PackageReviewBoard from '@/modules/progress/components/PackageReviewBoard';
 import UsersAccessPanel from '@/modules/progress/components/UsersAccessPanel';
@@ -15,16 +16,17 @@ import { listAllPackages } from '@/modules/progress/lib/staffPackages';
 import { listJsrs } from '@/modules/progress/lib/jsr';
 import { useHubSection } from '@/app/useHubSection';
 
-const ADMIN_SECTIONS = ['packages', 'exports', 'jsr', 'analytics', 'users', 'branding'];
+const ADMIN_SECTIONS = ['packages', 'exports', 'jsr', 'analytics', 'users', 'sites', 'branding'];
 
 const AnalyticsPanel = lazy(() => import('@/modules/progress/components/AnalyticsPanel'));
 const BrandingPanel = lazy(() => import('@/modules/progress/components/BrandingPanel'));
+const ProgressSitesPanel = lazy(() => import('@/modules/progress/components/ProgressSitesPanel'));
 const CommercialHub = lazy(() => import('@/modules/progress/components/jsr/CommercialHub'));
 
 function PanelFallback({ label }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-      <Loader2 className="h-5 w-5 animate-spin" /> Loading {label}…
+    <div className="flex items-center justify-center gap-2 rounded-[var(--g-r-lg,1rem)] border border-[var(--g-hairline)] bg-[var(--g-surface,#fff)] py-16 text-[var(--g-muted)]">
+      <Loader2 className="h-5 w-5 animate-spin text-[var(--g-brand)]" /> Loading {label}…
     </div>
   );
 }
@@ -35,15 +37,26 @@ const SECTION_LABELS = {
   jsr: 'JSR & billing',
   analytics: 'Analytics',
   users: 'Users & access',
-  branding: 'Branding & settings',
+  sites: 'Sites',
+  branding: 'Branding',
 };
 
 export default function AdminDashboard() {
   const session = useRoleGuard('admin');
   const [tab, setTab] = useHubSection('packages', ADMIN_SECTIONS);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [packageBadge, setPackageBadge] = useState(0);
   const [jsrBadge, setJsrBadge] = useState(0);
   const { overlay } = useLoginWelcome({ ready: Boolean(session) });
+
+  // Legacy Branding & settings tab: ?section=branding&tab=sites → Sites under Site work.
+  useEffect(() => {
+    if (searchParams.get('section') !== 'branding' || searchParams.get('tab') !== 'sites') return;
+    const next = new URLSearchParams(searchParams);
+    next.set('section', 'sites');
+    next.delete('tab');
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (session) {
@@ -81,6 +94,7 @@ export default function AdminDashboard() {
         label: 'Operations',
         items: [
           { id: 'packages', label: 'Packages', icon: ClipboardList, badge: packageBadge },
+          { id: 'sites', label: 'Sites', icon: MapPin },
           { id: 'exports', label: 'Export queue', icon: FileDown },
           { id: 'jsr', label: 'JSR & billing', icon: FileText, badge: jsrBadge },
           { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -90,7 +104,7 @@ export default function AdminDashboard() {
         label: 'People & admin',
         items: [
           { id: 'users', label: 'Users & access', icon: Users },
-          { id: 'branding', label: 'Branding & settings', icon: Palette },
+          { id: 'branding', label: 'Branding', icon: Palette },
         ],
       },
     ],
@@ -107,7 +121,7 @@ export default function AdminDashboard() {
     <>
       {overlay}
       <ProgressPortalShell
-        portalLabel="Site progress"
+        portalLabel="Site work"
         roleLabel="Administrator"
         session={session}
         groups={groups}
@@ -122,6 +136,11 @@ export default function AdminDashboard() {
         {tab === 'analytics' ? (
           <Suspense fallback={<PanelFallback label="analytics" />}>
             <AnalyticsPanel />
+          </Suspense>
+        ) : null}
+        {tab === 'sites' ? (
+          <Suspense fallback={<PanelFallback label="sites" />}>
+            <ProgressSitesPanel />
           </Suspense>
         ) : null}
         {tab === 'branding' ? (
@@ -139,10 +158,10 @@ export default function AdminDashboard() {
         <NativeBottomNav
           items={[
             { id: 'packages', icon: ClipboardList, label: 'Packages', active: tab === 'packages', onClick: () => setTab('packages') },
+            { id: 'sites', icon: MapPin, label: 'Sites', active: tab === 'sites', onClick: () => setTab('sites') },
             { id: 'users', icon: Users, label: 'Users', active: tab === 'users', onClick: () => setTab('users') },
             { id: 'jsr', icon: FileText, label: 'JSR', active: tab === 'jsr', onClick: () => setTab('jsr') },
             { id: 'exports', icon: FileDown, label: 'Exports', active: tab === 'exports', onClick: () => setTab('exports') },
-            { id: 'analytics', icon: BarChart3, label: 'Stats', active: tab === 'analytics', onClick: () => setTab('analytics') },
             { id: 'branding', icon: Palette, label: 'Brand', active: tab === 'branding', onClick: () => setTab('branding') },
           ]}
         />

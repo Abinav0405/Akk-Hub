@@ -85,9 +85,9 @@ export function overlayFieldValues({
 }
 
 /**
- * Visible overlay lines after admin show/hide + order, split if GPS has its own position.
- * Stack/GPS x/y are % of frame (top-left of each block). GPS accuracy changing
- * lengthens a line but does not move the stored origin.
+ * Visible overlay lines after admin show/hide + order.
+ * GPS (±accuracy) always sits in the same details stack as date/address.
+ * Stack x/y are % of frame (top-left of the block).
  */
 export function buildOverlayLayout(opts = {}) {
   const branding = opts.branding || {};
@@ -96,24 +96,12 @@ export function buildOverlayLayout(opts = {}) {
     ? [...OVERLAY_LINE_KEYS]
     : normalizeOverlayLines(branding.overlay_lines);
   const stackPosition = isOverlayPosition(branding.overlay_position) ? branding.overlay_position : 'bl';
-  const gpsOwn = hasOwnGpsPosition(branding);
 
   const stack = [];
-  let gps = null;
   for (const key of visible) {
     const text = values[key];
     if (!text) continue;
-    if (key === 'gps' && gpsOwn) {
-      gps = {
-        key,
-        text,
-        position: branding.gps_position || 'br',
-        xPct: Number(branding.gps_x_pct),
-        yPct: Number(branding.gps_y_pct),
-      };
-    } else {
-      stack.push({ key, text });
-    }
+    stack.push({ key, text });
   }
   return {
     stack,
@@ -121,7 +109,7 @@ export function buildOverlayLayout(opts = {}) {
     stackXPct: Number.isFinite(Number(branding.overlay_x_pct)) ? Number(branding.overlay_x_pct) : null,
     stackYPct: Number.isFinite(Number(branding.overlay_y_pct)) ? Number(branding.overlay_y_pct) : null,
     stackScalePct: Number.isFinite(Number(branding.overlay_scale_pct)) ? Number(branding.overlay_scale_pct) : 100,
-    gps,
+    gps: null,
   };
 }
 

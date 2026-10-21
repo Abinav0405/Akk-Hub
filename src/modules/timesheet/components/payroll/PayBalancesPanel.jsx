@@ -12,11 +12,12 @@ import { Input } from '@/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { balanceTitle, cancelBalance, createManualBalance, DIRECTION_LABEL, listBalances } from '@/modules/timesheet/lib/payBalances';
 import { cn } from '@/modules/timesheet/lib/utils';
+import { isHubAdmin } from '@/modules/timesheet/lib/workerPrivacy';
 
 const fmt = (n) => `$${(Math.round((Number(n) || 0) * 100) / 100).toFixed(2)}`;
 
 const STATUS_STYLE = {
-    open: 'bg-blue-50 text-blue-800 ring-blue-200',
+    open: 'bg-slate-100 text-slate-800 ring-slate-200',
     settled: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
     cancelled: 'bg-slate-100 text-slate-600 ring-slate-200',
 };
@@ -40,8 +41,13 @@ export default function PayBalancesPanel({ className }) {
     const [adding, setAdding] = useState(null); // form state
     const [cancelling, setCancelling] = useState(null); // { balance, reason }
     const [saving, setSaving] = useState(false);
+    const adminOk = isHubAdmin();
 
     const load = useCallback(async () => {
+        if (!isHubAdmin()) {
+            setRows([]);
+            return;
+        }
         setLoading(true);
         try {
             setRows(await listBalances({ workerId: workerFilter.trim() || undefined, includeClosed: !openOnly }));
@@ -54,9 +60,12 @@ export default function PayBalancesPanel({ className }) {
     }, [workerFilter, openOnly]);
 
     useEffect(() => {
+        if (!adminOk) return;
         void load();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [openOnly]);
+    }, [openOnly, adminOk]);
+
+    if (!adminOk) return null;
 
     const submitAdd = async () => {
         setSaving(true);

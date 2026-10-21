@@ -165,10 +165,10 @@ export default function ShiftHistory() {
                 <h2 className="text-sm font-medium text-slate-500">{monthLabel} — approved hours</h2>
                 <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
                     {[
-                        { label: 'Basic', value: monthTotals.basic, color: 'text-sky-700' },
-                        { label: 'Sun/PH', value: monthTotals.sunPh, color: 'text-orange-700' },
+                        { label: 'Basic', value: monthTotals.basic, color: 'text-slate-800' },
+                        { label: 'Sun/PH', value: monthTotals.sunPh, color: 'text-slate-800' },
                         { label: 'OT', value: monthTotals.ot, color: 'text-emerald-700' },
-                        { label: 'Break', value: monthTotals.breakH, color: 'text-violet-700' },
+                        { label: 'Break', value: monthTotals.breakH, color: 'text-slate-800' },
                     ].map((item) => (
                         <div key={item.label} className={cn(glassPanel, 'px-3 py-3 text-center')}>
                             <p className={`text-xl font-semibold tracking-tight ${item.color}`}>
@@ -274,7 +274,7 @@ export default function ShiftHistory() {
                                                 <span
                                                     className={cn(
                                                         'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'
+                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-800'
                                                     )}
                                                 >
                                                     <Clock className="h-5 w-5" />
@@ -335,17 +335,17 @@ export default function ShiftHistory() {
                                                                     </span>
                                                                 ) : null}
                                                                 {recalc.sundayHours > 0 ? (
-                                                                    <span className="font-medium text-orange-600">
+                                                                    <span className="font-medium text-slate-800">
                                                                         Sun/PH: {recalc.sundayHours.toFixed(2)}h
                                                                     </span>
                                                                 ) : null}
                                                                 {recalc.otHours > 0 ? (
-                                                                    <span className="font-medium text-blue-600">
+                                                                    <span className="font-medium text-slate-800">
                                                                         OT: {recalc.otHours.toFixed(2)}h
                                                                     </span>
                                                                 ) : null}
                                                                 {recalc.breakHours > 0 ? (
-                                                                    <span className="font-medium text-purple-600">
+                                                                    <span className="font-medium text-slate-800">
                                                                         Break: {recalc.breakHours.toFixed(2)}h
                                                                     </span>
                                                                 ) : null}

@@ -92,10 +92,7 @@ import {
 } from '@/modules/timesheet/lib/vehicleTracking';
 import { requestVehicleTrackingPermissions, getGpsErrorMessage, isNativeAppVehicleTrackingDisabled, getUseWebsiteForDrivingMessage } from '@/modules/timesheet/lib/vehicleTrackingNotification';
 import { formatDuration } from '@/modules/timesheet/lib/vehicleJourneyStats';
-import {
-    useMobileTouchOptimized,
-    usePauseRefetchWhileTouching,
-} from '@/modules/timesheet/lib/mobileTouch';
+import { usePauseRefetchWhileTouching } from '@/modules/timesheet/lib/mobileTouch';
 import { registerNativeBackHandler } from '@/core/nativeShell';
 import { getSingaporeGreeting } from '@/ui/native/NativeChrome';
 import TopBar from '@/ui/hub/TopBar';
@@ -212,7 +209,6 @@ export default function EmployeeHome() {
         ((typeof localStorage !== 'undefined' && localStorage.getItem(storageKey('timesheet', 'workerId'))) || '').trim(),
     );
     const [workerName, setWorkerName] = useState(() => localStorage.getItem(storageKey('timesheet', 'workerName')) || '');
-    const mobileTouch = useMobileTouchOptimized();
     // Desktop (sidebar) layout: two-column dashboard, attendance buttons inline.
     const wide = useWideLayout();
     const pauseRefetchWhileTouching = usePauseRefetchWhileTouching();
@@ -1960,7 +1956,8 @@ export default function EmployeeHome() {
             )}
 
             <main className={cn('wh-content app-page-content', activeScan && 'wh-content--scan')}>
-                <AnimatePresence mode={mobileTouch ? 'sync' : 'wait'}>
+                {/* Always wait — sync left dashboard+scanner briefly and could double-mount cameras. */}
+                <AnimatePresence mode="wait">
                     {!activeScan ? (
                         <motion.div
                             key="dashboard"
@@ -2021,7 +2018,8 @@ export default function EmployeeHome() {
                                     onResume={() => void runDriverJourneyAction('resume')}
                                 />
                             )}
-                            {wide ? attendanceDock : null}
+                            {/* Clock-in / break / clock-out sit under the shift card (not a buried bottom bar). */}
+                            {attendanceDock}
                             </div>
 
                             <div className="wh-home-side">
@@ -2317,15 +2315,15 @@ export default function EmployeeHome() {
                                 <ol className="mt-1.5 list-inside list-decimal space-y-1 leading-relaxed">
                                     {activeScan === 'driver' ? (
                                         <>
-                                            <li>Scan the QR sticker inside the vehicle to start.</li>
+                                            <li>Use the live camera to scan the QR sticker inside the vehicle.</li>
                                             <li>When you arrive, tap <strong>Finish ride</strong> on the driver card — you do not need GPS to clock out.</li>
-                                            <li>Allow location when starting so the map can track the trip.</li>
+                                            <li>Allow location when starting so the map can track the trip. Library photo is a fallback only.</li>
                                         </>
                                     ) : (
                                         <>
                                             <li>Stay within range of the site (location is checked).</li>
                                             <li>Allow camera and location when the browser asks.</li>
-                                            <li>Point at the site QR, or use Scan photo from gallery.</li>
+                                            <li>Point at the site QR in the live view, or use a photo from your library.</li>
                                         </>
                                     )}
                                 </ol>
@@ -2334,9 +2332,6 @@ export default function EmployeeHome() {
                     )}
                 </AnimatePresence>
             </main>
-
-            {/* Phones: floating above the tab bar. Desktop: inline under the shift card. */}
-            {!activeScan && !wide ? attendanceDock : null}
 
             {/* Notifications (bell) */}
             <Dialog open={showNotifications} onOpenChange={setShowNotifications}>

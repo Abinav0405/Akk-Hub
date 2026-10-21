@@ -131,11 +131,11 @@ const ReturnHistoryDisplay = ({ referenceNumber, totalQuantity, materialName, ap
                     </div>
                 </div>
             ) : (
-                <div className="bg-orange-50 border border-orange-200 rounded px-2 py-1">
-                    <div className="text-orange-700 font-medium">
+                <div className="bg-[var(--g-warning-soft,rgb(180_83_9/0.1))] border border-[var(--g-warning,#b45309)]/25 rounded px-2 py-1">
+                    <div className="text-[var(--g-warning,#b45309)] font-medium">
                         🔄 Partially returned {totalReturned}/{totalQuantity} {materialName}
                     </div>
-                    <div className="text-orange-600 text-xs mt-1">
+                    <div className="text-[var(--g-warning,#b45309)] text-xs mt-1">
                         Remaining qty to return: {remaining}/{totalQuantity}
                     </div>
                 </div>
@@ -806,13 +806,13 @@ export default function AdminDashboard({ role = 'admin' }) {
             <div className="flex flex-col gap-3">
                 {!native && (
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
-                    <TabsList data-section-nav className="bg-card border border-border shadow-xs w-full overflow-x-auto sm:w-auto">
-                        <TabsTrigger value="transactions" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Inbox</span><span className="hidden sm:inline">Transactions</span></TabsTrigger>
-                        <TabsTrigger value="requesters" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
-                        {isAdmin && <TabsTrigger value="analytics" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Stats</span><span className="hidden sm:inline">Analytics</span></TabsTrigger>}
-                        <TabsTrigger value="sites" className="data-[state=active]:bg-brand data-[state=active]:text-white">Sites</TabsTrigger>
-                        <TabsTrigger value="materials" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Stock</span><span className="hidden sm:inline">Materials</span></TabsTrigger>
-                        {isAdmin && <TabsTrigger value="managers" className="data-[state=active]:bg-brand data-[state=active]:text-white"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Managers</span></TabsTrigger>}
+                    <TabsList data-section-nav className="w-full overflow-x-auto border border-[var(--g-hairline)] bg-[var(--g-surface)] shadow-[0_1px_2px_rgb(15_29_51/0.04)] sm:w-auto">
+                        <TabsTrigger value="transactions" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Inbox</span><span className="hidden sm:inline">Transactions</span></TabsTrigger>
+                        <TabsTrigger value="requesters" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
+                        {isAdmin && <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Stats</span><span className="hidden sm:inline">Analytics</span></TabsTrigger>}
+                        <TabsTrigger value="sites" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Sites</TabsTrigger>
+                        <TabsTrigger value="materials" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Stock</span><span className="hidden sm:inline">Materials</span></TabsTrigger>
+                        {isAdmin && <TabsTrigger value="managers" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Managers</span></TabsTrigger>}
                     </TabsList>
                 </Tabs>
                 )}
@@ -892,7 +892,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                         }
                         actions={
                             <>
-                                <Button onClick={exportToExcel} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                                <Button onClick={exportToExcel} className="bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] text-white">
                                     <FileSpreadsheet className="w-4 h-4 mr-2" />
                                     Export
                                 </Button>

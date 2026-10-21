@@ -44,7 +44,7 @@ export default function ProgressPortalShell({
                     </div>
                 ) : null}
             </TopBar>
-            <main className={cn('g-main max-w-7xl', className)}>{children}</main>
+            <main className={cn('g-main max-w-7xl space-y-4', className)}>{children}</main>
         </>
     );
 }

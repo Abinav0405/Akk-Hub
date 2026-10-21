@@ -35,6 +35,7 @@ export function prefetchStaffRoutes() {
   void import('@/modules/progress/components/jsr/CommercialHub.jsx');
   void import('@/modules/progress/components/AnalyticsPanel.jsx');
   void import('@/modules/progress/components/BrandingPanel.jsx');
+  void import('@/modules/progress/components/ProgressSitesPanel.jsx');
   void import('@/modules/progress/components/PackageReviewBoard.jsx');
 }
 

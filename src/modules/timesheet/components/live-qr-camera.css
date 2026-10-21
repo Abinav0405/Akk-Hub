@@ -1,0 +1,81 @@
+/* Live QR viewfinder — must hide the decode canvas / file host or they render as a second "camera". */
+.qr-live {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 1.25rem;
+    background: #0b1220;
+    aspect-ratio: 3 / 4;
+    max-height: min(70dvh, 560px);
+}
+
+.qr-live__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    background: #0b1220;
+}
+
+.qr-live__decode-canvas,
+.qr-live__file-host {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.qr-live__status {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem;
+    text-align: center;
+    color: #fff;
+    background: rgba(11, 18, 32, 0.45);
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.qr-live__status--error {
+    background: rgba(11, 18, 32, 0.72);
+}
+
+.qr-live__badge {
+    position: absolute;
+    left: 0.75rem;
+    top: 0.75rem;
+    z-index: 3;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(8px);
+}
+
+.qr-live__badge-dot {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 999px;
+    background: #22c55e;
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.28);
+}
+
+html.akk-native .qr-live {
+    border-radius: 1.35rem;
+}

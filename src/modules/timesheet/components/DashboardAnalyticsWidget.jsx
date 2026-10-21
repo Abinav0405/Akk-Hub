@@ -17,7 +17,7 @@ function formatHours(n) {
     return `${Math.round(n * 10) / 10}h`;
 }
 
-export default function DashboardAnalyticsWidget({ shifts, lateCutoffMinutes = 9 * 60, variant = 'header', accent = 'emerald' }) {
+export default function DashboardAnalyticsWidget({ shifts, lateCutoffMinutes = 9 * 60, variant = 'header', accent = 'brand' }) {
     const { t } = useLanguage();
     const stats = useMemo(() => {
         const today = getTodaySingapore();
@@ -97,9 +97,9 @@ export default function DashboardAnalyticsWidget({ shifts, lateCutoffMinutes = 9
     }
 
     const glassTints = {
-        sky: { panel: 'border-sky-200/70 bg-sky-50/50', icon: 'text-sky-600' },
-        emerald: { panel: 'border-emerald-200/70 bg-emerald-50/50', icon: 'text-emerald-600' },
-        amber: { panel: 'border-amber-200/70 bg-amber-50/50', icon: 'text-amber-600' },
+        sky: { panel: 'border-[var(--g-hairline)]', icon: 'text-[var(--g-brand)]' },
+        emerald: { panel: 'border-[var(--g-hairline)]', icon: 'text-[var(--g-tone-progress,#2f5d62)]' },
+        amber: { panel: 'border-[var(--g-hairline)]', icon: 'text-[var(--g-warning,#b45309)]' },
     };
 
     if (variant === 'glass') {

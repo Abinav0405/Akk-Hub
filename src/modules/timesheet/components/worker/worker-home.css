@@ -1,39 +1,38 @@
 /*
- * Employee home — "AKK Employee Home" design.
- * iOS liquid glass on the floating chrome (header, dock, bell) over a soft tinted canvas;
- * content cards stay solid so scrolling is cheap on Android. AKK colours: brand orange
- * #dc6b2f, navy #10233f. Same rules on the website and in the Capacitor app.
+ * Employee home — same ONE PRODUCT crimson tokens as hub chrome (web + Capacitor).
+ * Glass stays on floating header/dock; content cards stay solid for Android scroll cost.
  */
 .wh-page {
-    --wh-brand: #dc6b2f;
-    --wh-brand-pressed: #c85a23;
-    --wh-navy: #10233f;
-    --wh-text: #0f172a;
-    --wh-text-2: #475569;
-    --wh-text-3: #64748b;
-    --wh-hair: rgba(15, 23, 42, 0.07);
-    --wh-card: #ffffff;
+    --wh-brand: var(--g-brand, #a50f2d);
+    --wh-brand-pressed: var(--g-brand-press, #8c0d26);
+    --wh-navy: var(--g-ink, #0f1d33);
+    --wh-text: var(--g-ink, #0f1d33);
+    --wh-text-2: var(--g-ink-2, #334155);
+    --wh-text-3: var(--g-muted, #5b6676);
+    --wh-hair: var(--g-hairline, rgb(15 29 51 / 0.09));
+    --wh-card: var(--g-surface, #ffffff);
     --wh-radius: 1.4rem;
     --wh-safe-top: var(--akk-safe-top, env(safe-area-inset-top, 0px));
     --wh-safe-bottom: var(--akk-safe-bottom, env(safe-area-inset-bottom, 0px));
-    --wh-dock-h: 5.75rem;
+    /* Reserved only when a floating dock is used; inline dock sits in normal flow. */
+    --wh-dock-h: 0px;
 
     position: relative;
     min-height: 100dvh;
     color: var(--wh-text);
-    font-family: var(--akk-font, Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
+    font-family: var(--g-font, var(--akk-font, system-ui, -apple-system, 'Segoe UI', sans-serif));
     background:
-        radial-gradient(60% 38% at 0% 88%, rgba(220, 107, 47, 0.1), transparent 70%),
-        radial-gradient(70% 45% at 100% 22%, rgba(99, 132, 199, 0.12), transparent 70%),
-        linear-gradient(180deg, #f4f6fa 0%, #eef1f6 100%);
+        radial-gradient(60% 38% at 0% 88%, rgb(165 15 45 / 0.08), transparent 70%),
+        radial-gradient(70% 45% at 100% 22%, rgb(168 101 30 / 0.08), transparent 70%),
+        linear-gradient(180deg, var(--g-bg, #f3f4f6) 0%, #eef0f3 100%);
     background-attachment: fixed;
 }
 
 html.akk-native .akk-screen.wh-page {
     background:
-        radial-gradient(60% 38% at 0% 88%, rgba(220, 107, 47, 0.1), transparent 70%),
-        radial-gradient(70% 45% at 100% 22%, rgba(99, 132, 199, 0.12), transparent 70%),
-        linear-gradient(180deg, #f4f6fa 0%, #eef1f6 100%);
+        radial-gradient(60% 38% at 0% 88%, rgb(165 15 45 / 0.08), transparent 70%),
+        radial-gradient(70% 45% at 100% 22%, rgb(168 101 30 / 0.08), transparent 70%),
+        linear-gradient(180deg, var(--g-bg, #f3f4f6) 0%, #eef0f3 100%);
 }
 
 /* ---- liquid glass --------------------------------------------------------- */
@@ -214,7 +213,7 @@ html.akk-native .akk-screen.wh-page {
     gap: 1rem;
     max-width: 36rem;
     margin: 0 auto;
-    padding: 0.875rem 1.25rem calc(var(--wh-dock-h) + var(--wh-safe-bottom) + 1.5rem);
+    padding: 0.875rem 1.25rem calc(var(--wh-safe-bottom) + 1.5rem);
 }
 
 .wh-content--scan {
@@ -682,14 +681,27 @@ html.akk-native .akk-screen.wh-page {
 }
 
 /* ---- dock ---------------------------------------------------------------------------- */
-.wh-dock {
+/* Default: inline under the shift / clock card so "Scan to clock in" is not buried. */
+.wh-dock,
+.wh-dock--inline {
+    position: static;
+    left: auto;
+    bottom: auto;
+    z-index: auto;
+    width: 100%;
+    max-width: none;
+    padding: 0.5rem;
+    border-radius: 1.75rem;
+    transform: none;
+}
+
+/* Legacy fixed bar (only if a caller passes placement="floating"). */
+.wh-dock--floating {
     position: fixed;
     left: 50%;
     bottom: calc(var(--wh-safe-bottom) + 0.75rem);
     z-index: 40;
     width: min(calc(100% - 1.5rem), 34rem);
-    padding: 0.5rem;
-    border-radius: 1.75rem;
     transform: translateX(-50%);
 }
 
@@ -734,7 +746,7 @@ html.akk-native .akk-screen.wh-page {
 .wh-dock__btn.is-brand {
     background: var(--wh-brand);
     color: #fff;
-    box-shadow: 0 10px 22px -12px rgba(220, 107, 47, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+    box-shadow: 0 10px 22px -12px rgb(165 15 45 / 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 .wh-dock__btn.is-brand:active {
@@ -798,7 +810,7 @@ html.akk-native .akk-screen.wh-page {
 
 /* ---- focus + motion ------------------------------------------------------------------------ */
 .wh-page :is(.wh-tile, .wh-row, .wh-banner, .wh-dock__btn, .wh-iconbtn, .wh-avatar):focus-visible {
-    outline: 3px solid rgba(220, 107, 47, 0.55);
+    outline: 3px solid rgb(165 15 45 / 0.4);
     outline-offset: 2px;
 }
 
@@ -815,7 +827,6 @@ html.akk-native .akk-screen.wh-page {
 
 /* Phone app: the same layout, a step smaller so the shift card and clock-in bar don't fill the screen. */
 html.akk-native .wh-page {
-    --wh-dock-h: 4.6rem;
     --wh-radius: 1.15rem;
 }
 

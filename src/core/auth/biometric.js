@@ -24,10 +24,33 @@ const CREDENTIAL_SERVER = 'sg.akk.hub.worker-login';
 const PREFS_KEY = 'akk.hub.biometricLogin';
 const DECLINED_KEY = 'akk.hub.biometricOfferDeclined';
 
+/**
+ * Portal roles (admin / manager / supervisor / export-only) use the same secure-store pattern
+ * as workers, but separate Keychain items and prefs so one role never unlocks another.
+ * @typedef {'admin' | 'manager' | 'supervisor' | 'exporter'} PortalBiometricRole
+ */
+const PORTAL_CREDENTIAL_SERVER = {
+    admin: 'sg.akk.hub.admin-login',
+    manager: 'sg.akk.hub.manager-login',
+    supervisor: 'sg.akk.hub.supervisor-login',
+    exporter: 'sg.akk.hub.exporter-login',
+};
+const portalPrefsKey = (role) => `akk.hub.biometricLogin.${role}`;
+const portalDeclinedKey = (role) => `akk.hub.biometricOfferDeclined.${role}`;
+
 /** After this many failed matches in one prompt, only the password fallback is offered. */
 export const MAX_BIOMETRIC_ATTEMPTS = 3;
 
 /** @typedef {'face' | 'fingerprint'} BiometricMode */
+
+export const PORTAL_BIOMETRIC_ROLES = /** @type {const} */ (['admin', 'manager', 'supervisor', 'exporter']);
+
+function assertPortalRole(role) {
+    if (!PORTAL_CREDENTIAL_SERVER[role]) {
+        throw new Error(`Unknown biometric portal role: ${role}`);
+    }
+    return role;
+}
 
 const isIOS = () => Capacitor.getPlatform() === 'ios';
 
@@ -401,4 +424,150 @@ export async function clearFaceLoginDevice() {
     } catch {
         /* ignore */
     }
+}
+
+// ---------------------------------------------------------------------------
+// Portal roles (admin / manager / supervisor / export-only)
+// Same rules as workers: biometrics only unlock a credential stored after a
+// successful password login. Separate Keychain items per role.
+// ---------------------------------------------------------------------------
+
+/**
+ * @returns {{ enabled: boolean, mode: BiometricMode, loginId: string, displayName: string }}
+ */
+export function getPortalBiometricPrefs(role) {
+    assertPortalRole(role);
+    try {
+        const raw = JSON.parse(localStorage.getItem(portalPrefsKey(role)) || 'null');
+        if (raw && raw.enabled && raw.loginId) {
+            return {
+                enabled: true,
+                mode: raw.mode === 'face' ? 'face' : 'fingerprint',
+                loginId: String(raw.loginId),
+                displayName: raw.displayName || '',
+            };
+        }
+    } catch {
+        /* ignore */
+    }
+    return { enabled: false, mode: 'fingerprint', loginId: '', displayName: '' };
+}
+
+function savePortalPrefs(role, prefs) {
+    try {
+        localStorage.setItem(portalPrefsKey(role), JSON.stringify(prefs));
+    } catch {
+        /* ignore */
+    }
+}
+
+export function setPortalBiometricMode(role, mode) {
+    const prefs = getPortalBiometricPrefs(role);
+    if (prefs.enabled) savePortalPrefs(role, { ...prefs, mode });
+}
+
+export function shouldOfferPortalBiometric(role, loginId) {
+    assertPortalRole(role);
+    try {
+        const declined = JSON.parse(localStorage.getItem(portalDeclinedKey(role)) || '[]');
+        return !declined.includes(String(loginId));
+    } catch {
+        return true;
+    }
+}
+
+export function markPortalBiometricOfferDeclined(role, loginId) {
+    assertPortalRole(role);
+    try {
+        const declined = new Set(JSON.parse(localStorage.getItem(portalDeclinedKey(role)) || '[]'));
+        declined.add(String(loginId));
+        localStorage.setItem(portalDeclinedKey(role), JSON.stringify([...declined]));
+    } catch {
+        /* ignore */
+    }
+}
+
+function clearPortalDeclined(role, loginId) {
+    try {
+        const declined = JSON.parse(localStorage.getItem(portalDeclinedKey(role)) || '[]');
+        localStorage.setItem(
+            portalDeclinedKey(role),
+            JSON.stringify(declined.filter((id) => id !== String(loginId))),
+        );
+    } catch {
+        /* ignore */
+    }
+}
+
+/**
+ * Store a portal credential behind biometrics. Call only after a successful password login.
+ * @param {{ role: PortalBiometricRole, loginId: string, displayName?: string, password: string, mode: BiometricMode }} opts
+ */
+export async function enablePortalBiometricLogin({ role, loginId, displayName, password, mode }) {
+    const r = assertPortalRole(role);
+    try {
+        await NativeBiometric.setCredentials({
+            server: PORTAL_CREDENTIAL_SERVER[r],
+            username: JSON.stringify({ loginId: String(loginId) }),
+            password,
+            accessControl: AccessControl.BIOMETRY_CURRENT_SET,
+            title: 'Turn on biometric login',
+            negativeButtonText: 'Cancel',
+        });
+    } catch (error) {
+        throw normalizeBiometricError(error);
+    }
+    savePortalPrefs(r, {
+        enabled: true,
+        mode,
+        loginId: String(loginId),
+        displayName: displayName || '',
+    });
+    clearPortalDeclined(r, loginId);
+}
+
+/**
+ * @returns {Promise<{ loginId: string, password: string }>}
+ */
+export async function unlockPortalBiometricCredential({ role, mode }) {
+    const r = assertPortalRole(role);
+    let creds;
+    try {
+        creds = await NativeBiometric.getSecureCredentials({
+            server: PORTAL_CREDENTIAL_SERVER[r],
+            reason: 'Log in to AKK Hub',
+            title: mode === 'face' ? 'Log in with Face ID' : 'Log in with fingerprint',
+            subtitle: 'AKK Hub',
+            negativeButtonText: 'Cancel',
+        });
+    } catch (error) {
+        const normalized = normalizeBiometricError(error);
+        if (normalized.code === 'invalidated') await disablePortalBiometricLogin(r, { keepDeclined: true });
+        throw normalized;
+    }
+
+    try {
+        const { loginId } = JSON.parse(creds.username);
+        if (!loginId) throw new Error('missing loginId');
+        return { loginId: String(loginId), password: creds.password };
+    } catch {
+        await disablePortalBiometricLogin(r, { keepDeclined: true });
+        throw { biometric: true, code: 'invalidated' };
+    }
+}
+
+export async function disablePortalBiometricLogin(role, { keepDeclined = false } = {}) {
+    const r = assertPortalRole(role);
+    const { loginId } = getPortalBiometricPrefs(r);
+    try {
+        await NativeBiometric.deleteCredentials({ server: PORTAL_CREDENTIAL_SERVER[r] });
+    } catch {
+        /* nothing stored */
+    }
+    try {
+        localStorage.removeItem(portalPrefsKey(r));
+    } catch {
+        /* ignore */
+    }
+    if (!keepDeclined && loginId) clearPortalDeclined(r, loginId);
 }

@@ -1,27 +1,45 @@
 /**
- * Website home — product landing for any browser (phone or desktop). No tab bar.
- *   nav · hero with the "Sign in to…" glass panel (4 portals) · the three systems ·
- *   Verify-a-photo band · footer.
- * The app (Capacitor / ?app=1) uses AppHome instead.
+ * Website home — compact signed-out landing (any browser). No tab bar.
+ * Four portal cards + Verify a photo. App (Capacitor / ?app=1) uses AppHome.
+ *
+ * Portal clicks: selection highlight → exit → navigate. Login routes reveal via
+ * LoginForm `lx-stage--from-home` (session flag). Verify uses a lighter soft exit.
+ * Reduced motion → instant navigate. No fake screens.
  */
-import { Link } from 'react-router-dom';
-import {
-    ArrowRight,
-    BadgeCheck,
-    Boxes,
-    Building2,
-    Camera,
-    Check,
-    ChevronRight,
-    Clock,
-    QrCode,
-    Shield,
-    ShieldCheck,
-    Smartphone,
-    Users,
-} from 'lucide-react';
+import { useCallback, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Building2, ChevronRight, Clock, Shield, ShieldCheck, Users } from 'lucide-react';
 import LanguageSwitcher from '@/core-i18n/LanguageSwitcher';
 import { paths } from '@/app/paths';
+import { prefetchModulePage } from '@/app/modulePage';
+
+/** Phase 1 highlight, then Phase 2 exit — total ≤ ~360ms before navigate. */
+const SELECT_MS = 120;
+const PORTAL_EXIT_MS = 220;
+const VERIFY_EXIT_MS = 140;
+
+const FROM_HOME_KEY = 'akk-from-home';
+
+/** Warm the next route chunk during hover / exit so Suspense doesn’t flash after navigate. */
+function prefetchDest(to) {
+    if (to === paths.verify || to.startsWith(`${paths.verify}?`)) {
+        prefetchModulePage('progress', 'PhotoVerification');
+        return;
+    }
+    if (to.includes('/progress/client/login')) {
+        void import('@/pages/login/ClientLogin');
+        return;
+    }
+    void import('@/pages/login/LoginPage');
+}
+
+function markFromHome(kind) {
+    try {
+        sessionStorage.setItem(FROM_HOME_KEY, kind);
+    } catch {
+        /* private mode / blocked storage */
+    }
+}
 
 const PORTALS = [
     {
@@ -30,7 +48,6 @@ const PORTALS = [
         icon: Clock,
         title: 'Employees',
         hint: 'Clock in, leave, payslips, materials and site photos',
-        primary: true,
     },
     {
         key: 'manager',
@@ -59,191 +76,140 @@ const PORTALS = [
     },
 ];
 
-const SYSTEMS = [
-    {
-        key: 'timesheet',
-        icon: Clock,
-        name: 'Attendance',
-        text: 'Attendance that proves itself — no paper, no guesswork.',
-        points: ['Clock in and out by site QR with a GPS check', 'Leave requests, balances and approvals', 'Payslips with CPF / SINDA worked out'],
-    },
-    {
-        key: 'materials',
-        tone: 'materials',
-        icon: Boxes,
-        name: 'Materials',
-        text: 'Every item taken and returned, with a reference number.',
-        points: ['Take and return requests from the phone', 'Partial returns tracked to the piece', 'Stock, sites and requesters in one place'],
-    },
-    {
-        key: 'progress',
-        tone: 'progress',
-        icon: Camera,
-        name: 'Site work',
-        text: 'Before, during and after photos that become the report.',
-        points: ['Stamped photos with time, place and GPS', 'Review, approve and print site packages', 'JSRs, claims and invoices for clients'],
-    },
-];
+function prefersReducedMotion() {
+    return typeof window !== 'undefined'
+        && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+}
 
-function PortalRow({ to, icon: Icon, title, hint, tag, tone, primary, delay }) {
+/** Left-click only; keep modified / middle clicks as normal Link behavior. */
+function isPlainLeftClick(e) {
+    return e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey;
+}
+
+function PortalCard({ to, icon: Icon, title, hint, tag, tone, onNavigate }) {
     return (
-        <Link to={to} className={`hx-portal ${primary ? 'hx-portal--primary' : ''} hx-in hx-in-${delay}`} data-tone={tone}>
-            <span className="hx-portal__icon">
-                <Icon strokeWidth={1.9} aria-hidden />
+        <Link
+            to={to}
+            className="hx-card"
+            data-tone={tone}
+            onClick={onNavigate(to)}
+            onPointerEnter={() => prefetchDest(to)}
+            onFocus={() => prefetchDest(to)}
+        >
+            <span className="hx-card__icon">
+                <Icon strokeWidth={1.85} aria-hidden />
             </span>
-            <span className="hx-portal__body">
-                <span className="hx-portal__title">
+            <span className="hx-card__body">
+                <span className="hx-card__title">
                     {title}
-                    {tag ? <span className="hx-portal__tag">{tag}</span> : null}
+                    {tag ? <span className="hx-card__tag">{tag}</span> : null}
                 </span>
-                <span className="hx-portal__hint block">{hint}</span>
+                <span className="hx-card__hint">{hint}</span>
             </span>
-            <ChevronRight className="hx-portal__go" aria-hidden />
+            <ChevronRight className="hx-card__go" aria-hidden />
         </Link>
     );
 }
 
 export default function WebHome() {
+    const navigate = useNavigate();
+    const rootRef = useRef(null);
+    const leavingRef = useRef(false);
+    const timerRef = useRef(0);
+
+    useEffect(() => () => {
+        if (timerRef.current) window.clearTimeout(timerRef.current);
+    }, []);
+
+    const leaveTo = useCallback((to, { soft = false } = {}) => (e) => {
+        if (!isPlainLeftClick(e)) return;
+        e.preventDefault();
+        if (leavingRef.current) return;
+
+        if (prefersReducedMotion()) {
+            navigate(to);
+            return;
+        }
+
+        leavingRef.current = true;
+        prefetchDest(to);
+
+        const card = e.currentTarget;
+        if (!soft && card) card.classList.add('is-selected');
+
+        const selectMs = soft ? 0 : SELECT_MS;
+        const exitMs = soft ? VERIFY_EXIT_MS : PORTAL_EXIT_MS;
+        const root = rootRef.current;
+
+        timerRef.current = window.setTimeout(() => {
+            root?.classList.add(soft ? 'is-leaving-soft' : 'is-leaving');
+            markFromHome(soft ? 'verify' : 'login');
+            timerRef.current = window.setTimeout(() => {
+                navigate(to);
+            }, exitMs);
+        }, selectMs);
+    }, [navigate]);
+
     return (
-        <div className="hx">
-            <div className="hx__ambient" aria-hidden="true" />
+        <div className="hx" ref={rootRef}>
+            <div className="hx-atmos" aria-hidden />
 
             <header className="hx-nav">
                 <div className="hx__wrap hx-nav__bar">
                     <Link to="/" className="hx-brand" aria-label="AKK Hub home">
                         <img src="/Akk-logo.png" alt="" className="hx-brand__mark" />
-                        <span>
-                            <span className="hx-brand__name block">AKK Hub</span>
-                            <span className="hx-brand__sub block">AKK Engineering</span>
-                        </span>
+                        <span className="hx-brand__name">AKK Hub</span>
                     </Link>
-                    <nav className="hx-nav__links" aria-label="Site">
-                        <a href="#systems" className="hx-nav__link">
-                            What’s inside
-                        </a>
-                        <Link to={paths.verify} className="hx-nav__link">
-                            <ShieldCheck className="h-4 w-4" aria-hidden /> Verify a photo
-                        </Link>
-                    </nav>
                     <div className="hx-nav__end">
-                        <div className="hx-nav__lang">
-                            <LanguageSwitcher />
-                        </div>
-                        <Link to={`${paths.login}?role=employee`} className="hx-btn hx-btn--primary hx-btn--sm">
-                            Sign in
-                        </Link>
+                        <LanguageSwitcher />
                     </div>
                 </div>
             </header>
 
-            <main className="relative z-[1] flex-1">
-                <section className="hx__wrap hx-hero">
-                    <div className="hx-in">
-                        <span className="hx-eyebrow">
-                            <span className="hx-eyebrow__dot" aria-hidden /> AKK Engineering Pte. Ltd.
-                        </span>
-                        <h1 className="hx-title">
-                            Every site, every shift — <em>one sign-in.</em>
-                        </h1>
-                        <p className="hx-lede">
-                            One app for the whole team. Clock in at the site,
-                            request what you need, and send photos that turn into the client’s report.
-                        </p>
-                        <div className="hx-actions">
-                            <Link to={`${paths.login}?role=employee`} className="hx-btn hx-btn--primary">
-                                Employee sign in <ArrowRight aria-hidden />
-                            </Link>
-                            <Link to={paths.verify} className="hx-btn hx-btn--ghost">
-                                <ShieldCheck aria-hidden /> Verify a photo
-                            </Link>
-                        </div>
-                        <div className="hx-proof">
-                            <span>
-                                <QrCode aria-hidden /> QR + GPS clock-in
-                            </span>
-                            <span>
-                                <BadgeCheck aria-hidden /> Tamper-evident photos
-                            </span>
-                            <span>
-                                <Check aria-hidden /> Approvals in one inbox
-                            </span>
-                        </div>
-                        <div className="hx-lang-m">
-                            <LanguageSwitcher />
+            <main className="hx__wrap hx-main">
+                <section className="hx-intro hx-in" aria-labelledby="hx-heading">
+                    <div className="hx-hero">
+                        <img src="/Akk-logo.png" alt="" className="hx-hero__mark" />
+                        <div className="hx-hero__text">
+                            <h1 id="hx-heading" className="hx-hero__name">
+                                AKK Hub
+                            </h1>
+                            <p className="hx-hero__line">Built for AKK Engineering sites</p>
                         </div>
                     </div>
-
-                    <div className="hx-panel hx-in hx-in-1" aria-labelledby="hx-signin">
-                        <div className="hx-panel__head">
-                            <h2 id="hx-signin" className="hx-panel__title">
-                                Sign in to…
-                            </h2>
-                            <span className="hx-panel__hint">Pick your portal</span>
-                        </div>
-                        <div className="hx-portals">
-                            {PORTALS.map(({ key, ...p }, i) => (
-                                <PortalRow key={key} {...p} delay={Math.min(i + 1, 3)} />
-                            ))}
-                        </div>
-                        <p className="hx-panel__foot">
-                            <Smartphone aria-hidden />
-                            On your phone? The AKK Hub app adds Face ID and fingerprint sign-in.
-                        </p>
-                    </div>
+                    <p className="hx-title">Sign in</p>
+                    <p className="hx-lede">
+                        Choose your portal to clock in, manage the site, or export client reports.
+                    </p>
                 </section>
 
-                <section id="systems" className="hx__wrap hx-section" aria-labelledby="hx-systems-title">
-                    <p className="hx-section__eyebrow">What’s inside</p>
-                    <h2 id="hx-systems-title" className="hx-section__title">
-                        One app for the whole job — from clock-in to client report.
-                    </h2>
-                    <div className="hx-systems">
-                        {SYSTEMS.map(({ key, tone, icon: Icon, name, text, points }) => (
-                            <article key={key} className="hx-system" data-tone={tone}>
-                                <span className="hx-system__icon">
-                                    <Icon strokeWidth={1.9} aria-hidden />
-                                </span>
-                                <h3 className="hx-system__name">{name}</h3>
-                                <p className="hx-system__text">{text}</p>
-                                <ul className="hx-system__list">
-                                    {points.map((point) => (
-                                        <li key={point}>
-                                            <Check aria-hidden />
-                                            <span>{point}</span>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </article>
-                        ))}
-                    </div>
-                </section>
+                <nav className="hx-grid hx-in hx-in-1" aria-label="Sign in">
+                    {PORTALS.map((p) => (
+                        <PortalCard key={p.key} {...p} onNavigate={leaveTo} />
+                    ))}
+                </nav>
 
-                <section className="hx__wrap pb-12" aria-labelledby="hx-verify-title">
-                    <div className="hx-verify">
-                        <span className="hx-verify__icon">
-                            <ShieldCheck aria-hidden />
-                        </span>
-                        <div>
-                            <h2 id="hx-verify-title" className="hx-verify__title">
-                                Got an AKK site photo? Check it’s genuine.
-                            </h2>
-                            <p className="hx-verify__text">
-                                Upload one photo or a whole set. We read the code stamped on each photo and compare it with the
-                                original. No login needed.
-                            </p>
-                        </div>
-                        <Link to={paths.verify} className="hx-btn hx-btn--light">
-                            Verify photos <ArrowRight aria-hidden />
-                        </Link>
-                    </div>
-                </section>
+                <Link
+                    to={paths.verify}
+                    className="hx-verify hx-in hx-in-2"
+                    onClick={leaveTo(paths.verify, { soft: true })}
+                    onPointerEnter={() => prefetchDest(paths.verify)}
+                    onFocus={() => prefetchDest(paths.verify)}
+                >
+                    <span className="hx-verify__icon">
+                        <ShieldCheck strokeWidth={1.85} aria-hidden />
+                    </span>
+                    <span className="hx-verify__body">
+                        <span className="hx-verify__title">Verify a photo</span>
+                        <span className="hx-verify__hint">Check an AKK site photo is genuine — no login needed</span>
+                    </span>
+                    <ChevronRight className="hx-verify__go" aria-hidden />
+                </Link>
             </main>
 
             <footer className="hx-foot">
                 <div className="hx__wrap hx-foot__row">
-                    <span>
-                        © {new Date().getFullYear()} AKK ENGINEERING PTE. LTD. · 15 Kaki Bukit Rd 4, #01-50, Singapore 417808
-                    </span>
+                    <span>© {new Date().getFullYear()} AKK ENGINEERING PTE. LTD.</span>
                     <Link to={paths.privacy}>Privacy notice</Link>
                 </div>
             </footer>

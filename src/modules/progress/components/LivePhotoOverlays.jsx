@@ -82,7 +82,7 @@ function PreviewGrid() {
 }
 
 /**
- * Logo, overlay wording, GPS, and barcode as they appear on a captured photo.
+ * Logo, details overlay (incl. GPS), and barcode as they appear on a captured photo.
  * Drawn with the same canvas functions as JPEG burn-in. Admin preview sets
  * interactive to drag/resize; the worker viewfinder does not. Gridlines are
  * CSS-only and never burned into JPEGs.
@@ -270,15 +270,6 @@ export default function LivePhotoOverlays({
                 dragBind={dragBind}
               />
             </div>
-          )}
-
-          {layout?.gps && (
-            <div
-              style={hitboxStyle(boxes?.gps, backing.width, backing.height)}
-              className={cn(unitClass, 'outline outline-1 outline-white/40')}
-              onPointerDown={startMove('gps_x_pct', 'gps_y_pct', branding.gps_x_pct, branding.gps_y_pct)}
-              {...dragBind}
-            />
           )}
 
           {verificationCode ? (

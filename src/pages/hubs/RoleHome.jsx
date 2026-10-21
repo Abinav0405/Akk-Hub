@@ -139,10 +139,10 @@ export default function RoleHome() {
                     ) : null
                 }
             />
-            <main className="g-main g-main--role-home hh">
+            <main className="g-main g-main--role-home hh" data-role={role || undefined}>
                 <ApprovalsInbox />
                 {role !== 'supervisor' ? <FinishSetup role={role} /> : null}
-                <section aria-labelledby="hh-work">
+                <section aria-labelledby="hh-work" className="hh-work">
                     <h2 id="hh-work" className="g-section-label">
                         Your work
                     </h2>

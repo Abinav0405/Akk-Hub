@@ -23,13 +23,13 @@ export function AdminFieldLabel({ children }) {
 
 const TONES = {
     slate: 'bg-slate-100 text-slate-700',
-    sky: 'bg-sky-100 text-sky-700',
-    emerald: 'bg-emerald-100 text-emerald-700',
-    violet: 'bg-violet-100 text-violet-700',
-    teal: 'bg-teal-100 text-teal-700',
-    indigo: 'bg-brand-soft text-brand',
-    amber: 'bg-amber-100 text-amber-800',
-    rose: 'bg-rose-100 text-rose-700',
+    sky: 'bg-[var(--g-brand-soft)] text-[var(--g-brand-text)]',
+    emerald: 'bg-[var(--g-success-soft,rgb(4_120_87/0.1))] text-[var(--g-success,#047857)]',
+    violet: 'bg-[var(--g-brand-soft)] text-[var(--g-brand-text)]',
+    teal: 'bg-[var(--g-tone-progress-soft)] text-[var(--g-tone-progress)]',
+    indigo: 'bg-[var(--g-brand-soft)] text-[var(--g-brand)]',
+    amber: 'bg-[var(--g-warning-soft,rgb(180_83_9/0.1))] text-[var(--g-warning,#b45309)]',
+    rose: 'bg-[var(--g-danger-soft,rgb(185_28_28/0.08))] text-[var(--g-danger,#b91c1c)]',
 };
 
 export function AdminToneIcon({ icon: Icon, tone = 'indigo', className }) {
@@ -37,6 +37,26 @@ export function AdminToneIcon({ icon: Icon, tone = 'indigo', className }) {
         <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl', TONES[tone] || TONES.indigo, className)}>
             <Icon className="h-4 w-4" />
         </span>
+    );
+}
+
+/** Consistent section title + brand icon chip (admin / manager / supervisor panels). */
+export function ModuleSectionHead({ icon: Icon, title, lede, actions, className }) {
+    return (
+        <div className={cn('mb-4 flex flex-wrap items-end justify-between gap-3', className)}>
+            <div className="min-w-0">
+                <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-[var(--g-ink)]">
+                    {Icon ? (
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[var(--g-brand-soft)] text-[var(--g-brand)]">
+                            <Icon className="h-4 w-4" aria-hidden />
+                        </span>
+                    ) : null}
+                    {title}
+                </h2>
+                {lede ? <p className="mt-0.5 text-xs text-[var(--g-muted)]">{lede}</p> : null}
+            </div>
+            {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
+        </div>
     );
 }
 

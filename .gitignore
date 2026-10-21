@@ -9,6 +9,7 @@ dist-ssr/
 .env
 .env.*
 !.env.example
+!.env.migration.example
 .env.qa.local
 .envrc
 fcm-secrets.env
@@ -66,3 +67,6 @@ $RECYCLE.BIN/
 *.log
 .claude/
 .cursor/
+
+# Migration tool output (snapshots, account map — contains staff e-mails)
+migration/tool/out/

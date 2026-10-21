@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronDown, ChevronUp, Loader2, MapPin, Palette, Trash2, Upload } from 'lucide-react';
+import { ChevronDown, ChevronUp, Loader2, Trash2, Upload } from 'lucide-react';
 import { Card } from '@/ui/card';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
 import { Label } from '@/ui/label';
 import { Textarea } from '@/ui/textarea';
 import LivePhotoOverlays from '@/modules/progress/components/LivePhotoOverlays';
-import SitesPanel from '@/modules/progress/components/SitesPanel';
-import PackageSuggestionsPanel from '@/modules/progress/components/PackageSuggestionsPanel';
 import {
   DEFAULT_BRANDING,
   PREVIEW_VERIFY_CODE,
@@ -16,6 +14,8 @@ import {
   LOGO_SIZE_MAX,
   OVERLAY_SCALE_MIN,
   OVERLAY_SCALE_MAX,
+  OVERLAY_OPACITY_MIN,
+  OVERLAY_OPACITY_MAX,
   VERIFY_SCALE_MIN,
   VERIFY_SCALE_MAX,
   brandingLogoUrl,
@@ -25,8 +25,6 @@ import {
   removeCompanyLogoFile,
   invalidateBrandingCache,
   pctToCell,
-  cellToPct,
-  hasOwnGpsPosition,
 } from '@/modules/progress/lib/branding';
 import { DEFAULT_DOCUMENT_CHROME, normalizeDocumentChrome } from '@/modules/progress/lib/documentChrome';
 import {
@@ -41,15 +39,9 @@ import { isNativeApp } from '@/core/platform';
 import { cn } from '@/modules/progress/lib/utils';
 import StaffPanelIntro from '@/modules/progress/components/StaffPanelIntro';
 
-const SETTINGS_SECTIONS = [
-  { id: 'sites', label: 'Sites', icon: MapPin },
-  { id: 'branding', label: 'Branding', icon: Palette },
-];
-
 export default function BrandingPanel() {
   const native = isNativeApp();
   const fileRef = useRef(null);
-  const [section, setSection] = useState('sites');
   const [branding, setBranding] = useState(null);
   const [companyName, setCompanyName] = useState(DEFAULT_BRANDING.company_name);
   const [companyAddress, setCompanyAddress] = useState(DEFAULT_BRANDING.company_address);
@@ -60,10 +52,8 @@ export default function BrandingPanel() {
   const [overlayX, setOverlayX] = useState(DEFAULT_BRANDING.overlay_x_pct);
   const [overlayY, setOverlayY] = useState(DEFAULT_BRANDING.overlay_y_pct);
   const [overlayScale, setOverlayScale] = useState(DEFAULT_BRANDING.overlay_scale_pct);
+  const [overlayOpacity, setOverlayOpacity] = useState(DEFAULT_BRANDING.overlay_opacity_pct);
   const [lineRows, setLineRows] = useState(() => overlayEditorLines(DEFAULT_BRANDING.overlay_lines));
-  const [gpsSeparate, setGpsSeparate] = useState(false);
-  const [gpsX, setGpsX] = useState(62);
-  const [gpsY, setGpsY] = useState(86);
   const [verifyX, setVerifyX] = useState(DEFAULT_BRANDING.verify_x_pct);
   const [verifyY, setVerifyY] = useState(DEFAULT_BRANDING.verify_y_pct);
   const [verifyScale, setVerifyScale] = useState(DEFAULT_BRANDING.verify_scale_pct);
@@ -83,17 +73,8 @@ export default function BrandingPanel() {
     setOverlayX(row.overlay_x_pct);
     setOverlayY(row.overlay_y_pct);
     setOverlayScale(row.overlay_scale_pct);
+    setOverlayOpacity(row.overlay_opacity_pct ?? DEFAULT_BRANDING.overlay_opacity_pct);
     setLineRows(overlayEditorLines(row.overlay_lines));
-    const ownGps = hasOwnGpsPosition(row);
-    setGpsSeparate(ownGps);
-    if (ownGps) {
-      setGpsX(row.gps_x_pct);
-      setGpsY(row.gps_y_pct);
-    } else if (row.gps_position) {
-      const mapped = cellToPct(row.gps_position, [62, 86]);
-      setGpsX(mapped[0]);
-      setGpsY(mapped[1]);
-    }
     setVerifyX(row.verify_x_pct);
     setVerifyY(row.verify_y_pct);
     setVerifyScale(row.verify_scale_pct);
@@ -115,7 +96,6 @@ export default function BrandingPanel() {
   useEffect(load, []);
 
   const overlayLines = lineRows.filter((row) => row.on).map((row) => row.id);
-  const gpsEnabled = lineRows.some((row) => row.id === 'gps' && row.on);
   const previewBranding = {
     ...(branding || DEFAULT_BRANDING),
     company_name: companyName,
@@ -125,14 +105,15 @@ export default function BrandingPanel() {
     logo_position: pctToCell(logoX, logoY),
     overlay_position: pctToCell(overlayX, overlayY),
     overlay_lines: overlayLines,
-    gps_position: gpsSeparate && gpsEnabled ? pctToCell(gpsX, gpsY) : null,
+    gps_position: null,
     logo_x_pct: logoX,
     logo_y_pct: logoY,
     overlay_x_pct: overlayX,
     overlay_y_pct: overlayY,
     overlay_scale_pct: overlayScale,
-    gps_x_pct: gpsSeparate && gpsEnabled ? gpsX : null,
-    gps_y_pct: gpsSeparate && gpsEnabled ? gpsY : null,
+    overlay_opacity_pct: overlayOpacity,
+    gps_x_pct: null,
+    gps_y_pct: null,
     verify_x_pct: verifyX,
     verify_y_pct: verifyY,
     verify_scale_pct: verifyScale,
@@ -158,8 +139,6 @@ export default function BrandingPanel() {
     if (patch.overlay_x_pct != null) setOverlayX(patch.overlay_x_pct);
     if (patch.overlay_y_pct != null) setOverlayY(patch.overlay_y_pct);
     if (patch.overlay_scale_pct != null) setOverlayScale(patch.overlay_scale_pct);
-    if (patch.gps_x_pct != null) setGpsX(patch.gps_x_pct);
-    if (patch.gps_y_pct != null) setGpsY(patch.gps_y_pct);
     if (patch.verify_x_pct != null) setVerifyX(patch.verify_x_pct);
     if (patch.verify_y_pct != null) setVerifyY(patch.verify_y_pct);
     if (patch.verify_scale_pct != null) setVerifyScale(patch.verify_scale_pct);
@@ -171,8 +150,6 @@ export default function BrandingPanel() {
     try {
       const path = next.logoPath !== undefined ? next.logoPath : logoPath;
       const nextLines = next.overlayLines ?? overlayLines;
-      const nextGpsSeparate = next.gpsSeparate ?? gpsSeparate;
-      const ownGps = nextGpsSeparate && nextLines.includes('gps');
       await staffUpdateCompanyBranding({
         companyName: next.companyName ?? companyName,
         companyAddress: next.companyAddress ?? companyAddress,
@@ -182,14 +159,15 @@ export default function BrandingPanel() {
         logoPosition: pctToCell(next.logoX ?? logoX, next.logoY ?? logoY),
         overlayPosition: pctToCell(next.overlayX ?? overlayX, next.overlayY ?? overlayY),
         overlayLines: nextLines,
-        gpsPosition: ownGps ? pctToCell(next.gpsX ?? gpsX, next.gpsY ?? gpsY) : null,
+        gpsPosition: null,
         logoXPct: next.logoX ?? logoX,
         logoYPct: next.logoY ?? logoY,
         overlayXPct: next.overlayX ?? overlayX,
         overlayYPct: next.overlayY ?? overlayY,
         overlayScalePct: next.overlayScale ?? overlayScale,
-        gpsXPct: ownGps ? (next.gpsX ?? gpsX) : null,
-        gpsYPct: ownGps ? (next.gpsY ?? gpsY) : null,
+        overlayOpacityPct: next.overlayOpacity ?? overlayOpacity,
+        gpsXPct: null,
+        gpsYPct: null,
         verifyXPct: next.verifyX ?? verifyX,
         verifyYPct: next.verifyY ?? verifyY,
         verifyScalePct: next.verifyScale ?? verifyScale,
@@ -252,51 +230,21 @@ export default function BrandingPanel() {
   return (
     <div className="space-y-5">
       <StaffPanelIntro
-        title="Branding & settings"
-        description="Manage sites technicians pick on packages, plus logo stamps and document letterheads."
+        title="Branding"
+        description="Logo stamps on photos and letterheads on printed packages and reports."
       />
 
-      <div className="flex flex-wrap gap-1 rounded-xl border border-border bg-white p-1">
-        {SETTINGS_SECTIONS.map((item) => {
-          const Icon = item.icon;
-          const active = section === item.id;
-          return (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => setSection(item.id)}
-              className={cn(
-                'inline-flex min-h-10 flex-1 items-center justify-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors sm:flex-none sm:px-4',
-                active ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {item.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {section === 'sites' ? (
-        <div className="space-y-5">
-          <SitesPanel embedded />
-          <div id="site-descriptions" className="scroll-mt-24">
-            <PackageSuggestionsPanel />
-          </div>
-        </div>
-      ) : null}
-
-      {section === 'branding' && !branding ? (
+      {!branding ? (
         <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" /> Loading branding…
         </div>
       ) : null}
 
-      {section === 'branding' && branding ? (
+      {branding ? (
       <>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="space-y-4 p-5">
-          <h3 className="text-sm font-semibold text-slate-900">Logo + company name</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Logo</h3>
           <div className="space-y-2">
             <Label htmlFor="brand-company">Company name</Label>
             <Input
@@ -305,7 +253,7 @@ export default function BrandingPanel() {
               onChange={(e) => setCompanyName(e.target.value)}
               disabled={busy}
             />
-            <p className="text-xs text-muted-foreground">Printed next to the logo on photos and on PDF/Excel letterheads.</p>
+            <p className="text-xs text-muted-foreground">Used on PDF/Excel letterheads. Photos stamp the logo only — not this name.</p>
           </div>
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-xl border border-border bg-slate-50">
@@ -389,7 +337,7 @@ export default function BrandingPanel() {
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Drag logo+name, details, GPS, and the barcode. Corner handles resize. Gridlines are a guide only — they are not burned into photos. Click Save branding to keep placements after refresh.
+            Drag logo, details (date, address, GPS), and the barcode. Corner handles resize. Gridlines are a guide only — they are not burned into photos. Click Save branding to keep placements after refresh.
           </p>
         </Card>
       </div>
@@ -398,7 +346,7 @@ export default function BrandingPanel() {
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Overlay wording</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Timestamp, site, section, status, address, and GPS. Toggle a line or move it up or down. Drag the dark block on the preview to place it.
+            Timestamp, site, section, status, address, and GPS (±accuracy) share one dark details box. Toggle a line or move it up or down. Drag the block on the preview to place it.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -415,22 +363,16 @@ export default function BrandingPanel() {
             <p className="text-xs text-muted-foreground">Scales the dark block’s font and padding together.</p>
           </div>
           <div className="space-y-2">
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                className="h-4 w-4 accent-brand"
-                checked={gpsSeparate && gpsEnabled}
-                disabled={busy || !gpsEnabled}
-                onChange={(e) => setGpsSeparate(e.target.checked)}
-              />
-              Place GPS in its own position
-            </label>
-            {!gpsEnabled && (
-              <p className="text-xs text-muted-foreground">Turn GPS back on in the line list to place it separately.</p>
-            )}
-            {gpsSeparate && gpsEnabled && (
-              <p className="text-xs text-muted-foreground">Drag the GPS chip on the preview. Its origin stays put when accuracy text changes.</p>
-            )}
+            <Label>Details box opacity: {overlayOpacity}%</Label>
+            <input
+              type="range"
+              min={OVERLAY_OPACITY_MIN}
+              max={OVERLAY_OPACITY_MAX}
+              value={overlayOpacity}
+              onChange={(e) => setOverlayOpacity(Number(e.target.value))}
+              className="w-full accent-brand"
+            />
+            <p className="text-xs text-muted-foreground">Transparency of the black pad behind date, address, and GPS.</p>
           </div>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

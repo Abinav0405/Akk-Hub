@@ -21,6 +21,8 @@ export const paths = {
         admin: '/admin',
     },
 
+    adminSites: '/admin/sites',
+
     timesheet: {
         clock: '/timesheet/clock',
         shifts: '/timesheet/shifts',
@@ -109,7 +111,8 @@ const LEGACY = {
 };
 
 /** Ambiguous names — resolved by the signed-in role. */
-const ROLE_HOME = { AdminDashboard: '/admin', ManagerDashboard: '/manage' };
+/** In-module "back to dashboard" targets (not the hub role home). */
+const ROLE_HOME = { AdminDashboard: '/timesheet/admin', ManagerDashboard: '/timesheet/manage' };
 
 export function legacyPath(nameOrPath) {
     if (!nameOrPath) return '/';

@@ -1,0 +1,22 @@
+# AKK Hub edge functions (project rvejqoxmvcemeebywpzx). Each area's functions carry a prefix.
+project_id = "rvejqoxmvcemeebywpzx"
+
+[functions.att-register-device-token]
+verify_jwt = false
+[functions.att-fcm-db-webhook]
+verify_jwt = false
+[functions.att-leave-reminder]
+verify_jwt = false
+[functions.mat-register-device-token]
+verify_jwt = false
+[functions.mat-fcm-db-webhook]
+verify_jwt = false
+[functions.mat-manage-staff]
+verify_jwt = false
+[functions.prg-register-device-token]
+verify_jwt = false
+[functions.prg-fcm-db-webhook]
+verify_jwt = false
+
+[functions.prg-push-send]
+verify_jwt = false

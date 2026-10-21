@@ -430,7 +430,7 @@ export default function RequestHistory() {
                                                                         : material.return_declined
                                                                         ? 'text-red-600'
                                                                         : (material.returned_quantity || 0) > 0
-                                                                        ? 'text-orange-600'
+                                                                        ? 'text-slate-800'
                                                                         : 'text-amber-600'
                                                                 }`}>
                                                                     {material.returned

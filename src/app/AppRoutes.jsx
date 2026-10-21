@@ -22,6 +22,7 @@ const QuickLogin = lazy(() => import('@/pages/login/QuickLogin'));
 const RoleHome = lazy(() => import('@/pages/hubs/RoleHome'));
 const EmployeeHome = lazy(() => import('@/pages/employee/EmployeeHome'));
 const Account = lazy(() => import('@/pages/Account'));
+const SitesPage = lazy(() => import('@/pages/admin/SitesPage'));
 const Misc = {
     Notifications: lazy(() => import('@/pages/Misc').then((m) => ({ default: m.Notifications }))),
     ConnectPage: lazy(() => import('@/pages/Misc').then((m) => ({ default: m.ConnectPage }))),
@@ -146,6 +147,7 @@ export default function AppRoutes() {
                     <Route path="/site" element={<RequireHubRole roles={['supervisor']}><RoleHome /></RequireHubRole>} />
                     <Route path="/manage" element={<RequireHubRole roles={['manager']}><RoleHome /></RequireHubRole>} />
                     <Route path="/admin" element={<RequireHubRole roles={['admin']}><RoleHome /></RequireHubRole>} />
+                    <Route path="/admin/sites" element={<RequireHubRole roles={['admin']}><SitesPage /></RequireHubRole>} />
                     <Route path="/account" element={<RequireHubRole roles={ALL}><Account /></RequireHubRole>} />
                     <Route path="/notifications" element={<RequireHubRole roles={ALL}><Misc.Notifications /></RequireHubRole>} />
                     <Route path="/connect/:module" element={<RequireHubRole roles={ALL}><Misc.ConnectPage /></RequireHubRole>} />

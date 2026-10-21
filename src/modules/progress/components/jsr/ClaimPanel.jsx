@@ -188,7 +188,7 @@ export default function ClaimPanel({ role, lookups, perms = {} }) {
                   <div className="ml-auto flex w-max max-w-full flex-wrap justify-end">
                     <div className="inline-flex shrink-0 flex-nowrap items-center justify-end gap-1">
                       <Button size="sm" className="h-8 min-h-0 shrink-0 px-3" onClick={() => openDetail(r.id)}>Open</Button>
-                      <Button size="sm" variant="outline" title="Download PDF" className="h-7 min-h-0 shrink-0 gap-1 px-2 text-xs border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900" onClick={() => exportRecord('claim', r.id, 'print')}>
+                      <Button size="sm" variant="outline" title="Download PDF" className="h-7 min-h-0 shrink-0 gap-1 px-2 text-xs border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800" onClick={() => exportRecord('claim', r.id, 'print')}>
                         <FileText className="h-3.5 w-3.5" />
                         PDF
                       </Button>
@@ -263,7 +263,7 @@ export default function ClaimPanel({ role, lookups, perms = {} }) {
                 <Card className="p-3 text-sm">
                   <div className="font-semibold">Invoice {detail.invoice.invoice_no}</div>
                   <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="outline" className="border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900" onClick={() => exportInvoice('claim', detail, 'print')}>Invoice PDF</Button>
+                    <Button size="sm" variant="outline" className="border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800" onClick={() => exportInvoice('claim', detail, 'print')}>Invoice PDF</Button>
                     <Button size="sm" variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900" onClick={() => exportInvoice('claim', detail, 'excel')}>Invoice Excel</Button>
                   </div>
                 </Card>
@@ -294,7 +294,7 @@ export default function ClaimPanel({ role, lookups, perms = {} }) {
                   }}
                 />
                 <div className="flex flex-col gap-2 border-t border-border pt-2 sm:flex-row">
-                  <Button size="sm" variant="outline" className="w-full border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900 sm:w-auto" onClick={() => exportRecord('claim', detail.id, 'print', { record: detail })}>PDF</Button>
+                  <Button size="sm" variant="outline" className="w-full border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800 sm:w-auto" onClick={() => exportRecord('claim', detail.id, 'print', { record: detail })}>PDF</Button>
                   <Button size="sm" variant="outline" className="w-full border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-100 hover:text-emerald-900 sm:w-auto" onClick={() => exportRecord('claim', detail.id, 'excel', { record: detail })}>Excel</Button>
                 </div>
               </DialogFooter>

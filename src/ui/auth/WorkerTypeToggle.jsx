@@ -11,7 +11,11 @@ export default function WorkerTypeToggle({ value, onChange }) {
 
     return (
         <LayoutGroup id="worker-type-toggle">
-            <div className="akk-role-toggle relative mb-3 grid grid-cols-2 rounded-xl bg-slate-100 p-1" role="group" aria-label="Employee type">
+            <div
+                className="akk-role-toggle relative mb-3 grid grid-cols-2 rounded-xl bg-slate-100 p-1"
+                role="radiogroup"
+                aria-label="Employee type"
+            >
                 {[
                     { id: 'foreign', label: 'Foreign', icon: Briefcase },
                     { id: 'local', label: 'Local', icon: User },
@@ -22,10 +26,12 @@ export default function WorkerTypeToggle({ value, onChange }) {
                         <button
                             key={option.id}
                             type="button"
+                            role="radio"
+                            aria-checked={active}
                             aria-pressed={active}
                             onClick={() => select(option.id)}
                             className={cn(
-                                'relative z-10 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
+                                'relative z-10 flex min-h-[42px] items-center justify-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a50f2d]',
                                 active ? 'text-slate-900' : 'text-slate-500 hover:text-slate-800'
                             )}
                         >
@@ -33,11 +39,11 @@ export default function WorkerTypeToggle({ value, onChange }) {
                                 <motion.span
                                     layoutId="akk-worker-type-pill"
                                     className="absolute inset-0 rounded-lg bg-white shadow-sm"
-                                    transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+                                    transition={{ duration: 0.28, ease: [0.32, 0.72, 0, 1] }}
                                 />
                             )}
                             <span className="relative z-10 flex items-center gap-1.5">
-                                <Icon className="h-4 w-4" />
+                                <Icon className="h-4 w-4" aria-hidden />
                                 {option.label}
                             </span>
                         </button>

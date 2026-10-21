@@ -3,6 +3,7 @@
 @import './ui/styles/timesheet-app.css';
 @import './ui/styles/materials-app.css';
 @import './ui/styles/home.css';
+@import './ui/styles/auth-web.css';
 
 @tailwind base;
 @tailwind components;

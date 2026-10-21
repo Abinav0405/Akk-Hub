@@ -1,0 +1,22 @@
+{
+  "name": "akk-hub-migration",
+  "private": true,
+  "type": "module",
+  "description": "Copies the Attendance, Materials and Site Progress Supabase projects into the one AKK Hub project. Sources are read-only.",
+  "scripts": {
+    "check": "node migrate.mjs check",
+    "snapshot": "node migrate.mjs snapshot",
+    "build": "node migrate.mjs build",
+    "dry-run": "node migrate.mjs all",
+    "verify": "node migrate.mjs verify",
+    "storage": "node migrate.mjs storage",
+    "selftest": "node selftest.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.13.1",
+    "pg-copy-streams": "^6.0.6"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10"
+  }
+}

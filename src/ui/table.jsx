@@ -16,7 +16,7 @@ const TableHeader = React.forwardRef(({ className, ...props }, ref) => (
   <thead
     ref={ref}
     data-ui="table-header"
-    className={cn("sticky top-0 z-10 bg-[#f3f5f9] [&_tr]:border-b", className)}
+    className={cn("sticky top-0 z-10 bg-[#f7f8fa] [&_tr]:border-b [&_tr]:border-[var(--g-hairline)] [&_th]:text-xs [&_th]:font-semibold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-[var(--g-muted)]", className)}
     {...props}
   />
 ))
@@ -45,7 +45,7 @@ const TableRow = React.forwardRef(({ className, ...props }, ref) => (
     ref={ref}
     data-ui="table-row"
     className={cn(
-      "border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted",
+      "border-b border-[var(--g-hairline)] transition-colors hover:bg-slate-50/80 data-[state=selected]:bg-[var(--g-brand-soft)]",
       className
     )}
     {...props}

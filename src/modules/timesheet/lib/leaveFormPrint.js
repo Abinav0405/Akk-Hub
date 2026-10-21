@@ -2,9 +2,11 @@ import { supabaseTimesheet } from '@/core/supabase'
 import { countLeaveDaysForDisplay, formatDate, parseDateOnly } from '@/modules/timesheet/lib/timeUtils';
 import { printOrShareHtmlDocument } from '@/modules/timesheet/lib/printHtmlDocument';
 import { getLeaveAttachmentSignedUrl } from '@/modules/timesheet/lib/leaveService';
-
-const WORKER_SELECT =
-    'employee_id, employee_name, nric_fin, designation, date_joined';
+import {
+    isHubManagerOrSupervisor,
+    leaveFormSelectColumns,
+    mayQueryLocalWorkerDetails,
+} from '@/modules/timesheet/lib/workerPrivacy';
 
 function esc(value) {
     if (value === null || value === undefined || value === '') return '—';
@@ -41,10 +43,21 @@ export async function fetchWorkerProfilesForLeave(employeeIds) {
     const map = new Map();
     if (!ids.length) return map;
 
-    const [foreignRes, localRes] = await Promise.all([
-        supabaseTimesheet.from('worker_details').select(WORKER_SELECT).in('employee_id', ids),
-        supabaseTimesheet.from('local_worker_details').select(WORKER_SELECT).in('employee_id', ids),
-    ]);
+    // Managers/supervisors must not pull leave-form PII (esp. local-worker NRIC).
+    if (isHubManagerOrSupervisor()) {
+        throw new Error('Leave form worker particulars are admin or employee only');
+    }
+
+    const columns = leaveFormSelectColumns(ids);
+    const foreignPromise = supabaseTimesheet
+        .from('worker_details')
+        .select(columns)
+        .in('employee_id', ids);
+    const localPromise = mayQueryLocalWorkerDetails()
+        ? supabaseTimesheet.from('local_worker_details').select(columns).in('employee_id', ids)
+        : Promise.resolve({ data: [], error: null });
+
+    const [foreignRes, localRes] = await Promise.all([foreignPromise, localPromise]);
 
     for (const w of foreignRes.data || []) {
         map.set(String(w.employee_id), { ...w, worker_category: 'Foreign worker' });

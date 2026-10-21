@@ -20,7 +20,22 @@ const env = import.meta.env;
 /** Always false — mock backend removed; kept so accidental imports stay off. */
 export const DEV_MOCK = false;
 
+/**
+ * One AKK Hub backend: set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY. Every area then talks to
+ * the same project, each in its own schema (same table and function names as before). The three
+ * clients keep separate sign-in storage so staff logins behave exactly as they did.
+ * Without those two values the build falls back to the three old projects.
+ */
+export const UNIFIED = Boolean(env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY);
+export const DB_SCHEMA = UNIFIED
+    ? { timesheet: 'attendance', materials: 'materials', progress: 'progress' }
+    : { timesheet: 'public', materials: 'public', progress: 'public' };
+
 function makeClient(name, url, anonKey) {
+    if (UNIFIED) {
+        url = env.VITE_SUPABASE_URL;
+        anonKey = env.VITE_SUPABASE_ANON_KEY;
+    }
     if (!url || !anonKey) {
         console.warn(
             `[supabase:${name}] VITE_${name.toUpperCase()}_SUPABASE_URL / _ANON_KEY are not set. ` +
@@ -29,11 +44,12 @@ function makeClient(name, url, anonKey) {
     }
     // createClient throws on an empty URL; a placeholder keeps the UI bootable without a .env.
     return createClient(url || `https://${name}.invalid.supabase.co`, anonKey || 'missing-anon-key', {
+        db: { schema: DB_SCHEMA[name] },
         auth: {
             persistSession: true,
             autoRefreshToken: true,
             detectSessionInUrl: name === 'timesheet',
-            storageKey: `akk.${name}.sb-auth`,
+            storageKey: UNIFIED ? `akk.hub.${name}.sb-auth` : `akk.${name}.sb-auth`,
         },
     });
 }
@@ -56,6 +72,12 @@ export const supabaseProgress = makeClient(
     env.VITE_PROGRESS_SUPABASE_ANON_KEY,
 );
 
+/**
+ * Hub-wide functions (worker access, places, admin worker details). Uses the Attendance
+ * client's sign-in, so admin calls carry the admin's session. null on the old 3-project setup.
+ */
+export const supabaseCore = UNIFIED ? supabaseTimesheet.schema('core') : null;
+
 export const supabaseClients = {
     timesheet: supabaseTimesheet,
     materials: supabaseMaterials,
@@ -64,6 +86,7 @@ export const supabaseClients = {
 
 /** True when a module's project URL + key are configured. */
 export function isBackendConfigured(module) {
+    if (UNIFIED) return true;
     const prefix = { timesheet: 'TIMESHEET', materials: 'MATERIALS', progress: 'PROGRESS' }[module];
     return Boolean(prefix && env[`VITE_${prefix}_SUPABASE_URL`] && env[`VITE_${prefix}_SUPABASE_ANON_KEY`]);
 }
@@ -84,3 +107,10 @@ export function waitForInitialAuthSession() {
     }
     return initialProgressAuth;
 }
+
+/** Edge function names: one project hosts all of them, so on the unified backend they carry an area prefix. */
+export const FN = {
+    registerAttendance: UNIFIED ? 'att-register-device-token' : 'register-device-token',
+    registerMaterials: UNIFIED ? 'mat-register-device-token' : 'register-device-token',
+    manageStaff: UNIFIED ? 'mat-manage-staff' : 'manage-staff',
+};

@@ -30,7 +30,7 @@ const STATUS_DOT = {
 
 const STATUS_BADGE = {
     approved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
-    pending_admin: 'border-orange-200 bg-orange-50 text-orange-700',
+    pending_admin: 'border-slate-200 bg-slate-100 text-slate-800',
     pending_manager: 'border-amber-200 bg-amber-50 text-amber-700',
     pending: 'border-yellow-200 bg-yellow-50 text-yellow-700',
 };
@@ -159,20 +159,20 @@ export default function LeaveCalendar({ leaveRequests = [], onSelectLeave }) {
                                     key={dateStr}
                                     type="button"
                                     onClick={() => setSelectedDate(dateStr)}
-                                    className={`min-h-[72px] rounded-md border p-1 text-left transition-colors hover:border-orange-300 hover:bg-orange-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 ${
+                                    className={`min-h-[72px] rounded-md border p-1 text-left transition-colors hover:border-slate-200 hover:bg-slate-100/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
                                         isToday
-                                            ? 'border-orange-300 bg-orange-50/50 ring-1 ring-orange-200'
+                                            ? 'border-slate-200 bg-slate-100/50 ring-1 ring-slate-200'
                                             : isWeekend
                                                 ? 'border-slate-100 bg-slate-50'
                                                 : 'border-slate-200 bg-white'
                                     }`}
                                 >
                                     <span className="flex items-center justify-between">
-                                        <span className={`text-xs font-semibold ${isToday ? 'flex h-5 w-5 items-center justify-center rounded-full bg-orange-500 text-white' : 'text-slate-700'}`}>
+                                        <span className={`text-xs font-semibold ${isToday ? 'flex h-5 w-5 items-center justify-center rounded-full bg-brand text-white' : 'text-slate-700'}`}>
                                             {day}
                                         </span>
                                         {leaves.length > 0 && (
-                                            <span className="rounded-full bg-orange-100 px-1.5 text-[10px] font-semibold leading-4 text-orange-700">
+                                            <span className="rounded-full bg-slate-100 px-1.5 text-[10px] font-semibold leading-4 text-slate-800">
                                                 {leaves.length}
                                             </span>
                                         )}
@@ -214,7 +214,7 @@ export default function LeaveCalendar({ leaveRequests = [], onSelectLeave }) {
                 <DialogContent className={`${glassDialog} max-w-md`}>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-slate-900">
-                            <CalendarDays className="h-5 w-5 text-orange-500" />
+                            <CalendarDays className="h-5 w-5 text-slate-500" />
                             {selectedDate ? formatDayLong(selectedDate) : ''}
                         </DialogTitle>
                         <DialogDescription>
@@ -236,7 +236,7 @@ export default function LeaveCalendar({ leaveRequests = [], onSelectLeave }) {
                                     key={leave.id}
                                     type="button"
                                     onClick={() => onSelectLeave?.(leave)}
-                                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left transition-colors hover:border-orange-300 hover:bg-orange-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400"
+                                    className="w-full rounded-lg border border-slate-200 bg-white p-3 text-left transition-colors hover:border-slate-200 hover:bg-slate-100/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                                 >
                                     <div className="flex items-start justify-between gap-2">
                                         <div className="min-w-0">

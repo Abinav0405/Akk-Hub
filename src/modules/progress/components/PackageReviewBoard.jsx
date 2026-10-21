@@ -44,7 +44,7 @@ function DialogChunkFallback({ label }) {
 }
 
 const STATUS_BADGE = {
-    pending: 'bg-status-incomplete text-blue-800 border-status-incomplete-border',
+    pending: 'bg-amber-50 text-amber-800 border-amber-200',
     approved: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     declined: 'bg-red-50 text-red-700 border-red-200',
 };
@@ -163,7 +163,7 @@ const PackageCard = memo(function PackageCard({
                         {exported ? 'Exported' : 'Not exported'}
                     </span>
                 ) : alreadySent ? (
-                    <span className="shrink-0 rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
+                    <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800">
                         Sent to export
                     </span>
                 ) : (
@@ -280,7 +280,7 @@ const PackageCard = memo(function PackageCard({
                 <Button
                     size="sm"
                     title="View photos"
-                    className={cn(actionBtn, 'bg-sky-600 text-white hover:bg-sky-700')}
+                    className={cn(actionBtn, 'bg-brand text-white hover:bg-brand-hover')}
                     onClick={() => onView(pkg)}
                 >
                     <Images className="h-3.5 w-3.5 shrink-0" />
@@ -291,10 +291,10 @@ const PackageCard = memo(function PackageCard({
                     variant="outline"
                     title="Print package"
                     aria-label="Print package"
-                    className={cn(actionBtn, 'text-slate-700 hover:border-blue-300 hover:bg-blue-50 hover:text-blue-800')}
+                    className={cn(actionBtn, 'text-slate-700 hover:border-slate-200 hover:bg-slate-100 hover:text-slate-800')}
                     onClick={() => onPrint(pkg)}
                 >
-                    <Printer className="h-3.5 w-3.5 shrink-0 text-blue-600" />
+                    <Printer className="h-3.5 w-3.5 shrink-0 text-slate-800" />
                     <span className="truncate">Print</span>
                 </Button>
                 <Button
@@ -398,7 +398,7 @@ const PackageRow = memo(function PackageRow({
         ? `${pkg.reviewed_by_name}${pkg.reviewed_by_role === 'manager' ? ' (Manager)' : pkg.reviewed_by_role === 'admin' ? ' (Admin)' : ''}`
         : '';
     const statusStyle = {
-        pending: 'bg-blue-50 text-blue-800 ring-blue-200',
+        pending: 'bg-amber-50 text-amber-800 ring-amber-200',
         approved: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
         declined: 'bg-red-50 text-red-700 ring-red-200',
     }[status] || 'bg-slate-50 text-slate-600 ring-slate-200';
@@ -514,7 +514,7 @@ const PackageRow = memo(function PackageRow({
                     ) : status !== 'approved' ? (
                         <span className="text-xs text-muted-foreground">—</span>
                     ) : (
-                        <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-semibold', pkg.sent_to_export ? 'bg-sky-50 text-sky-800' : 'bg-amber-50 text-amber-800')}>
+                        <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-semibold', pkg.sent_to_export ? 'bg-slate-100 text-slate-800' : 'bg-amber-50 text-amber-800')}>
                             {pkg.sent_to_export ? 'Sent to export' : 'Not sent'}
                         </span>
                     )}
@@ -926,7 +926,7 @@ export default function PackageReviewBoard({ role }) {
             label: 'Sent to export',
             value: counts.sent_to_export || 0,
             hint: 'with Export Only',
-            tone: 'text-sky-700',
+            tone: 'text-slate-800',
         },
         {
             id: 'declined',
@@ -1109,7 +1109,7 @@ export default function PackageReviewBoard({ role }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className={cn('w-full justify-start border-sky-300 bg-sky-50 text-sky-800 hover:bg-sky-100 hover:text-sky-900 sm:w-auto', native && 'min-h-11')}
+                    className={cn('w-full justify-start border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800 sm:w-auto', native && 'min-h-11')}
                     disabled={!packages || filtered.length === 0}
                     onClick={() => setMultiExport(true)}
                 >
@@ -1120,7 +1120,7 @@ export default function PackageReviewBoard({ role }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className={cn('w-full justify-start border-blue-300 bg-blue-50 text-blue-800 hover:bg-blue-100 hover:text-blue-900 sm:w-auto', native && 'min-h-11')}
+                    className={cn('w-full justify-start border-slate-200 bg-slate-100 text-slate-800 hover:bg-slate-100 hover:text-slate-800 sm:w-auto', native && 'min-h-11')}
                     disabled={!packages || filtered.length === 0}
                     onClick={() => setSummaryExport('pdf')}
                 >

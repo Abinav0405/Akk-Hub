@@ -2,6 +2,7 @@ import { applySysOverridesToExtracted } from '@/modules/timesheet/lib/payslipOve
 import { formatDate } from '@/modules/timesheet/lib/timeUtils';
 import { workerIsNotInCompany, parseRejoinDatesFromWorker } from '@/modules/timesheet/lib/workerEmploymentPay';
 import { printOrShareHtmlDocument } from '@/modules/timesheet/lib/printHtmlDocument';
+import { assertCanReadWorkerHr } from '@/modules/timesheet/lib/workerPrivacy';
 
 const COMPANY = {
     name: 'AKK Engineering Pte. Ltd.',
@@ -532,6 +533,7 @@ function profileCard(title, rows) {
 }
 
 export function buildWorkerProfilePrintHtml({ worker, workerType, logoUrl }) {
+    assertCanReadWorkerHr({ subjectEmployeeId: worker?.employee_id });
     const displayName = worker.employee_name || worker.name || worker.employee_id;
     const notInCompany = workerIsNotInCompany(worker);
     const typeLabel = workerType === 'local' ? 'Local employee (Singapore / PR)' : 'Foreign employee (work pass)';
@@ -725,6 +727,7 @@ export async function openWorkerDocumentPrint(html, options = {}) {
 }
 
 export async function printWorkerProfile({ worker, workerType, logoUrl }) {
+    assertCanReadWorkerHr({ subjectEmployeeId: worker?.employee_id });
     const displayName = worker.employee_name || worker.name || worker.employee_id;
     const html = buildWorkerProfilePrintHtml({ worker, workerType, logoUrl });
     return openWorkerDocumentPrint(html, {
@@ -734,6 +737,7 @@ export async function printWorkerProfile({ worker, workerType, logoUrl }) {
 }
 
 export async function printYearlyPaySummary({ worker, workerType, payslips, year, logoUrl }) {
+    assertCanReadWorkerHr({ subjectEmployeeId: worker?.employee_id });
     const summary = aggregateYearlyPaySummary(payslips, year);
     if (summary.payslipCount === 0) {
         throw new Error(`No passed-out payslips found for ${year}`);

@@ -23,12 +23,12 @@
 
 html.akk-native {
   /* Brand + roles (existing AKK identity) */
-  --n-brand: #dc6b2f;
-  --n-brand-press: #c55d28;
-  --n-brand-text: #b4511b;          /* AA on white for small text */
-  --n-brand-soft: rgb(220 107 47 / 0.12);
-  --n-manager: #1d4ed8;
-  --n-manager-soft: rgb(29 78 216 / 0.1);
+  --n-brand: var(--g-brand);
+  --n-brand-press: var(--g-brand-press);
+  --n-brand-text: var(--g-brand-text);
+  --n-brand-soft: var(--g-brand-soft);
+  --n-manager: var(--g-brand);
+  --n-manager-soft: var(--g-brand-soft);
   --n-admin: #334155;
   --n-admin-soft: rgb(51 65 85 / 0.1);
 
@@ -44,7 +44,7 @@ html.akk-native {
   --n-info-soft: rgb(29 78 216 / 0.1);
 
   /* Neutrals */
-  --n-bg: #f3f4f7;
+  --n-bg: var(--g-bg);
   --n-surface: #ffffff;
   --n-surface-2: #f7f8fa;
   --n-fill: rgb(116 120 132 / 0.12);

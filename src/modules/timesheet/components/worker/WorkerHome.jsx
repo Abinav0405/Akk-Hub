@@ -6,7 +6,7 @@
  *   ShiftCard       not clocked in / on shift / on break / shift done
  *   ActionTiles     2×2 tiles (Timesheets, Leave request, Payslips, Company forms)
  *   ListGroup       grouped rows (TIME & LEAVE, WORK, ACCOUNT)
- *   AttendanceDock  floating glass dock: "Scan to clock in" or Break + Clock out
+ *   AttendanceDock  inline under shift card: "Scan to clock in" or Break + Clock out
  *   NotificationsSheet  bell → payslip/leave/timesheet updates and announcements
  *
  * Presentational only; WorkerPortal owns the data and handlers. Styles: worker-home.css.
@@ -337,11 +337,16 @@ export function AttendanceDock({
     onBreakScan,
     onClockOut,
     copy,
+    /** Inline under the shift card (default). Pass "floating" only for legacy fixed placement. */
+    placement = 'inline',
 }) {
     const onShift = hasBreakTarget || canClockOut;
     return (
         <nav
-            className="wh-dock wh-glass akk-hide-on-kb"
+            className={cn(
+                'wh-dock wh-glass akk-hide-on-kb',
+                placement === 'floating' ? 'wh-dock--floating' : 'wh-dock--inline',
+            )}
             aria-label={copy.attendance}
             aria-busy={loading || undefined}
             data-tour="worker-attendance"

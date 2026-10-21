@@ -346,7 +346,7 @@ export default function PackageDetailDialog({
     });
     const status = pkg.approval_status || 'pending';
     const statusClass = {
-        pending: 'border-blue-200 bg-blue-50 text-blue-800',
+        pending: 'border-amber-200 bg-amber-50 text-amber-800',
         approved: 'border-emerald-200 bg-emerald-50 text-emerald-700',
         declined: 'border-red-200 bg-red-50 text-red-700',
     }[status] || 'border-border bg-slate-50 text-slate-600';
@@ -383,7 +383,7 @@ export default function PackageDetailDialog({
                         ) : null}
                         <span className={cn('rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize', statusClass)}>{status}</span>
                         {!asExporter && pkg.approval_status === 'approved' && pkg.sent_to_export ? (
-                            <span className="rounded-full border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold text-sky-800">
+                            <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800">
                                 Sent to export
                             </span>
                         ) : null}

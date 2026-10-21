@@ -11,43 +11,44 @@
 
 html.akk-native {
     /* Brand */
-    --akk-brand: #dc6b2f;
-    --akk-brand-600: #c85a23;
-    --akk-brand-700: #a94a1b;
-    --akk-brand-tint: rgba(220, 107, 47, 0.1);
-    --akk-brand-tint-strong: rgba(220, 107, 47, 0.16);
+    /* One AKK Hub brand (glass.css) — no per-app colours. */
+    --akk-brand: var(--g-brand);
+    --akk-brand-600: var(--g-brand-press);
+    --akk-brand-700: #730a20;
+    --akk-brand-tint: var(--g-brand-soft);
+    --akk-brand-tint-strong: rgb(165 15 45 / 0.16);
     --akk-on-brand: #ffffff;
 
     /* Role accents (existing portal colours) */
     --akk-admin: #1e293b;
     --akk-admin-tint: rgba(30, 41, 59, 0.08);
-    --akk-manage: #047857;
-    --akk-manage-solid: #059669;
-    --akk-manage-tint: rgba(5, 150, 105, 0.1);
+    --akk-manage: var(--g-brand);
+    --akk-manage-solid: var(--g-brand);
+    --akk-manage-tint: var(--g-brand-soft);
 
     /* Neutrals */
-    --akk-canvas: #f3f2ef;
+    --akk-canvas: var(--g-bg);
     --akk-surface: #ffffff;
-    --akk-surface-muted: #f8f7f5;
-    --akk-surface-sunken: #eceae6;
+    --akk-surface-muted: #f8f9fa;
+    --akk-surface-sunken: #eceef1;
     --akk-fill: rgba(118, 118, 128, 0.12);
     --akk-fill-strong: rgba(118, 118, 128, 0.2);
-    --akk-hairline: rgba(15, 23, 42, 0.08);
+    --akk-hairline: var(--g-hairline);
     --akk-hairline-strong: rgba(15, 23, 42, 0.14);
     --akk-separator: rgba(60, 60, 67, 0.12);
 
     /* Glass (chrome only) */
-    --akk-glass: rgba(250, 249, 247, 0.78);
+    --akk-glass: var(--g-glass-strong);
     --akk-glass-strong: rgba(255, 255, 255, 0.9);
     --akk-glass-edge: rgba(255, 255, 255, 0.7);
-    --akk-glass-fallback: #faf9f7;
+    --akk-glass-fallback: #f8f9fa;
     --akk-blur: 18px;
     --akk-saturate: 170%;
 
     /* Text */
-    --akk-text: #111827;
+    --akk-text: var(--g-ink);
     --akk-text-2: #374151;
-    --akk-text-3: #6b7280;
+    --akk-text-3: var(--g-muted);
     --akk-text-4: #9ca3af;
 
     /* Semantic */
@@ -98,10 +99,10 @@ html.akk-native {
 
     /* Elevation (static — never animated) */
     --akk-shadow-1: 0 1px 2px rgba(15, 23, 42, 0.05);
-    --akk-shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 4px 14px -8px rgba(15, 23, 42, 0.12);
+    --akk-shadow-card: var(--g-shadow-1);
     --akk-shadow-raised: 0 2px 8px rgba(15, 23, 42, 0.06), 0 16px 36px -18px rgba(15, 23, 42, 0.28);
     --akk-shadow-sheet: 0 -10px 36px -18px rgba(15, 23, 42, 0.32);
-    --akk-shadow-brand: 0 8px 18px -10px rgba(220, 107, 47, 0.6);
+    --akk-shadow-brand: 0 6px 14px -10px rgb(165 15 45 / 0.5);
 
     /* Motion */
     --akk-dur-press: 110ms;
@@ -126,7 +127,7 @@ html.akk-native {
     --akk-kb: 0px;
 
     /* Focus */
-    --akk-focus-ring: 0 0 0 3px rgba(220, 107, 47, 0.32);
+    --akk-focus-ring: var(--g-focus);
 
     color-scheme: light;
     background-color: var(--akk-canvas);
@@ -153,7 +154,7 @@ html.akk-native .akk-toast-shell {
 }
 
 html.akk-native ::selection {
-    background: rgba(220, 107, 47, 0.22);
+    background: rgb(165 15 45 / 0.22);
 }
 
 html.akk-native :focus-visible {
@@ -170,7 +171,8 @@ html.akk-native .home-backdrop {
 html.akk-native .bg-\[\#f8fafc\],
 html.akk-native .bg-\[\#F8FAFC\],
 html.akk-native .admin-app-ui,
-html.akk-native .admin-app-ui.bg-slate-100 {
+html.akk-native .admin-app-ui.bg-slate-100,
+html.akk-native .admin-app-ui.bg-\[var\(--g-bg\)\] {
     background-color: var(--akk-canvas);
 }
 
@@ -670,12 +672,24 @@ html.akk-native .akk-stat__hint {
     color: var(--akk-text-4);
 }
 
-html.akk-native .akk-stat[data-tone='brand'] .akk-stat__value { color: var(--akk-brand-700); }
-html.akk-native .akk-stat[data-tone='success'] .akk-stat__value { color: var(--akk-success); }
-html.akk-native .akk-stat[data-tone='info'] .akk-stat__value { color: var(--akk-info); }
-html.akk-native .akk-stat[data-tone='warning'] .akk-stat__value { color: var(--akk-warning); }
-html.akk-native .akk-stat[data-tone='violet'] .akk-stat__value { color: #6d28d9; }
-html.akk-native .akk-stat[data-tone='teal'] .akk-stat__value { color: #0f766e; }
+/* Numbers stay ink (they're quantities, not statuses); the tone is a small dot by the label. */
+html.akk-native .akk-stat[data-tone] .akk-stat__value { color: var(--akk-text); }
+html.akk-native .akk-stat[data-tone] .akk-stat__label::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 6px;
+    border-radius: 999px;
+    vertical-align: middle;
+    background: var(--stat-dot, var(--akk-text-4));
+}
+html.akk-native .akk-stat[data-tone='brand'] { --stat-dot: var(--g-brand); }
+html.akk-native .akk-stat[data-tone='success'] { --stat-dot: var(--akk-success); }
+html.akk-native .akk-stat[data-tone='info'] { --stat-dot: var(--g-tone-progress); }
+html.akk-native .akk-stat[data-tone='warning'] { --stat-dot: var(--akk-warning); }
+html.akk-native .akk-stat[data-tone='violet'] { --stat-dot: var(--g-tone-materials); }
+html.akk-native .akk-stat[data-tone='teal'] { --stat-dot: var(--g-tone-progress); }
 
 /* --- Banners (inline notices) --- */
 html.akk-native .akk-banner {
@@ -731,7 +745,7 @@ html.akk-native .akk-cta[data-tone='admin'] {
 
 html.akk-native .akk-cta[data-tone='manage'] {
     background-color: var(--akk-manage-solid);
-    box-shadow: 0 8px 18px -10px rgba(5, 150, 105, 0.6);
+    box-shadow: 0 8px 18px -10px rgb(165 15 45 / 0.6);
 }
 
 html.akk-native .akk-cta[data-tone='danger'] {
@@ -1090,7 +1104,7 @@ html.akk-native .akk-home {
     flex-direction: column;
     padding: calc(var(--akk-safe-top) + 8px) max(20px, var(--akk-safe-right)) calc(16px + var(--akk-safe-bottom)) max(20px, var(--akk-safe-left));
     background:
-        radial-gradient(120% 60% at 50% -10%, rgba(220, 107, 47, 0.1), transparent 60%),
+        radial-gradient(120% 60% at 50% -10%, rgb(165 15 45 / 0.1), transparent 60%),
         var(--akk-canvas);
 }
 
@@ -1393,7 +1407,7 @@ html.akk-native .akk-login {
     height: 100dvh;
     flex-direction: column;
     background:
-        radial-gradient(120% 50% at 50% -12%, rgba(220, 107, 47, 0.09), transparent 62%),
+        radial-gradient(120% 50% at 50% -12%, rgb(165 15 45 / 0.09), transparent 62%),
         var(--akk-canvas);
 }
 
@@ -1405,7 +1419,7 @@ html.akk-native .akk-login[data-tone='admin'] {
 
 html.akk-native .akk-login[data-tone='manage'] {
     background:
-        radial-gradient(120% 50% at 50% -12%, rgba(5, 150, 105, 0.09), transparent 62%),
+        radial-gradient(120% 50% at 50% -12%, rgb(165 15 45 / 0.09), transparent 62%),
         var(--akk-canvas);
 }
 
@@ -1664,6 +1678,13 @@ html.akk-native .akk-list-card.border-red-200 {
 }
 
 /* --- Admin (native chrome lives in AdminNavChrome.jsx) --- */
+html.akk-native .hub-section-strip__chip.is-active,
+html.akk-native .admin-section-strip__chip.is-active {
+    border-color: rgb(165 15 45 / 0.32);
+    background: var(--g-brand-soft, rgb(165 15 45 / 0.1));
+    color: var(--g-brand-text, #9b0e2a);
+}
+
 html.akk-native .admin-app-ui .admin-app-sheet {
     transition: transform var(--akk-dur-sheet) var(--akk-ease);
 }
@@ -1678,8 +1699,32 @@ html.akk-native .admin-app-ui [class*='backdrop-blur'] {
     background-color: var(--akk-surface) !important;
 }
 
-html.akk-native .admin-app-ui table {
+html.akk-native .admin-app-ui table,
+html.akk-native .manager-dash-ui table {
     font-size: 13px;
+}
+
+html.akk-native .admin-app-ui thead th,
+html.akk-native .manager-dash-ui thead th {
+    height: var(--g-table-head-h, 36px);
+    background: var(--g-surface-inset, #f8f9fb);
+    border-bottom: 1px solid var(--g-hairline-2, rgb(15 29 51 / 0.13));
+}
+
+html.akk-native .admin-app-ui tbody td,
+html.akk-native .manager-dash-ui tbody td {
+    height: var(--g-table-row-h, 40px);
+    background: var(--g-surface, #fff);
+}
+
+/* Native admin sheets stay glass; content cards stay solid */
+html.akk-native .admin-app-ui .g-card,
+html.akk-native .manager-dash-ui .g-card,
+html.akk-native .admin-app-ui .akk-list-card {
+    background: var(--g-surface, #fff);
+    border-color: var(--g-hairline, rgb(15 29 51 / 0.09));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
 }
 
 /* ================================================================== */

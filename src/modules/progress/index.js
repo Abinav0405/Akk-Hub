@@ -8,6 +8,7 @@ export { default as CameraCapture } from './components/CameraCapture';
 export { default as NotificationBell } from './components/NotificationBell';
 export { default as BrandingPanel } from './components/BrandingPanel';
 export { default as AnalyticsPanel } from './components/AnalyticsPanel';
+export { default as ProgressSitesPanel } from './components/ProgressSitesPanel';
 export { default as SitesPanel } from './components/SitesPanel';
 export { default as MyAccountPanel } from './components/MyAccountPanel';
 

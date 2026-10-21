@@ -219,7 +219,7 @@ export default function DriverStatusCard({
                 )}
                 <Button
                     type="button"
-                    className="h-11 rounded-xl bg-white text-slate-900 hover:bg-orange-50"
+                    className="h-11 rounded-xl bg-white text-slate-900 hover:bg-slate-100"
                     disabled={actionBusy}
                     onClick={onFinish}
                 >

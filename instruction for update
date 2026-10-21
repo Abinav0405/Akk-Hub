@@ -1,6 +1,6 @@
 git status
 git add .
-git commit -m "."
+git commit -m "splash screen"
 git push origin main
 npm run build
 npx cap copy

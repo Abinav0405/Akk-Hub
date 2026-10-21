@@ -4,7 +4,7 @@ import { cva } from "class-variance-authority"
 import { cn } from "@/ui/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-[background,box-shadow,transform] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 min-h-10",
+  "inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-[background,box-shadow,transform] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 min-h-10 max-sm:min-h-11",
   {
     variants: {
       variant: {
@@ -12,10 +12,10 @@ const buttonVariants = cva(
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90 shadow-xs",
         outline:
-          "border border-white/90 bg-white/80 shadow-[inset_0_1px_0_#fff,0_1px_2px_rgb(15_29_51/0.05)] hover:bg-white",
+          "border border-[rgb(15_29_51/0.14)] bg-white text-[var(--g-ink)] shadow-[0_1px_1px_rgb(15_29_51/0.04)] hover:bg-slate-50 hover:border-[rgb(15_29_51/0.22)]",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-[var(--g-fill)] hover:text-[var(--g-ink)]",
         link: "text-brand underline-offset-4 hover:underline",
       },
       size: {

@@ -49,7 +49,7 @@ export default function CompanyFormSubmissionView({ submission }) {
                 {getDepartmentLabel(submission.department)} · {submission.worker_name} ({submission.worker_id})
             </p>
             {submission.recommended_result ? (
-                <div className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900">
+                <div className="rounded-xl border border-slate-200 bg-slate-100 p-3 text-sm text-slate-800">
                     <span className="font-semibold">Recommended result: </span>
                     {submission.recommended_result}
                 </div>

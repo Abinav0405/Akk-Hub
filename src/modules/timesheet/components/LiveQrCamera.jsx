@@ -1,17 +1,27 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import jsQR from 'jsqr';
-import { CameraOff, Flashlight, Images, Loader2 } from 'lucide-react';
+import { CameraOff, Flashlight, Images, Loader2, ScanLine } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/ui/button';
 import { cn } from '@/modules/timesheet/lib/utils';
-import { requestCameraPermissionWithFallback } from '@/core/permissionManager';
+import { checkCameraPermission, requestCameraPermissionWithFallback } from '@/core/permissions';
+import { Capacitor } from '@capacitor/core';
+import './live-qr-camera.css';
 
 const FILE_SCAN_CONFIG = {
     verbose: false,
     formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
     useBarCodeDetectorIfSupported: false,
 };
+
+/** Only one live QR stream at a time (StrictMode remount + hub/module races). */
+let activeLiveQrOwner = null;
+
+function readGpsLabelBusy(busy, readingFile) {
+    if (busy) return readingFile ? 'Reading photo…' : 'Checking…';
+    return null;
+}
 
 function decodeCanvas(canvas) {
     if (!canvas?.width || !canvas?.height) return null;
@@ -67,12 +77,33 @@ async function decodeQrFromFile(file, hostId) {
     }
 }
 
+/**
+ * Ensure permission without opening a second camera UI.
+ * Native: check first; only request the OS permission sheet (not a camera Activity).
+ * Then a single getUserMedia owns the preview.
+ */
+async function ensureCameraPermission() {
+    if (Capacitor.isNativePlatform()) {
+        try {
+            const checked = await checkCameraPermission();
+            if (checked?.granted) return true;
+        } catch {
+            /* fall through to request */
+        }
+    }
+    return requestCameraPermissionWithFallback();
+}
+
 async function openCameraStream() {
-    const granted = await requestCameraPermissionWithFallback();
+    const granted = await ensureCameraPermission();
     if (!granted) {
         const err = new Error('Camera permission is needed to scan.');
         err.name = 'NotAllowedError';
         throw err;
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera is not available in this browser.');
     }
 
     const attempts = [
@@ -99,6 +130,7 @@ export default function LiveQrCamera({
     gpsLabel = null,
     className,
 }) {
+    const ownerIdRef = useRef(`qr-${Math.random().toString(36).slice(2)}`);
     const fileHostIdRef = useRef(`qr-file-${Math.random().toString(36).slice(2)}`);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
@@ -127,6 +159,7 @@ export default function LiveQrCamera({
     useEffect(() => {
         if (disabled) return undefined;
 
+        const ownerId = ownerIdRef.current;
         let cancelled = false;
         let timer = null;
         lockedRef.current = false;
@@ -143,6 +176,7 @@ export default function LiveQrCamera({
             if (timer) window.clearTimeout(timer);
             stopTracks(streamRef.current);
             streamRef.current = null;
+            if (activeLiveQrOwner === ownerId) activeLiveQrOwner = null;
             onDecodedRef.current?.(text);
         };
 
@@ -169,9 +203,17 @@ export default function LiveQrCamera({
         const start = async () => {
             setError(null);
             setReady(false);
+
+            // Wait out a previous owner (StrictMode remount / double mount).
+            if (activeLiveQrOwner && activeLiveQrOwner !== ownerId) {
+                await new Promise((r) => window.setTimeout(r, 80));
+            }
+            if (cancelled) return;
+            activeLiveQrOwner = ownerId;
+
             try {
                 const stream = await openCameraStream();
-                if (cancelled) {
+                if (cancelled || activeLiveQrOwner !== ownerId) {
                     stopTracks(stream);
                     return;
                 }
@@ -185,7 +227,10 @@ export default function LiveQrCamera({
                 video.setAttribute('playsinline', 'true');
                 video.muted = true;
                 await video.play();
-                if (cancelled) return;
+                if (cancelled || activeLiveQrOwner !== ownerId) {
+                    stopTracks(stream);
+                    return;
+                }
 
                 const track = stream.getVideoTracks()[0];
                 if (track?.getCapabilities?.()?.torch) setTorchAvailable(true);
@@ -209,6 +254,7 @@ export default function LiveQrCamera({
             streamRef.current = null;
             const video = videoRef.current;
             if (video) video.srcObject = null;
+            if (activeLiveQrOwner === ownerId) activeLiveQrOwner = null;
         };
     }, [disabled, restartKey]);
 
@@ -249,6 +295,7 @@ export default function LiveQrCamera({
                 try { track.stop(); } catch { /* ignore */ }
             });
             streamRef.current = null;
+            if (activeLiveQrOwner === ownerIdRef.current) activeLiveQrOwner = null;
             onDecodedRef.current?.(text);
         } catch {
             toast.error('Could not read that image. Pick another photo of the QR code.');
@@ -258,10 +305,11 @@ export default function LiveQrCamera({
     };
 
     const overlayBusy = busy || readingFile;
+    const busyLabel = readGpsLabelBusy(overlayBusy, readingFile);
 
     return (
         <div className={cn('space-y-2', className)}>
-            <div className="qr-live">
+            <div className="qr-live" data-qr-surface="live">
                 <video
                     ref={videoRef}
                     className="qr-live__video"
@@ -269,8 +317,16 @@ export default function LiveQrCamera({
                     muted
                     autoPlay
                 />
+                {/* Decode canvas must stay off-screen — sizing it to the frame would look like a 2nd camera. */}
                 <canvas ref={canvasRef} className="qr-live__decode-canvas" aria-hidden="true" />
                 <div id={fileHostIdRef.current} className="qr-live__file-host" aria-hidden="true" />
+
+                {ready && !error && !overlayBusy ? (
+                    <span className="qr-live__badge" aria-hidden="true">
+                        <i className="qr-live__badge-dot" />
+                        Live scan
+                    </span>
+                ) : null}
 
                 {!ready && !error ? (
                     <div className="qr-live__status">
@@ -292,7 +348,7 @@ export default function LiveQrCamera({
                 {overlayBusy ? (
                     <div className="qr-live__status">
                         <Loader2 className="h-5 w-5 animate-spin" />
-                        {readingFile ? 'Reading photo…' : 'Checking…'}
+                        {busyLabel}
                     </div>
                 ) : null}
 
@@ -312,16 +368,21 @@ export default function LiveQrCamera({
             </div>
 
             <p className="px-0.5 text-xs text-slate-500">
-                {overlayBusy
-                    ? (readingFile ? 'Reading photo…' : 'Checking…')
-                    : hint}
-                {gpsLabel ? ` · ${gpsLabel}` : ''}
+                {busyLabel
+                    || (
+                        <>
+                            <ScanLine className="mr-1 inline h-3.5 w-3.5 align-text-bottom text-[#dc6b2f]" aria-hidden />
+                            {hint}
+                        </>
+                    )}
+                {gpsLabel && !busyLabel ? ` · ${gpsLabel}` : ''}
             </p>
 
+            {/* No capture= — that forces the system camera and stacks a second surface on live preview. */}
             <input
                 ref={fileInputRef}
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                 className="sr-only"
                 tabIndex={-1}
                 onChange={onFilePicked}
@@ -335,7 +396,7 @@ export default function LiveQrCamera({
                 className="h-11 w-full rounded-xl border-slate-200/90 bg-white text-slate-800"
             >
                 <Images className="mr-2 h-4 w-4" />
-                Scan photo from gallery
+                Use photo from library
             </Button>
         </div>
     );

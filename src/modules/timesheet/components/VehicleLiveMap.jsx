@@ -5,7 +5,7 @@ import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
-import { supabaseTimesheet } from '@/core/supabase'
+import { supabaseTimesheet, DB_SCHEMA } from '@/core/supabase'
 import { getJourneyPoints, getJourneyBreaks } from '@/modules/timesheet/lib/vehicleService';
 import { Loader2 } from 'lucide-react';
 
@@ -123,7 +123,7 @@ export default function VehicleLiveMap({
                 'postgres_changes',
                 {
                     event: 'INSERT',
-                    schema: 'public',
+                    schema: DB_SCHEMA.timesheet,
                     table: 'vehicle_location_points',
                     filter: `journey_id=eq.${journeyId}`,
                 },

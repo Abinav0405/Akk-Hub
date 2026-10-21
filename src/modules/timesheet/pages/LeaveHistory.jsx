@@ -146,7 +146,7 @@ export default function LeaveHistory() {
         if (status === 'approved') return 'bg-green-100 text-green-800';
         if (status === 'rejected') return 'bg-red-100 text-red-800';
         if (status === 'cancelled') return 'bg-slate-200 text-slate-700';
-        if (status === 'pending_admin') return 'bg-orange-100 text-orange-800';
+        if (status === 'pending_admin') return 'bg-slate-100 text-slate-800';
         return 'bg-yellow-100 text-yellow-800';
     };
 
@@ -243,17 +243,17 @@ export default function LeaveHistory() {
                     <div className={cn(glassPanel, 'px-4 py-4')}>
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h3 className="text-sm font-semibold text-sky-800">Medical Leave (MC)</h3>
-                                    <p className="mt-0.5 text-xs text-sky-600">Available balance</p>
+                                    <h3 className="text-sm font-semibold text-slate-800">Medical Leave (MC)</h3>
+                                    <p className="mt-0.5 text-xs text-slate-800">Available balance</p>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-2xl font-semibold tracking-tight text-sky-800">
+                                    <div className="text-2xl font-semibold tracking-tight text-slate-800">
                                         {balanceValue(medicalBalance)}
                                     </div>
-                                    <p className="text-[11px] text-sky-600">days remaining</p>
+                                    <p className="text-[11px] text-slate-800">days remaining</p>
                                 </div>
                             </div>
-                            <div className="mt-3 text-xs text-sky-700">
+                            <div className="mt-3 text-xs text-slate-800">
                                 {medicalBalance} of {medicalLimit} limit
                             </div>
                     </div>
@@ -261,17 +261,17 @@ export default function LeaveHistory() {
                     <div className={cn(glassPanel, 'px-4 py-4')}>
                             <div className="flex items-center justify-between">
                                 <div>
-                                    <h3 className="text-sm font-semibold text-teal-800">Hospitalization</h3>
-                                    <p className="mt-0.5 text-xs text-teal-600">Available balance</p>
+                                    <h3 className="text-sm font-semibold text-slate-800">Hospitalization</h3>
+                                    <p className="mt-0.5 text-xs text-slate-800">Available balance</p>
                                 </div>
                                 <div className="text-right">
-                                    <div className="text-2xl font-semibold tracking-tight text-teal-800">
+                                    <div className="text-2xl font-semibold tracking-tight text-slate-800">
                                         {balanceValue(hospitalizationBalance)}
                                     </div>
-                                    <p className="text-[11px] text-teal-600">days remaining</p>
+                                    <p className="text-[11px] text-slate-800">days remaining</p>
                                 </div>
                             </div>
-                            <div className="mt-3 text-xs text-teal-700">
+                            <div className="mt-3 text-xs text-slate-800">
                                 {hospitalizationBalance} of {hospitalizationLimit} limit
                             </div>
                     </div>

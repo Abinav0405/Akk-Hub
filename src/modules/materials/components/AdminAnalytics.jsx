@@ -15,20 +15,22 @@ import { motion } from 'framer-motion';
 import { parseLocalDate, startOfTodayLocal } from '@/modules/materials/lib/dates';
 import { isNativeApp } from '@/core/platform';
 
-const BRAND_ORANGE = '#dc6b2f';
+const BRAND = '#a50f2d';
+const MATERIALS_TONE = '#8a5a1a';
 const SLATE_700 = '#334155';
-const PIE_COLORS = [BRAND_ORANGE, SLATE_700, '#10b981', '#f59e0b', '#6366f1', '#ec4899'];
+const PIE_COLORS = [BRAND, MATERIALS_TONE, SLATE_700, '#047857', '#b45309', '#2f5d62'];
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Small summary stat card
 // ──────────────────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, color = 'slate' }) {
     const colorMap = {
-        orange: 'bg-orange-50 border-orange-200 text-orange-700',
-        green: 'bg-green-50 border-green-200 text-green-700',
-        yellow: 'bg-yellow-50 border-yellow-200 text-yellow-700',
-        red: 'bg-red-50 border-red-200 text-red-700',
-        blue: 'bg-blue-50 border-blue-200 text-blue-700',
+        brand: 'bg-[var(--g-brand-muted)] border-[rgb(165_15_45/0.2)] text-[var(--g-brand-text)]',
+        orange: 'bg-[var(--g-tone-materials-soft)] border-[rgb(138_90_26/0.22)] text-[var(--g-tone-materials)]',
+        green: 'bg-[var(--g-success-soft)] border-[rgb(4_120_87/0.2)] text-[var(--g-success)]',
+        yellow: 'bg-[var(--g-warning-soft)] border-[rgb(180_83_9/0.2)] text-[var(--g-warning)]',
+        red: 'bg-[var(--g-danger-soft)] border-[rgb(185_28_28/0.2)] text-[var(--g-danger)]',
+        blue: 'bg-[var(--g-tone-progress-soft)] border-[rgb(47_93_98/0.2)] text-[var(--g-tone-progress)]',
         slate: 'bg-slate-50 border-slate-200 text-slate-700',
     };
     const cls = colorMap[color] ?? colorMap.slate;
@@ -297,7 +299,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                         <StatCard icon={XCircle} label="Declined" value={stats.declined} color="red" />
                     </div>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                        <StatCard icon={Package} label="Take Requests" value={stats.takes} color="orange" />
+                        <StatCard icon={Package} label="Take Requests" value={stats.takes} color="brand" />
                         <StatCard icon={RotateCcw} label="Return Requests" value={stats.returns} color="blue" />
                         <StatCard icon={Users} label="Active Workers" value={stats.uniqueWorkers} color="slate" />
                     </div>
@@ -306,7 +308,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                     <Card className="shadow-sm border-slate-200">
                         <CardContent className="p-5">
                             <SectionTitle>
-                                <TrendingUp className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
+                                <TrendingUp className="w-4 h-4" style={{ color: BRAND }} />
                                 Requests Over Time
                             </SectionTitle>
                             <ResponsiveContainer width="100%" height={220}>
@@ -316,7 +318,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                                     <YAxis tick={{ fontSize: 11, fill: '#94a3b8' }} tickLine={false} axisLine={false} allowDecimals={false} />
                                     <Tooltip content={<ChartTooltip />} />
                                     <Legend wrapperStyle={{ fontSize: 12 }} />
-                                    <Bar dataKey="take" name="Take" fill={BRAND_ORANGE} radius={[4, 4, 0, 0]} maxBarSize={32} />
+                                    <Bar dataKey="take" name="Take" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={32} />
                                     <Bar dataKey="return" name="Return" fill={SLATE_700} radius={[4, 4, 0, 0]} maxBarSize={32} />
                                 </BarChart>
                             </ResponsiveContainer>
@@ -328,7 +330,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                         <Card className="shadow-sm border-slate-200">
                             <CardContent className="p-5">
                                 <SectionTitle>
-                                    <AlertCircle className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
+                                    <AlertCircle className="w-4 h-4" style={{ color: BRAND }} />
                                     Approval Breakdown
                                 </SectionTitle>
                                 {approvalPieData.length === 0 ? (
@@ -360,7 +362,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                         <Card className="shadow-sm border-slate-200">
                             <CardContent className="p-5">
                                 <SectionTitle>
-                                    <RotateCcw className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
+                                    <RotateCcw className="w-4 h-4" style={{ color: BRAND }} />
                                     Material Return Status
                                 </SectionTitle>
                                 {returnStatusData.length === 0 ? (
@@ -394,7 +396,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                     <Card className="shadow-sm border-slate-200">
                         <CardContent className="p-5">
                             <SectionTitle>
-                                <Users className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
+                                <Users className="w-4 h-4" style={{ color: BRAND }} />
                                 Top Workers by Requests
                             </SectionTitle>
                             {topWorkers.length === 0 ? (
@@ -418,7 +420,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                                             tickFormatter={(v) => v.length > 14 ? v.slice(0, 13) + '…' : v}
                                         />
                                         <Tooltip content={<ChartTooltip />} />
-                                        <Bar dataKey="requests" name="Requests" fill={BRAND_ORANGE} radius={[0, 4, 4, 0]} maxBarSize={20} />
+                                        <Bar dataKey="requests" name="Requests" fill={BRAND} radius={[0, 4, 4, 0]} maxBarSize={20} />
                                         <Bar dataKey="approved" name="Approved" fill="#10b981" radius={[0, 4, 4, 0]} maxBarSize={20} />
                                     </BarChart>
                                 </ResponsiveContainer>
@@ -430,7 +432,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                     <Card className="shadow-sm border-slate-200">
                         <CardContent className="p-5">
                             <SectionTitle>
-                                <Package className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
+                                <Package className="w-4 h-4" style={{ color: BRAND }} />
                                 Most Requested Materials
                                 <span className="ml-auto text-xs font-normal text-slate-400">by total quantity</span>
                             </SectionTitle>
@@ -457,7 +459,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                                             />
                                             <Tooltip content={<ChartTooltip />} />
                                             <Bar dataKey="qty" name="Qty" fill={SLATE_700} radius={[0, 4, 4, 0]} maxBarSize={20} />
-                                            <Bar dataKey="count" name="Transactions" fill={BRAND_ORANGE} radius={[0, 4, 4, 0]} maxBarSize={20} />
+                                            <Bar dataKey="count" name="Transactions" fill={BRAND} radius={[0, 4, 4, 0]} maxBarSize={20} />
                                         </BarChart>
                                     </ResponsiveContainer>
 
@@ -475,7 +477,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                                                 {topMaterials.map((m, i) => (
                                                     <tr key={m.name} className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors">
                                                         <td className="py-2 px-2 flex items-center gap-2">
-                                                            <span className="w-5 h-5 rounded-full text-white text-[10px] flex items-center justify-center font-bold" style={{ background: i === 0 ? BRAND_ORANGE : SLATE_700 }}>
+                                                            <span className="w-5 h-5 rounded-full text-white text-[10px] flex items-center justify-center font-bold" style={{ background: i === 0 ? BRAND : SLATE_700 }}>
                                                                 {i + 1}
                                                             </span>
                                                             {m.name}
@@ -496,7 +498,7 @@ export default function AdminAnalytics({ transactions = [] }) {
                     <Card className="shadow-sm border-slate-200">
                         <CardContent className="p-5">
                             <SectionTitle>
-                                <Users className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
+                                <Users className="w-4 h-4" style={{ color: BRAND }} />
                                 Worker Summary Table
                             </SectionTitle>
                             <div className="overflow-x-auto">

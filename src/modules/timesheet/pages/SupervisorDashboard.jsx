@@ -44,10 +44,9 @@ import {
 } from '@/modules/timesheet/components/ShiftApprovalActions';
 import { sendBrowserNotification } from '@/modules/timesheet/lib/emailNotification';
 import { formatTime, formatDate, isSunday, isPublicHoliday, calculateShiftHours, getWorkDateFromDateTime, getTodaySingapore, addDaysToYmd } from '@/modules/timesheet/lib/timeUtils';
-import { PortalBackdrop, glassPanel } from '@/ui/PortalShell';
+import { PortalBackdrop, glassPanel, ModuleSectionHead } from '@/ui/PortalShell';
 import { isNativeApp } from '@/core/platform';
-import { NativeNavBar } from '@/ui/native/NativeChrome';
-import { NativeErrorState, NativeListSkeleton } from '@/ui/native/NativeStates';
+import { NativeEmptyState, NativeErrorState, NativeListSkeleton } from '@/ui/native/NativeStates';
 
 const NATIVE_APP = isNativeApp();
 
@@ -650,12 +649,12 @@ export default function SupervisorDashboard() {
 
     if (!supervisorSiteId) {
         return (
-            <div className="relative app-shell flex items-center justify-center bg-[#f8fafc]">
-                {NATIVE_APP ? null : <PortalBackdrop emerald />}
+            <div className="relative app-shell flex min-h-dvh-safe items-center justify-center bg-[var(--g-bg,#f3f4f6)]">
+                {NATIVE_APP ? null : <PortalBackdrop />}
                 <Card className={cn(glassPanel, 'relative z-10 p-8 text-center')}>
-                    <h2 className="mb-4 text-xl font-semibold text-red-600">Access Denied</h2>
-                    <p className="text-slate-600">Supervisor site information not found. Please login again.</p>
-                    <Button onClick={() => navigate("/login")} className="mt-4 rounded-xl bg-emerald-600 hover:bg-emerald-700">
+                    <h2 className="mb-4 text-xl font-semibold text-[var(--g-danger)]">Access Denied</h2>
+                    <p className="text-[var(--g-muted)]">Supervisor site information not found. Please login again.</p>
+                    <Button onClick={() => navigate("/login")} className="mt-4 rounded-xl bg-[var(--g-brand)] text-white hover:bg-[var(--g-brand-press)]">
                         Go to Login
                     </Button>
                 </Card>
@@ -668,46 +667,34 @@ export default function SupervisorDashboard() {
     const siteLabel = shifts.find((s) => s.sites?.site_name)?.sites?.site_name;
 
     return (
-        <div className={cn('relative min-h-dvh-safe bg-[#f8fafc]', NATIVE_APP && 'akk-screen')}>
-            {NATIVE_APP ? null : <PortalBackdrop emerald />}
-            {NATIVE_APP ? (
-                <NativeNavBar
-                    leading={<img src="/Akk-logo.jpg" alt="" className="akk-navbar__logo" />}
-                    eyebrow={`${t('role.supervisor')}${siteLabel ? ` · ${siteLabel}` : ''}`}
-                    eyebrowTone="manage"
-                    title={supervisorName || 'Supervisor'}
-                    trailing={null}
-                />
-            ) : (
-                <TopBar
-                    eyebrow={`${t('role.supervisor')}${siteLabel ? ` · ${siteLabel}` : ''}`}
-                    title={supervisorName || 'Supervisor'}
-                />
-            )}
+        <div className={cn('manager-dash-ui relative isolate min-h-dvh-safe', NATIVE_APP ? 'akk-screen bg-[var(--g-bg)]' : 'bg-[var(--g-bg,#f3f4f6)]')}>
+            {NATIVE_APP ? null : <PortalBackdrop />}
+            <TopBar
+                eyebrow={`${t('role.supervisor')}${siteLabel ? ` · ${siteLabel}` : ''}`}
+                title={supervisorName || 'Supervisor'}
+            />
 
-            <main className="relative z-10 mx-auto max-w-7xl px-safe py-5 pb-[calc(2rem+env(safe-area-inset-bottom,0px))]">
+            <main className="relative z-10 mx-auto max-w-7xl px-safe py-5 pb-[calc(var(--g-tabbar-space,5.5rem)+1rem)]">
                 <section className={cn(glassPanel, 'p-4 sm:p-5')}>
-                    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-                        <div>
-                            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight text-slate-900">
-                                <Clock className="h-5 w-5 text-emerald-600" />
-                                {t('admin.timeTracker')}
-                            </h2>
-                            <p className="mt-0.5 text-xs text-slate-500">
-                                {t('ui.shown', { count: filteredShifts.length })}
-                                {shifts.length ? ` · ${t('ui.loaded', { count: shifts.length })}` : ''}
-                                {inProgressCount ? ` · ${t('ui.activeCount', { count: inProgressCount })}` : ''}
-                                {unapprovedCount ? ` · ${t('ui.unapprovedCount', { count: unapprovedCount })}` : ''}
-                            </p>
-                        </div>
+                    <ModuleSectionHead
+                        icon={Clock}
+                        title={t('admin.timeTracker')}
+                        lede={[
+                            t('ui.shown', { count: filteredShifts.length }),
+                            shifts.length ? t('ui.loaded', { count: shifts.length }) : null,
+                            inProgressCount ? t('ui.activeCount', { count: inProgressCount }) : null,
+                            unapprovedCount ? t('ui.unapprovedCount', { count: unapprovedCount }) : null,
+                        ].filter(Boolean).join(' · ')}
+                        actions={
                         <Button
                             onClick={exportToExcel}
-                            className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                            className="h-10 rounded-xl bg-[var(--g-brand)] text-white hover:bg-[var(--g-brand-press)]"
                         >
                             <FileSpreadsheet className="mr-1.5 h-4 w-4" />
                             {t('ui.exportExcel')}
                         </Button>
-                    </div>
+                        }
+                    />
 
                     <div className="mb-4 space-y-3">
                         <div className="relative">
@@ -753,14 +740,14 @@ export default function SupervisorDashboard() {
                         <NativeErrorState error={shiftsError} onRetry={() => refetch()} retrying={isRefetchingShifts} className="shadow-none" />
                     ) : isLoading ? (
                         <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-7 w-7 animate-spin text-emerald-600" />
+                            <Loader2 className="h-7 w-7 animate-spin text-[var(--g-brand)]" />
                         </div>
                     ) : filteredShifts.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-16 text-center">
-                            <Clock className="mx-auto mb-3 h-12 w-12 text-slate-300" />
-                            <h3 className="text-base font-semibold text-slate-700">No shifts found</h3>
-                            <p className="mt-1 text-sm text-slate-500">Shifts will appear here when workers at your site clock in/out</p>
-                        </div>
+                        <NativeEmptyState
+                            icon={Clock}
+                            title="No shifts found"
+                            message="Shifts will appear here when workers at your site clock in/out"
+                        />
                     ) : (
                         <div className="space-y-2">
                             {filteredShifts.map((shift) => {
@@ -786,7 +773,7 @@ export default function SupervisorDashboard() {
                                                                 >
                                                                     <span className={cn(
                                                                         'mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl',
-                                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-sky-50 text-sky-600'
+                                                                        shift.has_left ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-800'
                                                                     )}>
                                                                         <Clock className="h-5 w-5" />
                                                                     </span>
@@ -827,7 +814,7 @@ export default function SupervisorDashboard() {
 
                                                             <div className="flex flex-wrap items-center gap-2">
                                                                             <Badge variant="outline"
-                                                                                className={shift.has_left ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-sky-50 border-sky-200 text-sky-800'}
+                                                                                className={shift.has_left ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-slate-100 border-slate-200 text-slate-800'}
                                                                             >
                                                                                 {shift.has_left ? 'Completed' : 'In Progress'}
                                                                             </Badge>
@@ -887,12 +874,12 @@ export default function SupervisorDashboard() {
                                                                                         Break: {breakHours.toFixed(2)}h
                                                                                     </span>
                                                                                     {(shift.sunday_hours || 0) > 0 && (
-                                                                                        <span className="text-orange-600 font-medium">
+                                                                                        <span className="text-slate-800 font-medium">
                                                                                             Sun/PH: {(shift.sunday_hours || 0).toFixed(2)}h
                                                                                         </span>
                                                                                     )}
                                                                                     {(shift.ot_hours || 0) > 0 && (
-                                                                                        <span className="text-blue-600 font-medium">
+                                                                                        <span className="text-slate-800 font-medium">
                                                                                             OT: {(shift.ot_hours || 0).toFixed(2)}h
                                                                                         </span>
                                                                                     )}
