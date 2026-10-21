@@ -1104,7 +1104,7 @@ export default function SubmitProgress() {
             )}
 
             {step === 'submitting' && (
-                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-white/90">
+                <div className="fixed inset-0 z-[110] flex flex-col items-center justify-center gap-3 bg-white/90">
                     <Loader2 className="h-8 w-8 animate-spin text-brand" />
                     <p className="text-sm text-slate-600">Uploading photos…</p>
                 </div>
@@ -1119,7 +1119,7 @@ export default function SubmitProgress() {
 
 function ReviewSheet({ photos, onRemove, onRetakeAll, onAddMore, onUploadMore, onCaption, uploading, onConfirm, onClose, isFinal, description, onDescription }) {
     return (
-        <div className="fixed inset-0 z-50 flex flex-col bg-white">
+        <div className="fixed inset-0 z-[110] flex flex-col bg-white">
             <div className="flex items-center justify-between border-b border-border px-4 py-3 pt-safe-header">
                 <button onClick={onClose} aria-label="Close" className="flex h-11 w-11 items-center justify-center rounded-full hover:bg-slate-100">
                     <X className="h-5 w-5" />

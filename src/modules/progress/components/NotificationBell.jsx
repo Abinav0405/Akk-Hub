@@ -168,7 +168,7 @@ export default function NotificationBell({ role, inbox }) {
         )}
       </Button>
       {open && native && (
-        <div className="fixed inset-0 z-50">
+        <div className="fixed inset-0 z-[110]">
           <button
             type="button"
             aria-label="Close notifications"

@@ -34,7 +34,7 @@ const SummaryExportDialog = lazy(() => import('@/modules/progress/components/Sum
 
 function DialogChunkFallback({ label }) {
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/30">
             <div className="flex items-center gap-2 rounded-xl bg-white px-4 py-3 text-sm text-slate-700 shadow-md">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 {label}

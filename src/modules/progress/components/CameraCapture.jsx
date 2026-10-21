@@ -961,7 +961,7 @@ export default function CameraCapture({
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden overscroll-none bg-black landscape:flex-row">
+        <div className="fixed inset-0 z-[110] flex h-[100dvh] max-h-[100dvh] flex-col overflow-hidden overscroll-none bg-black landscape:flex-row">
             <div ref={viewfinderRef} className="relative min-h-0 min-w-0 flex-1 touch-none overflow-hidden bg-black">
                 {/* Only this box is drawn — it is exactly the area the saved photo covers. */}
                 <div
