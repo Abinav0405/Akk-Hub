@@ -75,7 +75,7 @@ import { setAdminShiftRefreshPaused, isAdminShiftRefreshPaused } from '@/modules
 import { format } from "date-fns";
 import QRCode from "qrcode";
 import { toast } from "sonner";
-import { formatTime, formatDate, isSunday, isPublicHoliday, shouldCreditUnworkedPublicHoliday, calculateShiftHours, getWorkDateFromDateTime, countLeaveDaysForDisplay, toSingaporeDateStr, getTodaySingapore, getSingaporeWallClock, addDaysToYmd, ymdEndOfMonth, ymdStartOfNextMonth } from '@/modules/timesheet/lib/timeUtils';
+import { formatTime, formatDate, isSunday, isPublicHoliday, shouldCreditUnworkedPublicHoliday, calculateShiftHours, getWorkDateFromDateTime, countLeaveDaysForDisplay, toSingaporeDateStr, getTodaySingapore, getSingaporeWallClock, addDaysToYmd, ymdEndOfMonth, ymdStartOfNextMonth, normalizeOptionalSiteGps, parseSiteGpsCoords } from '@/modules/timesheet/lib/timeUtils';
 import { approximateTime } from '@/modules/timesheet/lib/timeApproximation';
 
 const ADMIN_DASHBOARD_SECTIONS = [
@@ -3837,12 +3837,13 @@ export default function AdminDashboard() {
     };
 
     const openEditSiteDialog = (site) => {
+        const gps = parseSiteGpsCoords(site);
         setEditingSite(site);
         setSiteFormData({
             id: site.id || '',
             site_name: site.site_name || '',
-            latitude: site.latitude ?? '',
-            longitude: site.longitude ?? '',
+            latitude: gps ? gps.latitude : '',
+            longitude: gps ? gps.longitude : '',
             qr_token: site.qr_token || ''
         });
         setShowEditSiteDialog(true);
@@ -8983,7 +8984,7 @@ ${balanceBlock.html}
                             onChange={(e) => setSiteFormData({ ...siteFormData, latitude: e.target.value })}
                             placeholder="1.300000"
                         />
-                        <p className="text-xs text-slate-500">Required for clock-in geofence.</p>
+                        <p className="text-xs text-slate-500">Optional. Empty = no coordinates (QR only).</p>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Longitude</label>
@@ -8992,6 +8993,16 @@ ${balanceBlock.html}
                             onChange={(e) => setSiteFormData({ ...siteFormData, longitude: e.target.value })}
                             placeholder="103.800000"
                         />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSiteFormData({ ...siteFormData, latitude: '', longitude: '' })}
+                        >
+                            Clear GPS
+                        </Button>
                     </div>
                 </div>
 
@@ -9052,18 +9063,17 @@ ${balanceBlock.html}
                             return;
                         }
 
-                        const latitude = siteFormData.latitude === '' ? null : Number(siteFormData.latitude);
-                        const longitude = siteFormData.longitude === '' ? null : Number(siteFormData.longitude);
-                        if (latitude === null || longitude === null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
-                            toast.error('Latitude and longitude are required so workers can clock in at this site.');
+                        const coords = normalizeOptionalSiteGps(siteFormData.latitude, siteFormData.longitude);
+                        if (coords.error) {
+                            toast.error(coords.error);
                             return;
                         }
 
                         addSiteMutation.mutate({
                             id: siteFormData.id || generateId(),
                             site_name,
-                            latitude,
-                            longitude,
+                            latitude: coords.latitude,
+                            longitude: coords.longitude,
                             qr_token: siteFormData.qr_token || generateQrToken(site_name)
                         });
                     }}
@@ -9104,14 +9114,25 @@ ${balanceBlock.html}
                             value={siteFormData.latitude}
                             onChange={(e) => setSiteFormData({ ...siteFormData, latitude: e.target.value })}
                         />
-                        <p className="text-xs text-slate-500">Required for clock-in geofence.</p>
+                        <p className="text-xs text-slate-500">Optional. Empty = no coordinates (QR only).</p>
                     </div>
                     <div className="space-y-2">
                         <label className="text-sm font-medium">Longitude</label>
                         <Input
                             value={siteFormData.longitude}
                             onChange={(e) => setSiteFormData({ ...siteFormData, longitude: e.target.value })}
+                            placeholder="Leave empty for QR only"
                         />
+                    </div>
+                    <div className="md:col-span-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSiteFormData({ ...siteFormData, latitude: '', longitude: '' })}
+                        >
+                            Clear GPS
+                        </Button>
                     </div>
                 </div>
 
@@ -9189,10 +9210,9 @@ ${balanceBlock.html}
                             return;
                         }
 
-                        const latitude = siteFormData.latitude === '' ? null : Number(siteFormData.latitude);
-                        const longitude = siteFormData.longitude === '' ? null : Number(siteFormData.longitude);
-                        if (latitude === null || longitude === null || Number.isNaN(latitude) || Number.isNaN(longitude)) {
-                            toast.error('Latitude and longitude are required so workers can clock in at this site.');
+                        const coords = normalizeOptionalSiteGps(siteFormData.latitude, siteFormData.longitude);
+                        if (coords.error) {
+                            toast.error(coords.error);
                             return;
                         }
 
@@ -9200,7 +9220,7 @@ ${balanceBlock.html}
 
                         updateSiteMutation.mutate({
                             id: siteFormData.id,
-                            updates: { site_name, latitude, longitude, qr_token }
+                            updates: { site_name, latitude: coords.latitude, longitude: coords.longitude, qr_token }
                         });
                     }}
                 >

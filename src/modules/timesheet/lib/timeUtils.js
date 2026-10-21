@@ -419,6 +419,7 @@ export function calculateShiftHours(entryTime, leaveTime, breaksOrLunchStart = [
 /**
  * Parse site lat/lng for geofence. Rejects null/''/`Number(null)===0` traps and (0,0)
  * (Null Island) — those look “finite” but put workers ~11,000 km from Singapore sites.
+ * Missing GPS is valid: QR clock-in skips the geofence. Valid coords keep the 350 m check.
  * @returns {{ latitude: number, longitude: number } | null}
  */
 export function parseSiteGpsCoords(siteOrLat, lonMaybe) {
@@ -435,6 +436,29 @@ export function parseSiteGpsCoords(siteOrLat, lonMaybe) {
     if (latitude === 0 && longitude === 0) return null;
     if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
     return { latitude, longitude };
+}
+
+function gpsInputEmpty(value) {
+    return value == null || String(value).trim() === '';
+}
+
+/**
+ * Admin save helper: empty (and 0,0) persist as nulls, never Null Island.
+ * One filled field or garbage numbers is an error so we don't write half-coords.
+ * @returns {{ latitude: number, longitude: number } | { latitude: null, longitude: null } | { error: string }}
+ */
+export function normalizeOptionalSiteGps(latRaw, lngRaw) {
+    const latEmpty = gpsInputEmpty(latRaw);
+    const lngEmpty = gpsInputEmpty(lngRaw);
+    if (latEmpty && lngEmpty) return { latitude: null, longitude: null };
+    if (latEmpty || lngEmpty) {
+        return { error: 'Enter both latitude and longitude, or leave both empty for QR only.' };
+    }
+    const parsed = parseSiteGpsCoords(latRaw, lngRaw);
+    if (!parsed) {
+        return { error: 'Coordinates look invalid. Clear both fields for QR only (not 0, 0).' };
+    }
+    return parsed;
 }
 
 /**

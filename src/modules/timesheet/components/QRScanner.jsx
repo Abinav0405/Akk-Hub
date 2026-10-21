@@ -115,57 +115,52 @@ const QRScanner = ({
             }
 
             // Number(null)===0 used to pass “has GPS” and compare against Null Island (~11,500 km).
+            // No valid coords → QR-only site: skip geofence. Valid coords → enforce 350 m.
             const siteGps = parseSiteGpsCoords(site);
-            if (!siteGps) {
-                reportValidationFailure(
-                    'Site GPS not configured',
-                    'This site has no coordinates. Ask an admin to set latitude and longitude on Admin → Sites before clock-in.',
-                );
-                return;
-            }
-
-            if (locationPermissionRef.current === false) {
-                reportValidationFailure(
-                    'Location required',
-                    'Enable location permission to verify you are on site.',
-                );
-                return;
-            }
-
-            let loc = currentLocationRef.current;
-            if (!loc) {
-                try {
-                    loc = await readGpsOnce();
-                    currentLocationRef.current = loc;
-                    locationPermissionRef.current = true;
-                    setGpsAccuracy(loc.accuracy);
-                    setLocationReady(true);
-                } catch {
+            if (siteGps) {
+                if (locationPermissionRef.current === false) {
                     reportValidationFailure(
-                        'Location unavailable',
-                        'Wait for GPS or enable location services, then try again.',
+                        'Location required',
+                        'Enable location permission to verify you are on site.',
                     );
                     return;
                 }
-            }
 
-            const distance = calculateDistance(
-                loc.latitude,
-                loc.longitude,
-                siteGps.latitude,
-                siteGps.longitude,
-            );
+                let loc = currentLocationRef.current;
+                if (!loc) {
+                    try {
+                        loc = await readGpsOnce();
+                        currentLocationRef.current = loc;
+                        locationPermissionRef.current = true;
+                        setGpsAccuracy(loc.accuracy);
+                        setLocationReady(true);
+                    } catch {
+                        reportValidationFailure(
+                            'Location unavailable',
+                            'Wait for GPS or enable location services, then try again.',
+                        );
+                        return;
+                    }
+                }
 
-            if (distance > requiredDistance) {
-                const d = Math.round(distance);
-                const absurd = distance > 50000;
-                reportValidationFailure(
-                    'Too far from site',
-                    absurd
-                        ? `${d} m away — site GPS looks wrong (not within ${requiredDistance} m). Ask an admin to fix latitude/longitude on Admin → Sites.`
-                        : `${d} m away — move within ${requiredDistance} m of the site (GPS).`,
+                const distance = calculateDistance(
+                    loc.latitude,
+                    loc.longitude,
+                    siteGps.latitude,
+                    siteGps.longitude,
                 );
-                return;
+
+                if (distance > requiredDistance) {
+                    const d = Math.round(distance);
+                    const absurd = distance > 50000;
+                    reportValidationFailure(
+                        'Too far from site',
+                        absurd
+                            ? `${d} m away — site GPS looks wrong (not within ${requiredDistance} m). Ask an admin to fix latitude/longitude on Admin → Sites.`
+                            : `${d} m away — move within ${requiredDistance} m of the site (GPS).`,
+                    );
+                    return;
+                }
             }
 
             onScanSuccess && onScanSuccess(site, decodedText);

@@ -34,7 +34,7 @@ export default function SitesTab() {
                                   )}
                                   </h2>
                                   <p className="mt-0.5 max-w-xl text-sm text-slate-500">
-                                      Locations for shifts and attendance. Each site can have a QR token for scanning.
+                                      Locations for shifts and attendance. QR is enough to clock in; GPS is optional for a 350 m geofence.
                                   </p>
                                   </div>
                           </div>
@@ -51,7 +51,7 @@ export default function SitesTab() {
                   <div className="rounded-2xl border border-dashed border-slate-200 bg-[var(--g-surface)] py-14 text-center">
                       <MapPin className="mx-auto mb-3 h-12 w-12 text-slate-300" />
                       <h4 className="text-base font-semibold text-slate-800">No sites yet</h4>
-                      <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Create a site to get coordinates and a QR token for worker check-in.</p>
+                      <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">Create a site with a QR token. GPS coordinates are optional (QR-only sites skip the geofence).</p>
                   </div>
               ) : (
                   <div className="overflow-x-auto rounded-2xl border border-[var(--g-hairline)] bg-[var(--g-surface)]">

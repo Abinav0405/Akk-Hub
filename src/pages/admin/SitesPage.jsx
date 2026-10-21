@@ -13,11 +13,12 @@ import { Button } from '@/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { UNIFIED, supabaseCore } from '@/core/supabase';
 import { paths } from '@/app/paths';
+import { normalizeOptionalSiteGps, parseSiteGpsCoords } from '@/modules/timesheet/lib/timeUtils';
 
 const ProgressSitesPanel = lazy(() => import('@/modules/progress/components/ProgressSitesPanel'));
 
 const AREAS = [
-    { key: 'attendance', label: 'Attendance', icon: Clock, hint: 'Clock in/out location and QR code' },
+    { key: 'attendance', label: 'Attendance', icon: Clock, hint: 'Clock in/out QR — GPS optional' },
     { key: 'materials', label: 'Materials', icon: Boxes, hint: 'Shown in the material request site list' },
     { key: 'progress', label: 'Site work', icon: Camera, hint: 'Photo packages, JSR and section prefixes' },
 ];
@@ -137,8 +138,9 @@ function toForm(place) {
         name: place?.name || '',
         attendance: {
             on: Boolean(place?.attendance && place.attendance.is_active !== false),
-            latitude: place?.attendance?.latitude ?? '',
-            longitude: place?.attendance?.longitude ?? '',
+            // 0,0 / empty GPS display as blank so save persists nulls, not Null Island.
+            latitude: parseSiteGpsCoords(place?.attendance) ? String(place.attendance.latitude) : '',
+            longitude: parseSiteGpsCoords(place?.attendance) ? String(place.attendance.longitude) : '',
             qr_token: place?.attendance?.qr_token ?? '',
         },
         materials: { on: Boolean(place?.materials && place.materials.is_active !== false) },
@@ -194,10 +196,22 @@ function EditDialog({ place, open, onClose, onSaved }) {
     const save = async () => {
         setSaving(true);
         setError('');
+        const coords = normalizeOptionalSiteGps(form.attendance.latitude, form.attendance.longitude);
+        if (coords.error) {
+            setSaving(false);
+            setError(coords.error);
+            return;
+        }
+        // RPC reads lat/lng as text (`->>`). Send '' not JSON null so empty GPS persists as SQL null.
+        const attendance = {
+            ...form.attendance,
+            latitude: coords.latitude == null ? '' : String(coords.latitude),
+            longitude: coords.longitude == null ? '' : String(coords.longitude),
+        };
         const { error: e } = await supabaseCore.rpc('admin_save_place', {
             p_id: form.id,
             p_name: form.name,
-            p_areas: { attendance: form.attendance, materials: form.materials, progress: form.progress },
+            p_areas: { attendance, materials: form.materials, progress: form.progress },
         });
         setSaving(false);
         if (e) setError(e.message || 'Could not save.');
@@ -226,8 +240,42 @@ function EditDialog({ place, open, onClose, onSaved }) {
                                 </div>
                                 {form[key].on && key === 'attendance' ? (
                                     <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
-                                        <Field id="site-lat" label="Latitude" inputMode="decimal" value={form.attendance.latitude} onChange={(e) => set('attendance', { latitude: e.target.value })} />
-                                        <Field id="site-lng" label="Longitude" inputMode="decimal" value={form.attendance.longitude} onChange={(e) => set('attendance', { longitude: e.target.value })} />
+                                        <Field
+                                            id="site-lat"
+                                            label="Latitude"
+                                            hint="Optional"
+                                            inputMode="decimal"
+                                            placeholder="Leave empty for QR only"
+                                            value={form.attendance.latitude}
+                                            onChange={(e) => set('attendance', { latitude: e.target.value })}
+                                        />
+                                        <Field
+                                            id="site-lng"
+                                            label="Longitude"
+                                            hint="Optional"
+                                            inputMode="decimal"
+                                            placeholder="Leave empty for QR only"
+                                            value={form.attendance.longitude}
+                                            onChange={(e) => set('attendance', { longitude: e.target.value })}
+                                        />
+                                        <div className="sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
+                                            <p className="text-xs text-[var(--g-muted)]">
+                                                {parseSiteGpsCoords(form.attendance)
+                                                    ? 'Clock-in must be within 350 m of these coordinates.'
+                                                    : 'No coordinates (QR only) — workers clock in by QR without a GPS geofence.'}
+                                            </p>
+                                            {parseSiteGpsCoords(form.attendance) ? (
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="h-8 rounded-xl"
+                                                    onClick={() => set('attendance', { latitude: '', longitude: '' })}
+                                                >
+                                                    Clear GPS
+                                                </Button>
+                                            ) : null}
+                                        </div>
                                         <div className="sm:col-span-2 space-y-2">
                                             <Field
                                                 id="site-qr"
@@ -560,12 +608,7 @@ export default function SitesPage() {
                             <p className="truncate font-semibold text-[var(--g-ink)]">{p.name}</p>
                             <p className="mt-0.5 text-xs text-[var(--g-muted)]">
                                 {AREAS.map(({ key }) => usage(p, key)).filter(Boolean).join(' · ') || 'Not used yet'}
-                                {p.attendance &&
-                                (p.attendance.latitude == null ||
-                                    p.attendance.longitude == null ||
-                                    (Number(p.attendance.latitude) === 0 && Number(p.attendance.longitude) === 0))
-                                    ? ' · no location set'
-                                    : ''}
+                                {p.attendance && !parseSiteGpsCoords(p.attendance) ? ' · QR only (no GPS)' : ''}
                             </p>
                         </div>
                         <AreaChips place={p} />
