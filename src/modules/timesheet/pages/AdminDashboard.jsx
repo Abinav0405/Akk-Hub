@@ -1,4 +1,4 @@
-import { supabaseTimesheet as supabase } from '@/core/supabase';
+import { UNIFIED, supabaseTimesheet as supabase } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { Capacitor } from '@capacitor/core';
 import { registerPushForAdmin } from '@/modules/timesheet/lib/pushRegistration';
@@ -8673,10 +8673,12 @@ ${balanceBlock.html}
                             <Users className="mr-1.5 h-4 w-4" />
                             {t('admin.workers')}
                         </TabsTrigger>
-                        <TabsTrigger value="sites" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-sites">
-                            <MapPin className="mr-1.5 h-4 w-4" />
-                            {t('admin.sites')}
-                        </TabsTrigger>
+                        {!UNIFIED ? (
+                            <TabsTrigger value="sites" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm" data-tour="admin-tab-sites">
+                                <MapPin className="mr-1.5 h-4 w-4" />
+                                {t('admin.sites')}
+                            </TabsTrigger>
+                        ) : null}
                         <TabsTrigger value="vehicles" className="rounded-xl text-xs data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white lg:text-sm">
                             <Car className="mr-1.5 h-4 w-4" />
                             {t('admin.vehicles')}
@@ -8873,13 +8875,15 @@ ${balanceBlock.html}
                         )}
                     </TabsContent>
 
-                    <TabsContent value="sites" className="mt-6">
-                        {activeDashboardTab === 'sites' && (
-                            <Suspense fallback={<PageLoader />}>
-                                <SitesTab />
-                            </Suspense>
-                        )}
-                    </TabsContent>
+                    {!UNIFIED ? (
+                        <TabsContent value="sites" className="mt-6">
+                            {activeDashboardTab === 'sites' && (
+                                <Suspense fallback={<PageLoader />}>
+                                    <SitesTab />
+                                </Suspense>
+                            )}
+                        </TabsContent>
+                    ) : null}
 
                     <TabsContent value="vehicles" className="mt-6">
                         {activeDashboardTab === 'vehicles' && (
@@ -12063,7 +12067,7 @@ ${balanceBlock.html}
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="__none__">No Site</SelectItem>
-                                    {allSites.map((site) => (
+                                    {allSites.filter((site) => site.is_active !== false).map((site) => (
                                         <SelectItem key={site.id} value={String(site.id)}>
                                             {site.site_name}
                                         </SelectItem>
@@ -12995,7 +12999,7 @@ ${balanceBlock.html}
                                         <SelectValue placeholder="Select site" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {allSites.map((site) => (
+                                        {allSites.filter((site) => site.is_active !== false).map((site) => (
                                             <SelectItem key={site.id} value={site.id}>
                                                 {site.site_name}
                                             </SelectItem>

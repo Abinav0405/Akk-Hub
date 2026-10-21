@@ -64,6 +64,7 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
                 const { data, error } = await supabaseMaterials
                     .from('sites')
                     .select('*')
+                    .eq('is_active', true)
                     .order('name', { ascending: true });
                 if (error) throw error;
                 setSites(data || []);

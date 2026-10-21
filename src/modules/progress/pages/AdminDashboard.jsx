@@ -15,8 +15,11 @@ import { prefetchStaffRoutesIdle } from '@/modules/progress/lib/prefetchRoutes';
 import { listAllPackages } from '@/modules/progress/lib/staffPackages';
 import { listJsrs } from '@/modules/progress/lib/jsr';
 import { useHubSection } from '@/app/useHubSection';
+import { UNIFIED } from '@/core/supabase';
 
-const ADMIN_SECTIONS = ['packages', 'exports', 'jsr', 'analytics', 'users', 'sites', 'branding'];
+const ADMIN_SECTIONS = UNIFIED
+  ? ['packages', 'exports', 'jsr', 'analytics', 'users', 'branding']
+  : ['packages', 'exports', 'jsr', 'analytics', 'users', 'sites', 'branding'];
 
 const AnalyticsPanel = lazy(() => import('@/modules/progress/components/AnalyticsPanel'));
 const BrandingPanel = lazy(() => import('@/modules/progress/components/BrandingPanel'));
@@ -94,7 +97,7 @@ export default function AdminDashboard() {
         label: 'Operations',
         items: [
           { id: 'packages', label: 'Packages', icon: ClipboardList, badge: packageBadge },
-          { id: 'sites', label: 'Sites', icon: MapPin },
+          ...(!UNIFIED ? [{ id: 'sites', label: 'Sites', icon: MapPin }] : []),
           { id: 'exports', label: 'Export queue', icon: FileDown },
           { id: 'jsr', label: 'JSR & billing', icon: FileText, badge: jsrBadge },
           { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -138,7 +141,7 @@ export default function AdminDashboard() {
             <AnalyticsPanel />
           </Suspense>
         ) : null}
-        {tab === 'sites' ? (
+        {!UNIFIED && tab === 'sites' ? (
           <Suspense fallback={<PanelFallback label="sites" />}>
             <ProgressSitesPanel />
           </Suspense>
@@ -158,7 +161,9 @@ export default function AdminDashboard() {
         <NativeBottomNav
           items={[
             { id: 'packages', icon: ClipboardList, label: 'Packages', active: tab === 'packages', onClick: () => setTab('packages') },
-            { id: 'sites', icon: MapPin, label: 'Sites', active: tab === 'sites', onClick: () => setTab('sites') },
+            ...(!UNIFIED
+              ? [{ id: 'sites', icon: MapPin, label: 'Sites', active: tab === 'sites', onClick: () => setTab('sites') }]
+              : []),
             { id: 'users', icon: Users, label: 'Users', active: tab === 'users', onClick: () => setTab('users') },
             { id: 'jsr', icon: FileText, label: 'JSR', active: tab === 'jsr', onClick: () => setTab('jsr') },
             { id: 'exports', icon: FileDown, label: 'Exports', active: tab === 'exports', onClick: () => setTab('exports') },

@@ -97,6 +97,15 @@ const QRScanner = ({
                 return;
             }
 
+            // New clock-ins must use an active attendance site; history/clock-out can still resolve names.
+            if (action === 'scan' && site.is_active === false) {
+                reportValidationFailure(
+                    'Site inactive',
+                    'This site is switched off for attendance. Ask an admin to turn it back on.',
+                );
+                return;
+            }
+
             if ((action === 'leave' || action === 'lunch' || action === 'breaks') && currentShiftSiteId && currentShiftSiteId !== site.id) {
                 reportValidationFailure(
                     'Wrong site',
@@ -110,7 +119,7 @@ const QRScanner = ({
             if (!siteGps) {
                 reportValidationFailure(
                     'Site GPS not configured',
-                    'This site has no coordinates. Ask an admin to set latitude and longitude before clock-in.',
+                    'This site has no coordinates. Ask an admin to set latitude and longitude on Admin → Sites before clock-in.',
                 );
                 return;
             }
@@ -149,9 +158,12 @@ const QRScanner = ({
 
             if (distance > requiredDistance) {
                 const d = Math.round(distance);
+                const absurd = distance > 50000;
                 reportValidationFailure(
                     'Too far from site',
-                    `${d} m away — move within ${requiredDistance} m of the site (GPS).`,
+                    absurd
+                        ? `${d} m away — site GPS looks wrong (not within ${requiredDistance} m). Ask an admin to fix latitude/longitude on Admin → Sites.`
+                        : `${d} m away — move within ${requiredDistance} m of the site (GPS).`,
                 );
                 return;
             }

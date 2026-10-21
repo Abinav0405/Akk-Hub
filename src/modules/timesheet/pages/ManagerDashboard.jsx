@@ -409,6 +409,7 @@ export default function ManagerDashboard() {
             const { data, error } = await supabase
                 .from('sites')
                 .select('id, site_name')
+                .eq('is_active', true)
                 .order('site_name');
 
             if (error) throw error;

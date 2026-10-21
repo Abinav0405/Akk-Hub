@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo, lazy, Suspense } from 'react';
 import { storageKey } from '@/core/storage';
-import { supabaseMaterials as supabase } from '@/core/supabase';
+import { UNIFIED, supabaseMaterials as supabase } from '@/core/supabase';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from '@/ui/card';
 import { Button } from '@/ui/button';
@@ -34,7 +34,9 @@ const SitesManager = lazy(() => import('@/modules/materials/components/SitesMana
 const MaterialsManager = lazy(() => import('@/modules/materials/components/MaterialsManager'));
 const ManagersManager = lazy(() => import('@/modules/materials/components/ManagersManager'));
 
-const MATERIALS_ADMIN_SECTIONS = ['transactions', 'materials', 'sites', 'requesters', 'analytics', 'managers'];
+const MATERIALS_ADMIN_SECTIONS = UNIFIED
+    ? ['transactions', 'materials', 'analytics', 'managers']
+    : ['transactions', 'materials', 'sites', 'requesters', 'analytics', 'managers'];
 
 const ManagerTabFallback = (
     <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
@@ -808,9 +810,11 @@ export default function AdminDashboard({ role = 'admin' }) {
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList data-section-nav className="w-full overflow-x-auto border border-[var(--g-hairline)] bg-[var(--g-surface)] shadow-[0_1px_2px_rgb(15_29_51/0.04)] sm:w-auto">
                         <TabsTrigger value="transactions" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Inbox</span><span className="hidden sm:inline">Transactions</span></TabsTrigger>
-                        <TabsTrigger value="requesters" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
+                        {!UNIFIED ? (
+                            <TabsTrigger value="requesters" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
+                        ) : null}
                         {isAdmin && <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Stats</span><span className="hidden sm:inline">Analytics</span></TabsTrigger>}
-                        <TabsTrigger value="sites" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Sites</TabsTrigger>
+                        {!UNIFIED ? <TabsTrigger value="sites" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Sites</TabsTrigger> : null}
                         <TabsTrigger value="materials" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Stock</span><span className="hidden sm:inline">Materials</span></TabsTrigger>
                         {isAdmin && <TabsTrigger value="managers" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Managers</span></TabsTrigger>}
                     </TabsList>
@@ -931,11 +935,11 @@ export default function AdminDashboard({ role = 'admin' }) {
                         <Suspense fallback={ManagerTabFallback}>
                             <MaterialsManager />
                         </Suspense>
-                    ) : activeTab === 'sites' ? (
+                    ) : !UNIFIED && activeTab === 'sites' ? (
                         <Suspense fallback={ManagerTabFallback}>
                             <SitesManager />
                         </Suspense>
-                    ) : activeTab === 'requesters' ? (
+                    ) : !UNIFIED && activeTab === 'requesters' ? (
                         <Suspense fallback={ManagerTabFallback}>
                             <RequestersManager />
                         </Suspense>
@@ -1476,8 +1480,12 @@ export default function AdminDashboard({ role = 'admin' }) {
                 items={[
                     { id: 'transactions', icon: ClipboardList, label: 'Inbox', badge: pendingCount > 0 ? (pendingCount > 99 ? '99+' : pendingCount) : undefined, active: activeTab === 'transactions', onClick: () => setActiveTab('transactions') },
                     { id: 'materials', icon: Package, label: 'Stock', active: activeTab === 'materials', onClick: () => setActiveTab('materials') },
-                    { id: 'sites', icon: MapPin, label: 'Sites', active: activeTab === 'sites', onClick: () => setActiveTab('sites') },
-                    { id: 'requesters', icon: Users, label: 'People', active: activeTab === 'requesters', onClick: () => setActiveTab('requesters') },
+                    ...(!UNIFIED
+                        ? [
+                            { id: 'sites', icon: MapPin, label: 'Sites', active: activeTab === 'sites', onClick: () => setActiveTab('sites') },
+                            { id: 'requesters', icon: Users, label: 'People', active: activeTab === 'requesters', onClick: () => setActiveTab('requesters') },
+                        ]
+                        : []),
                     ...(isAdmin ? [
                         { id: 'analytics', icon: BarChart3, label: 'Stats', active: activeTab === 'analytics', onClick: () => setActiveTab('analytics') },
                         { id: 'managers', icon: UserCog, label: 'Managers', active: activeTab === 'managers', onClick: () => setActiveTab('managers') },
