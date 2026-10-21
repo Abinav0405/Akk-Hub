@@ -222,7 +222,11 @@ export default function Analytics() {
     const sitesQuery = useQuery({
         queryKey: ['analytics-sites'],
         queryFn: async () => {
-            const { data, error } = await supabase.from('sites').select('id, site_name').order('site_name');
+            const { data, error } = await supabase
+                .from('sites')
+                .select('id, site_name')
+                .eq('is_active', true)
+                .order('site_name');
             if (error) throw error;
             return data || [];
         },

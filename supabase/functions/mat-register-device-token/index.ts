@@ -127,19 +127,17 @@ Deno.serve(async (req) => {
         return json(400, { error: 'worker_id and password required for worker role' });
       }
 
-      const { data: requester, error: reqError } = await admin
-        .from('requesters')
-        .select('requester_id, password_hash')
-        .eq('requester_id', worker_id)
-        .maybeSingle();
-
-      if (reqError || !requester) {
+      // Bcrypt-aware (plain-text hashes were upgraded during migration).
+      // Same path as Hub materialsSession / materials.verify_requester_login.
+      const { data: loginRows, error: loginError } = await admin.rpc('verify_requester_login', {
+        p_requester_id: worker_id,
+        p_password: password,
+      });
+      const login = Array.isArray(loginRows) ? loginRows[0] : loginRows;
+      if (loginError || !login?.requester_id) {
         return json(401, { error: 'Invalid worker credentials' });
       }
-      // password_hash is currently stored plain text in this project
-      if (password !== requester.password_hash) {
-        return json(401, { error: 'Invalid worker credentials' });
-      }
+      worker_id = String(login.requester_id);
     }
 
     const row = {
