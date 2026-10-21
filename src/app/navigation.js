@@ -33,6 +33,7 @@ import {
     UserCog,
     UserRound,
     Users,
+    CalendarRange,
     Wallet,
 } from 'lucide-react';
 import { paths } from '@/app/paths';
@@ -83,6 +84,7 @@ export const NAV = {
                 label: 'Attendance',
                 tone: 'timesheet',
                 items: [
+                    ...(UNIFIED ? [{ id: 'deploy', label: 'My deployment', icon: CalendarRange, to: paths.deployment.mine }] : []),
                     { id: 'shifts', label: 'My shifts', labelKey: 'hub.nav.myShifts', icon: History, to: paths.timesheet.shifts },
                     { id: 'leave', label: 'Leave', labelKey: 'hub.nav.leave', icon: CalendarDays, to: paths.timesheet.leaveHistory },
                     { id: 'timesheets', label: 'Timesheets', labelKey: 'hub.nav.timesheets', icon: FileSpreadsheet, to: paths.timesheet.timesheets },
@@ -132,7 +134,10 @@ export const NAV = {
             {
                 label: 'Attendance',
                 tone: 'timesheet',
-                items: [{ id: 'shifts', label: 'Site shifts', labelKey: 'hub.nav.siteShifts', icon: ClipboardCheck, to: paths.timesheet.siteShifts }],
+                items: [
+                    ...(UNIFIED ? [{ id: 'crew', label: 'Site crew', icon: Users, to: paths.deployment.crew }] : []),
+                    { id: 'shifts', label: 'Site shifts', labelKey: 'hub.nav.siteShifts', icon: ClipboardCheck, to: paths.timesheet.siteShifts },
+                ],
             },
             { label: 'More', labelKey: 'hub.nav.more', items: [verifyItem, accountItem] },
         ],
@@ -157,6 +162,7 @@ export const NAV = {
                 label: 'Attendance',
                 tone: 'timesheet',
                 items: [
+                    ...(UNIFIED ? [{ id: 'deploy', label: 'Deployment', icon: CalendarRange, to: paths.deployment.plan }] : []),
                     { id: 'tshifts', label: 'Shifts', icon: Clock, ...sec(TS_MANAGE, 'time-tracker', true) },
                     { id: 'tleave', label: 'Leave', labelKey: 'hub.nav.leave', icon: CalendarDays, ...sec(TS_MANAGE, 'leaves') },
                     { id: 'ttimesheets', label: 'Timesheets', labelKey: 'hub.nav.timesheets', icon: FileSpreadsheet, to: paths.timesheet.manageTimesheets },
@@ -209,6 +215,7 @@ export const NAV = {
                 label: 'Attendance & pay',
                 tone: 'timesheet',
                 items: [
+                    ...(UNIFIED ? [{ id: 'deploy', label: 'Deployment', icon: CalendarRange, to: paths.deployment.plan }] : []),
                     { id: 'tshifts', label: 'Shifts', icon: Clock, ...sec(TS_ADMIN, 'time-tracker', true) },
                     { id: 'tleave', label: 'Leave', labelKey: 'hub.nav.leave', icon: CalendarDays, ...sec(TS_ADMIN, 'leaves') },
                     { id: 'ttimesheets', label: 'Timesheets', labelKey: 'hub.nav.timesheets', icon: FileSpreadsheet, ...sec(TS_ADMIN, 'timesheet-report') },

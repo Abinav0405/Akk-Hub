@@ -217,7 +217,7 @@ export default function AdminLogin() {
                                     bioAttemptsRef.current = 0;
                                     void startBiometricLogin(savedBioMode);
                                 }}
-                                className="mx-auto mb-3 flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-medium text-[#007aff] active:opacity-60"
+                                className="mx-auto mb-3 flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold text-[var(--g-brand)] active:opacity-60"
                             >
                                 <BioIcon className="h-5 w-5" strokeWidth={1.75} />
                                 {t('hub.login.bioWith', { name: getBiometricCopy(savedBioMode).name })}

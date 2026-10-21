@@ -5,8 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/ui/
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
 import PasswordInput from '@/ui/auth/PasswordInput';
-import { AlertCircle, ArrowLeft, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
-import { NativeNavBar } from '@/ui/auth/AkkChrome';
+import { AlertCircle, ArrowLeft, ChevronLeft, Eye, EyeOff, Info, Loader2 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useSheetLayout } from '@/core/platform';
 import { sheetSpring, easeSoft } from '@/core/platform';
@@ -235,23 +234,35 @@ function NativeLoginScreen({
         });
     };
 
+    const [fromHome] = useState(() => (typeof window !== 'undefined' ? consumeFromHome() : false));
+
     return (
-        <div className="akk-login" data-tone={tone}>
-            <NativeNavBar plain backTo={backTo} backLabel={backLabel}>
-                <div className="flex max-w-full justify-end overflow-hidden">
-                    <LanguageSwitcher />
-                </div>
-            </NativeNavBar>
-
-            <form id={formId} onSubmit={handleSubmit} noValidate className="flex min-h-0 flex-1 flex-col">
-                <div className="akk-login__scroll">
-                    <div className="akk-login__brand">
-                        <img src={logoUrl} alt="AKK Engineering" className="akk-login__logo" />
-                        <h1 className="akk-login__title">{title}</h1>
-                        {description ? <p className="akk-login__subtitle">{description}</p> : null}
-                        {stepLabel ? <p className="akk-login__step">{stepLabel}</p> : null}
+        <div className={cn('akk-login akk-login--v2', fromHome && 'is-from-home')} data-tone={tone}>
+            <header className="akk-login__hero">
+                <div className="akk-login__bar">
+                    {backTo ? (
+                        <Link to={backTo} className="akk-login__back" aria-label={backLabel}>
+                            <ChevronLeft className="h-6 w-6" aria-hidden />
+                        </Link>
+                    ) : (
+                        <span />
+                    )}
+                    <div className="akk-login__lang">
+                        <LanguageSwitcher />
                     </div>
+                </div>
+                <div className="akk-login__brand">
+                    <span className="akk-login__badge">
+                        <img src={logoUrl} alt="AKK Engineering" className="akk-login__logo" />
+                    </span>
+                    <h1 className="akk-login__title">{title}</h1>
+                    {description ? <p className="akk-login__subtitle">{description}</p> : null}
+                    {stepLabel ? <p className="akk-login__step">{stepLabel}</p> : null}
+                </div>
+            </header>
 
+            <form id={formId} onSubmit={handleSubmit} noValidate className="akk-login__sheet">
+                <div className="akk-login__scroll">
                     {notice && !formError ? (
                         <div className="akk-banner mb-4" role="status">
                             <Info aria-hidden />
@@ -259,7 +270,7 @@ function NativeLoginScreen({
                         </div>
                     ) : null}
 
-                    {extraContent}
+                    {extraContent ? <div className="akk-login__extra">{extraContent}</div> : null}
 
                     <div className="akk-login__form">
                         {fields.map((field, index) => {
@@ -284,12 +295,7 @@ function NativeLoginScreen({
                                         {field.label}
                                     </label>
                                     {isPassword ? (
-                                        <NativePasswordField
-                                            {...shared}
-                                            autoCapitalize="none"
-                                            autoCorrect="off"
-                                            spellCheck={false}
-                                        />
+                                        <NativePasswordField {...shared} autoCapitalize="none" autoCorrect="off" spellCheck={false} />
                                     ) : (
                                         <Input
                                             {...shared}
@@ -318,13 +324,7 @@ function NativeLoginScreen({
                 </div>
 
                 <div className="akk-login__actions">
-                    <button
-                        type="submit"
-                        className="akk-cta"
-                        data-tone={tone}
-                        disabled={isLoading || isSubmitDisabled}
-                        aria-busy={isLoading || undefined}
-                    >
+                    <button type="submit" className="akk-cta" data-tone={tone} disabled={isLoading || isSubmitDisabled} aria-busy={isLoading || undefined}>
                         {isLoading ? (
                             <>
                                 <Loader2 className="akk-delayed-spinner h-5 w-5" aria-hidden />

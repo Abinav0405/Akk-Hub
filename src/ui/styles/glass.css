@@ -2280,3 +2280,65 @@ html.akk-native.akk-android {
   --n-glass: rgb(250 250 251 / 0.97);
   --n-glass-strong: rgb(255 255 255 / 0.98);
 }
+
+/* ===================================================================================== */
+/* 18. Sign-out veil (core/auth/signOutFlow.js)                                           */
+/* ===================================================================================== */
+.g-signout {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(120% 70% at 50% 0%, rgb(165 15 45 / 0.10), transparent 60%), #f6f6f8;
+  opacity: 0;
+  transition: opacity 260ms var(--g-ease-out);
+}
+.g-signout.is-in { opacity: 1; }
+.g-signout.is-out { opacity: 0; transition-duration: 360ms; }
+.g-signout__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  transform: translateY(6px) scale(0.98);
+  transition: transform 320ms var(--g-ease-out);
+}
+.g-signout.is-in .g-signout__card { transform: none; }
+.g-signout__logo {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: #fff;
+  padding: 10px;
+  box-shadow: 0 10px 30px -14px rgb(165 15 45 / 0.45);
+}
+.g-signout__text {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--g-ink);
+}
+.g-signout__bar {
+  position: relative;
+  width: 96px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(165 15 45 / 0.12);
+}
+.g-signout__bar > span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 40%;
+  border-radius: inherit;
+  background: var(--g-brand);
+  animation: g-signout-bar 900ms var(--g-ease) infinite;
+}
+@keyframes g-signout-bar {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .g-signout, .g-signout__card { transition: none; }
+  .g-signout__bar > span { animation: none; width: 100%; }
+}

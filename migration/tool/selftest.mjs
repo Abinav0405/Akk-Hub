@@ -9,6 +9,7 @@
 import { PGlite } from '@electric-sql/pglite';
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto';
 import { uuid_ossp } from '@electric-sql/pglite/contrib/uuid_ossp';
+import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { readSchema, readStorage } from './lib/catalog.mjs';
 import { q } from './lib/db.mjs';
 import { applyStructure, planAuth, writeAuth, finishOn, readSqlFile, SOURCE_KEYS, TARGET_SCHEMA } from './lib/steps.mjs';
@@ -29,7 +30,7 @@ function wrap(db) {
         },
     };
 }
-const newDb = async () => wrap(await PGlite.create({ extensions: { pgcrypto, uuid_ossp } }));
+const newDb = async () => wrap(await PGlite.create({ extensions: { pgcrypto, uuid_ossp, btree_gist } }));
 
 // Just enough of a Supabase project: API roles, auth.*, storage.*, extensions.
 const SUPABASE_STUB = `
@@ -108,7 +109,8 @@ create table public.supervisors (id uuid primary key default gen_random_uuid(), 
 create table public.shifts (id uuid primary key default gen_random_uuid(), worker_id text not null, site_id text references public.sites(id),
   work_date date not null);
 create table public.leave_requests (id uuid primary key default gen_random_uuid(), employee_id text not null,
-  kind public.leave_kind not null default 'annual', status text not null default 'pending');
+  kind public.leave_kind not null default 'annual', status text not null default 'pending',
+  leave_type text, from_date date not null default current_date, to_date date not null default current_date);
 create table public.role_sessions (session_token uuid primary key default gen_random_uuid(), role text not null, subject_id text not null,
   expires_at timestamptz not null, session_kind text not null default 'full');
 create sequence public.login_events_id_seq;

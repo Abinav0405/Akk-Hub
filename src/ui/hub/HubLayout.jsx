@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
+import { signOutWithAnimation } from '@/core/auth/signOutFlow';
 import { Suspense, useEffect } from 'react';
 import { cn } from '@/ui/utils';
 import { Spinner } from '@/ui/hub/primitives';
@@ -7,7 +8,7 @@ import AnimatedOutlet from '@/ui/hub/AnimatedOutlet';
 import { isNativeApp, useWideLayout } from '@/core/platform';
 import { isNavItemActive, navFor } from '@/app/navigation';
 import { prefetchRoleScreens } from '@/app/prefetch';
-import { useIdentity, ROLE_LABELS, signOutEverywhere } from '@/core/auth/identity';
+import { useIdentity, ROLE_LABELS } from '@/core/auth/identity';
 import { useWorkerAccess } from '@/core/auth/bridges';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { useLanguage } from '@/core/i18n';
@@ -186,8 +187,7 @@ export default function HubLayout() {
             destructive: true,
         });
         if (!ok) return;
-        await signOutEverywhere();
-        navigate('/', { replace: true });
+        await signOutWithAnimation(navigate);
     };
 
     return (

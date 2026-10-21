@@ -182,6 +182,7 @@ import { exportLeaveReportExcel } from '@/modules/timesheet/lib/leaveExport';
 import LeaveCalendar from '@/modules/timesheet/components/LeaveCalendar';
 import WorkerAccessPanel from '@/modules/timesheet/components/admin/WorkerAccessPanel';
 import WorkerAccessTable from '@/modules/timesheet/components/admin/WorkerAccessTable';
+import WorkerIdCard from '@/modules/timesheet/components/admin/WorkerIdCard';
 import {
     ShiftApprovalButtons,
     ShiftApprovalMeta,
@@ -10315,6 +10316,7 @@ ${balanceBlock.html}
                                         </Button>
                                     </div>
                                     <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                        <WorkerIdCard worker={worker} type={type} inCompany={!notInCompany} />
                                         {profileFields.map((field) => (
                                             <div key={field.label} className="rounded-lg border border-slate-200/80 bg-white px-3 py-2.5">
                                                 <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{field.label}</p>
@@ -10572,6 +10574,11 @@ ${balanceBlock.html}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
+                        {workerFormData.employee_id ? (
+                            <div className="md:col-span-2">
+                                <WorkerIdCard worker={workerFormData} type={selectedWorkerType} inCompany={workerFormData.in_company !== false} />
+                            </div>
+                        ) : null}
                         <div className="space-y-2">
                             <label className="text-sm font-medium">Employee ID</label>
                             <Input

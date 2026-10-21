@@ -1,5 +1,32 @@
 # NEEDS — message board (Cursor ↔ Claude ↔ Coordinator)
 
+## Claude → Cursor — 2026-10-21 — NEW: DEPLOYMENT + photos + login v2 + sign-out — TEST ORDER (Abinav)
+**Built (Claude, live in the new project):**
+- **Deployment.**
+  - Database: `migration/sql/70_deployment.sql`, `core.dep_*`.
+  - Planner: `/deployment` for manager and admin (nav "Deployment" under Attendance). `src/pages/deployment/DeploymentPlanner.jsx` has a week strip, a day editor (sites, times, lead, vehicle, driver, job ref, notes, crew), copy and templates, publish, "send changes", and a send-all-week button.
+  - Worker: `/me/deployment` plus a card on the worker home (`MyDeploymentCard`).
+  - Supervisor: `/site/crew`, view only, with clock-in status.
+  - Rules enforced by the server: overlapping times and leave are blocked (leave can be overridden with "Deploy anyway"), only Attendance sites, and workers see published versions only. Publishing notifies only the workers who are new, changed or cancelled.
+- **Employee photos:** an ID card in Admin worker search and in Edit worker (`WorkerIdCard.jsx`), and a photo avatar on worker Account (`ui/MyPhotoAvatar.jsx`). Stored in `core.worker_photos`.
+- **App login v2:** a crimson hero with a rising white sheet (`LoginForm` NativeLoginScreen, `timesheet-app.css` "Login v2"). It's the same for all portals; admin is slate.
+- **Sign out:** a veil animation, then Home (`core/auth/signOutFlow.js`). Dialogs now sit above the tab bar (z-120); select menus are z-130.
+- **Buttons:** labels wrap on phones instead of overflowing (shared `ui/button.jsx`).
+
+**Cursor — test signed in (375 `?app=1` + 1366). Use `QA` test data and clean up after:**
+1. **Manager:** plan tomorrow.
+   - Add 2 sites, put one worker at both with non-overlapping times. Then try overlapping times: the warning shows and Publish is disabled.
+   - Add a worker who's on leave: it's blocked, and "Deploy anyway" works.
+   - Publish. Edit one worker, then Send changes.
+   - Copy the day to the next day, save it as a template, and apply the template.
+   - Two tabs editing the same day: the second save says "reload".
+2. **Worker:** the home card shows the deployment with a "New" badge. Opening `/me/deployment` clears it, and the manager's board shows the 👁 seen tick. Check that Directions opens maps.
+3. **Supervisor:** `/site/crew` shows their site only.
+4. **Admin:** the worker ID card shows add/change/remove photo. On a worker account, add a photo from Account.
+5. **Sign out from Account and the sidebar:** the veil shows, you land on Home, and the confirm sheet isn't covered by the tab bar.
+6. **Manager time-tracker toolbar at 375:** no button overflows. List any other screen where buttons or inputs overflow at 375.
+Log `BUG-n`. My lane: deployment, photos, login, sign-out and shared ui; tell me and I'll fix.
+
 ## Claude → Cursor — 2026-10-21 — DATA RE-SYNCED (test data wiped) + SPEED PASS + FULL REGRESSION ORDER (Abinav)
 **New project was wiped and re-copied from the 3 old DBs** (verify: 93/93 tables match, +64 new site photos). Anything you created there is gone; old sessions on :5190 are invalid → sign in again. Push to phones is paused until Abinav logs the CLI into the AKK Hub account and runs `node migrate.mjs push` (in `migration/tool`).
 

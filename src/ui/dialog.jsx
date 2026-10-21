@@ -17,7 +17,7 @@ const DialogOverlay = React.forwardRef(({ className, ...props }, ref) => (
         ref={ref}
         data-ui="overlay"
         className={cn(
-            'fixed inset-0 z-50 bg-slate-900/45 duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            'fixed inset-0 z-[120] bg-slate-900/45 duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'motion-reduce:animate-none motion-reduce:transition-none',
             className,
         )}
@@ -33,7 +33,7 @@ const DialogContent = React.forwardRef(({ className, children, hideClose = false
             ref={ref}
             data-ui="dialog"
             className={cn(
-                'g-dialog g-dialog--sheet fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-5 sm:p-6',
+                'g-dialog g-dialog--sheet fixed left-[50%] top-[50%] z-[120] grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 p-5 sm:p-6',
                 'max-h-[min(90dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)))] overflow-y-auto overscroll-contain touch-pan-y',
                 'duration-300 ease-out data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
                 'max-sm:data-[state=closed]:slide-out-to-bottom max-sm:data-[state=open]:slide-in-from-bottom',

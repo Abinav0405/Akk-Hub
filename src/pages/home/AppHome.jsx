@@ -14,6 +14,15 @@ import { getSingaporeGreeting } from '@/ui/native/NativeChrome';
 import LanguageSwitcher from '@/core-i18n/LanguageSwitcher';
 import { paths } from '@/app/paths';
 
+/** Tell the login screen it was opened from Home (it then plays the hand-off animation). */
+function markFromHome() {
+    try {
+        sessionStorage.setItem('akk-from-home', 'login');
+    } catch {
+        /* private mode */
+    }
+}
+
 function QrHint() {
     const finder = (x, y) => (
         <g key={`${x}-${y}`}>
@@ -59,12 +68,12 @@ function BioQuickLinks({ faceTo, fingerprintTo, hasFingerprint, showFace = true 
     return (
         <div className={`hxa-quick ${single ? 'hxa-quick--single' : ''}`}>
             {showFaceLink ? (
-                <Link to={faceTo}>
+                <Link onClick={markFromHome} to={faceTo}>
                     <ScanFace strokeWidth={1.8} aria-hidden /> Face ID
                 </Link>
             ) : null}
             {showFp ? (
-                <Link to={fingerprintTo}>
+                <Link onClick={markFromHome} to={fingerprintTo}>
                     <Fingerprint strokeWidth={1.8} aria-hidden /> Fingerprint
                 </Link>
             ) : null}
@@ -102,7 +111,7 @@ const OTHER_PORTALS = [
 function PortalRow({ to, icon: Icon, tone, title, hint, fingerprintTo, hasFingerprint, showBio }) {
     return (
         <div className="hxa-portal">
-            <Link to={to} className="hxa-row" data-tone={tone}>
+            <Link onClick={markFromHome} to={to} className="hxa-row" data-tone={tone}>
                 <span className="hxa-row__icon">
                     <Icon strokeWidth={1.9} aria-hidden />
                 </span>
@@ -121,7 +130,7 @@ function PortalRow({ to, icon: Icon, tone, title, hint, fingerprintTo, hasFinger
 
 function Row({ to, icon: Icon, tone, title, hint }) {
     return (
-        <Link to={to} className="hxa-row" data-tone={tone}>
+        <Link onClick={markFromHome} to={to} className="hxa-row" data-tone={tone}>
             <span className="hxa-row__icon">
                 <Icon strokeWidth={1.9} aria-hidden />
             </span>
@@ -189,7 +198,7 @@ export default function AppHome() {
                         <QrHint />
                         <p>At your site? Sign in, then scan the site QR to start or end your shift.</p>
                     </div>
-                    <Link to={`${paths.login}?role=employee`} className="hxa-cta">
+                    <Link onClick={markFromHome} to={`${paths.login}?role=employee`} className="hxa-cta">
                         Employee sign in <ArrowRight className="h-5 w-5" aria-hidden />
                     </Link>
                     <BioQuickLinks

@@ -23,6 +23,12 @@ export const paths = {
 
     adminSites: '/admin/sites',
 
+    deployment: {
+        plan: '/deployment',
+        mine: '/me/deployment',
+        crew: '/site/crew',
+    },
+
     timesheet: {
         clock: '/timesheet/clock',
         shifts: '/timesheet/shifts',

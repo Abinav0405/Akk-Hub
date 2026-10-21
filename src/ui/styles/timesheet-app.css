@@ -1878,3 +1878,172 @@ html.akk-native .admin-app-ui .akk-list-card {
         max-width: 520px;
     }
 }
+
+/* ================================================================== */
+/* Login v2 — crimson hero + rising white sheet (all app portals)     */
+/* ================================================================== */
+html.akk-native .akk-login--v2 {
+    --login-hero: linear-gradient(160deg, #4a0b1d 0%, #7d0e27 48%, #a50f2d 100%);
+    background: #fff;
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+html.akk-native .akk-login--v2[data-tone='admin'] { --login-hero: linear-gradient(160deg, #0f172a 0%, #1e293b 55%, #334155 100%); }
+html.akk-native .akk-login--v2[data-tone='client'] { --login-hero: linear-gradient(160deg, #3b2412 0%, #6e4317 55%, #8a5a1a 100%); }
+
+html.akk-native .akk-login--v2 .akk-login__hero {
+    flex-shrink: 0;
+    position: relative;
+    padding: calc(var(--akk-safe-top) + 6px) max(16px, var(--akk-safe-right)) 44px max(16px, var(--akk-safe-left));
+    background: var(--login-hero);
+    color: #fff;
+}
+html.akk-native .akk-login--v2 .akk-login__hero::after {
+    /* soft light, painted once */
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(90% 70% at 85% 0%, rgb(255 255 255 / 0.14), transparent 60%);
+    pointer-events: none;
+}
+html.akk-native .akk-login--v2 .akk-login__bar {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 48px;
+}
+html.akk-native .akk-login--v2 .akk-login__back {
+    display: inline-flex;
+    width: 44px;
+    height: 44px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    color: #fff;
+    background: rgb(255 255 255 / 0.12);
+}
+html.akk-native .akk-login--v2 .akk-login__back:active { background: rgb(255 255 255 / 0.22); }
+html.akk-native .akk-login--v2 .akk-login__lang :is(button, [role='combobox']) {
+    color: #fff !important;
+    background: rgb(255 255 255 / 0.14) !important;
+    border-color: rgb(255 255 255 / 0.18) !important;
+}
+html.akk-native .akk-login--v2 .akk-login__brand {
+    position: relative;
+    z-index: 1;
+    padding: 14px 6px 0;
+}
+html.akk-native .akk-login--v2 .akk-login__badge {
+    display: inline-flex;
+    width: 60px;
+    height: 60px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 10px 24px -12px rgb(0 0 0 / 0.45);
+}
+html.akk-native .akk-login--v2 .akk-login__logo {
+    width: 42px;
+    height: 42px;
+    border-radius: 0;
+    object-fit: contain;
+}
+html.akk-native .akk-login--v2 .akk-login__title {
+    margin-top: 16px;
+    font-size: 28px;
+    line-height: 33px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    color: #fff;
+}
+html.akk-native .akk-login--v2 .akk-login__subtitle {
+    margin-top: 6px;
+    font-size: 15px;
+    line-height: 21px;
+    color: rgb(255 255 255 / 0.78);
+}
+html.akk-native .akk-login--v2 .akk-login__step {
+    background: rgb(255 255 255 / 0.16);
+    color: #fff;
+}
+
+/* The sheet: white, rounded, overlaps the hero; scrolls; CTA pinned above the keyboard. */
+html.akk-native .akk-login--v2 .akk-login__sheet {
+    position: relative;
+    z-index: 2;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    margin-top: -26px;
+    border-radius: 26px 26px 0 0;
+    background: #fff;
+    box-shadow: 0 -10px 30px -22px rgb(15 23 42 / 0.4);
+}
+html.akk-native .akk-login--v2 .akk-login__scroll {
+    padding-top: 22px;
+}
+html.akk-native .akk-login--v2 .akk-login__extra { margin-bottom: 18px; }
+html.akk-native .akk-login--v2 .akk-login__label {
+    margin: 0 2px 7px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--akk-text-2);
+}
+html.akk-native .akk-login--v2 .akk-input {
+    min-height: 54px;
+    border-radius: 14px;
+    border: 1px solid transparent;
+    background-color: #f3f4f6;
+    box-shadow: none;
+    font-size: 17px;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+html.akk-native .akk-login--v2 .akk-input:focus {
+    background-color: #fff;
+    border-color: rgb(165 15 45 / 0.45);
+    box-shadow: 0 0 0 4px rgb(165 15 45 / 0.12);
+}
+html.akk-native .akk-login--v2 .akk-login__actions {
+    background: #fff;
+    border-top: 1px solid rgb(15 23 42 / 0.06);
+}
+html.akk-native .akk-login--v2 .akk-cta { border-radius: 16px; min-height: 56px; }
+html.akk-native .akk-login--v2 .akk-cta:disabled:not([aria-busy='true']) {
+    background: var(--login-hero);
+    color: #fff;
+    opacity: 0.38;
+}
+
+/* Keyboard open: shrink the hero so the fields stay visible. */
+html.akk-native.akk-kb-open .akk-login--v2 .akk-login__hero { padding-bottom: 36px; }
+html.akk-native.akk-kb-open .akk-login--v2 .akk-login__badge,
+html.akk-native.akk-kb-open .akk-login--v2 .akk-login__subtitle { display: none; }
+html.akk-native.akk-kb-open .akk-login--v2 .akk-login__title { margin-top: 2px; font-size: 22px; line-height: 28px; }
+
+/* Entrance: the hero is already there (Home has the same crimson), the sheet rises into place. */
+@keyframes akk-login-sheet-in {
+    from { transform: translate3d(0, 56px, 0); opacity: 0; }
+}
+@keyframes akk-login-brand-in {
+    from { transform: translate3d(0, 10px, 0) scale(0.96); opacity: 0; }
+}
+@keyframes akk-login-hero-in {
+    from { opacity: 0; }
+}
+html.akk-native .akk-login--v2 .akk-login__sheet { animation: akk-login-sheet-in 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+html.akk-native .akk-login--v2 .akk-login__brand { animation: akk-login-brand-in 380ms cubic-bezier(0.22, 1, 0.36, 1) 60ms backwards; }
+html.akk-native .akk-login--v2:not(.is-from-home) .akk-login__hero { animation: akk-login-hero-in 220ms ease-out backwards; }
+html.akk-native .akk-login--v2 .akk-login__form > * { animation: akk-login-brand-in 320ms cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+html.akk-native .akk-login--v2 .akk-login__form > :nth-child(1) { animation-delay: 140ms; }
+html.akk-native .akk-login--v2 .akk-login__form > :nth-child(2) { animation-delay: 190ms; }
+@media (prefers-reduced-motion: reduce) {
+    html.akk-native .akk-login--v2 *,
+    html.akk-native .akk-login--v2 .akk-login__sheet,
+    html.akk-native .akk-login--v2 .akk-login__hero { animation: none !important; }
+}

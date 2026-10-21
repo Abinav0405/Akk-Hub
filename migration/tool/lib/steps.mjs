@@ -78,7 +78,7 @@ export async function applyStructure(c, snaps, { prereqSql = readSqlFile('00_pre
         onStep(`${key} → schema ${target} (${schemaStatements.length} statements, ${snap.storage.buckets.length} buckets)`);
     }
 
-    for (const file of ['20_core.sql', '30_unify.sql', '50_sites.sql']) {
+    for (const file of ['20_core.sql', '30_unify.sql', '50_sites.sql', '60_people.sql', '70_deployment.sql']) {
         await inTransaction(c, () => c.query(readSqlFile(file))).catch((e) => {
             throw new Error(`${file}: ${e.message}`);
         });

@@ -8,6 +8,8 @@
  * Copied from src/modules/timesheet/pages/WorkerPortal.jsx (that file is superseded).
  */
 import React, { Suspense, lazy, useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { signOutWithAnimation } from '@/core/auth/signOutFlow';
+import { MyDeploymentCard } from '@/pages/deployment/MyDeployment';
 import { storageKey } from '@/core/storage';
 import { Card, CardContent } from '@/ui/card';
 import { Button } from '@/ui/button';
@@ -26,7 +28,6 @@ import {
     Bell, Clock, Coffee, LogOut, Calendar, AlertCircle, FileText, Loader2, Download, Key, HelpCircle, Printer, ClipboardList, History, Car, ChevronDown, Fingerprint, ClipboardCheck, Languages, Boxes, PackagePlus, Camera, Link2, ShieldCheck
 } from "lucide-react";
 import { useMaterialsSummary, useProgressSummary } from '@/pages/employee/useEmployeeModules';
-import { signOutEverywhere } from '@/core/auth/identity';
 import { paths } from '@/app/paths';
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
@@ -1860,8 +1861,7 @@ export default function EmployeeHome() {
     // Handle logout (client-side navigation — avoids full reload + native splash replay)
     const handleLogout = async () => {
         void unregisterPushDevice();
-        await signOutEverywhere();
-        navigate('/', { replace: true });
+        await signOutWithAnimation(navigate);
     };
 
     const attendanceDock = (
@@ -2023,6 +2023,7 @@ export default function EmployeeHome() {
                             </div>
 
                             <div className="wh-home-side">
+                            <MyDeploymentCard />
                             <ActionTiles
                                 tour="worker-shortcuts"
                                 label={t('worker.moreActions')}

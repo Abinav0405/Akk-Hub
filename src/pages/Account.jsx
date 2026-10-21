@@ -3,13 +3,15 @@
  * privacy and sign-out.
  */
 import { useEffect, useState } from 'react';
+import { signOutWithAnimation } from '@/core/auth/signOutFlow';
+import MyPhotoAvatar from '@/ui/MyPhotoAvatar';
 import { useNavigate } from 'react-router-dom';
 import { CircleCheck, Fingerprint, Languages, Link2, LogOut, ScrollText, Unlink } from 'lucide-react';
 import { HubPage } from '@/ui/PortalShell';
 import { List, ListRow, SectionLabel } from '@/ui/hub/primitives';
 import LanguageSwitcher from '@/core-i18n/LanguageSwitcher';
 import { useLanguage } from '@/core/i18n';
-import { ROLE_LABELS, signOutEverywhere, useIdentity } from '@/core/auth/identity';
+import { ROLE_LABELS, useIdentity } from '@/core/auth/identity';
 import { MODULE_LABELS, disconnectModule, useModuleConnection } from '@/core/auth/bridges';
 import { getBiometricPrefs, getBiometricSupport, getUnsupportedMessage } from '@/core/auth/biometric';
 import BiometricLoginSettings from '@/ui/biometric/BiometricLoginSettings';
@@ -89,16 +91,13 @@ export default function Account() {
             destructive: true,
         });
         if (!ok) return;
-        await signOutEverywhere();
-        navigate('/', { replace: true });
+        await signOutWithAnimation(navigate);
     };
 
     return (
         <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow>
             <section className="g-card g-card--pad g-rise flex items-center gap-4">
-                <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-[var(--g-brand-soft)] text-lg font-bold text-[var(--g-brand-text)]">
-                    {initials(identity?.name)}
-                </span>
+                <MyPhotoAvatar name={identity?.name} isWorker={isWorker} />
                 <div className="min-w-0">
                     <p className="truncate text-lg font-bold tracking-tight text-[var(--g-ink)]">{identity?.name}</p>
                     <p className="truncate text-sm text-[var(--g-muted)]">
