@@ -1,4 +1,5 @@
 import { supabaseTimesheet as supabase } from '@/core/supabase';
+import { getLocalWorkerIds } from '@/core/localWorkers';
 import { storageKey } from '@/core/storage';
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -136,11 +137,7 @@ export default function SupervisorDashboard() {
             log.info(`Total shifts in database for this site (past 35 days): ${totalCount}`);
 
             // Fetch all local worker IDs to exclude them from supervisor dashboard
-            const { data: localWorkers } = await supabase
-                .from('local_worker_details')
-                .select('employee_id');
-            
-            const localWorkerIds = localWorkers?.map(w => w.employee_id) || [];
+            const localWorkerIds = [...(await getLocalWorkerIds())];
             log.info(`Excluding ${localWorkerIds.length} local workers from supervisor dashboard`);
 
             // Fetch all shifts in batches to overcome Supabase's 1000 row default limit

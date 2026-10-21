@@ -12,7 +12,12 @@ function managerToken() {
 
 export async function listWorkers() {
   const { data, error } = await supabaseProgress.rpc('staff_list_workers', { p_manager_token: managerToken() });
-  if (error) throw error;
+  if (error) {
+    if (/not authenticated|session expired|invalid session/i.test(String(error.message || ''))) {
+      import('@/core/auth/bridges').then((m) => m.disconnectModule('progress')).catch(() => {});
+    }
+    throw error;
+  }
   return withoutLocalWorkers(data || [], (w) => w.employee_code);
 }
 

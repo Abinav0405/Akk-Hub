@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { UNIFIED } from '@/core/supabase';
+import { fetchMyWorkerRecord } from '@/core/localWorkers';
 import { storageKey } from '@/core/storage';
 import { Card, CardContent } from '@/ui/card';
 import { Button } from '@/ui/button';
@@ -259,6 +261,16 @@ export default function WorkerPortal() {
         queryKey: ['workerInCompany', workerId],
         queryFn: async () => {
             if (!workerId) return true;
+            if (UNIFIED) {
+                // The HR table is admin-only: the server returns this worker's own non-secret record.
+                try {
+                    const mine = await fetchMyWorkerRecord();
+                    if (!mine) return false; // Fail closed — no valid session / not found
+                    return mine.in_company !== false;
+                } catch {
+                    return false;
+                }
+            }
             const { data, error } = await supabase
                 .from(workerTable)
                 .select('in_company')
@@ -674,6 +686,15 @@ export default function WorkerPortal() {
         queryKey: ['workerBalance', workerId, workerType],
         queryFn: async () => {
             if (!workerId) return null;
+
+            if (UNIFIED) {
+                try {
+                    return (await fetchMyWorkerRecord()) || null;
+                } catch (e) {
+                    console.error('Error fetching worker balance:', e);
+                    return null;
+                }
+            }
 
             const { data, error } = await supabase
                 .from(workerTable)

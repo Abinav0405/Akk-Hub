@@ -17,6 +17,32 @@ import { createClient } from '@supabase/supabase-js';
 
 const env = import.meta.env;
 
+/**
+ * Switching a browser / phone from the three old projects to the one AKK Hub backend (or back):
+ * the Materials and Site-work sign-ins saved for the OLD backend mean nothing to the new one and
+ * would make every request fail with "not authenticated" while the screens still look signed in.
+ * Drop them once, when the backend changes; the area then asks the person to sign in again.
+ */
+(function resetSessionsOfPreviousBackend() {
+    try {
+        const marker = env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY ? env.VITE_SUPABASE_URL : 'legacy';
+        const key = 'akk.hub.backend';
+        if (localStorage.getItem(key) === marker) return;
+        const prefixes = ['akk.materials.', 'akk.progress.', 'akk.hub.conn', 'akk.hub.access', 'akk.hub.lastAutoConnect'];
+        for (const store of [localStorage, sessionStorage]) {
+            const doomed = [];
+            for (let i = 0; i < store.length; i += 1) {
+                const k = store.key(i);
+                if (k && prefixes.some((p) => k.startsWith(p))) doomed.push(k);
+            }
+            doomed.forEach((k) => store.removeItem(k));
+        }
+        localStorage.setItem(key, marker);
+    } catch {
+        /* storage blocked — nothing to clean */
+    }
+})();
+
 /** Always false — mock backend removed; kept so accidental imports stay off. */
 export const DEV_MOCK = false;
 

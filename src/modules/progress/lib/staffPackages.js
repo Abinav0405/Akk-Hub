@@ -26,7 +26,12 @@ async function invalidatePackageArtifact(packageId) {
 
 export async function listAllPackages() {
   const { data, error } = await supabaseProgress.rpc('staff_list_packages', { p_manager_token: managerToken() });
-  if (error) throw error;
+  if (error) {
+    if (/not authenticated|session expired|invalid session/i.test(String(error.message || ''))) {
+      import('@/core/auth/bridges').then((m) => m.disconnectModule('progress')).catch(() => {});
+    }
+    throw error;
+  }
   const visible = await withoutLocalWorkers(data || [], (p) => p.worker_employee_code);
   return visible.map((p) => ({
     id: p.id,

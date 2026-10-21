@@ -6,7 +6,7 @@
  * whose `localStorage.getItem('workerId')` calls were rewritten to
  * `storageKey('timesheet', 'workerId')`, read exactly what this file writes.
  */
-import { supabaseTimesheet as supabase } from '@/core/supabase';
+import { supabaseTimesheet as supabase, supabaseCore, UNIFIED } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { normalizeWorkerPasswordForSave } from '@/core/auth/passwordUtils';
 import { cachedVerify, forgetVerified, peekVerified, primeVerified } from '@/core/auth/verifyCache';
@@ -403,6 +403,12 @@ export async function resolveWorkerType(employeeId, preferredType) {
     const id = String(employeeId || '').trim();
     if (!id) return preferredType === 'local' ? 'local' : 'foreign';
 
+    // One backend: the HR table is admin-only; a server function answers 'local' / 'foreign' / null.
+    if (UNIFIED) {
+        const { data } = await supabaseCore.rpc('worker_type_of', { p_employee_id: id });
+        if (data === 'local' || data === 'foreign') return data;
+        return preferredType === 'local' ? 'local' : 'foreign';
+    }
     const [localRes, foreignRes] = await Promise.all([
         supabase.from('local_worker_details').select('employee_id').eq('employee_id', id).maybeSingle(),
         supabase.from('worker_details').select('employee_id').eq('employee_id', id).maybeSingle(),

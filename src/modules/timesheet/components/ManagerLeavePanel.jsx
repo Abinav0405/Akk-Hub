@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getLocalWorkerIds } from '@/core/localWorkers';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent } from '@/ui/card';
 import { Button } from '@/ui/button';
@@ -72,10 +73,7 @@ export default function ManagerLeavePanel({ managerName }) {
     const { data: pendingLeaves = [], isLoading } = useQuery({
         queryKey: ['managerPendingLeaves'],
         queryFn: async () => {
-            const { data: localWorkers } = await supabase
-                .from('local_worker_details')
-                .select('employee_id');
-            const localIds = new Set((localWorkers || []).map((w) => w.employee_id));
+            const localIds = await getLocalWorkerIds();
 
             const { data, error } = await supabase
                 .from('leave_requests')

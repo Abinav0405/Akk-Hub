@@ -1,3 +1,6 @@
+import { UNIFIED } from '@/core/supabase';
+import { getIdentity } from '@/core/auth/identity';
+import { fetchMyWorkerRecord } from '@/core/localWorkers';
 import {
     addDaysToYmd,
     isPublicHoliday,
@@ -129,6 +132,13 @@ export async function resolveWorkerWithTable(
     let columns = selectColumns || SAFE_WORKER_DIRECTORY_COLUMNS;
     if (columns === '*' && !isHubAdmin()) {
         columns = SAFE_WORKER_DIRECTORY_COLUMNS;
+    }
+
+    // One backend: the signed-in worker reads their OWN record through a server function (the local
+    // HR table is admin-only). Anyone else keeps the normal lookups below.
+    if (UNIFIED && getIdentity()?.role === 'worker' && String(getIdentity()?.id) === String(employeeId)) {
+        const mine = await fetchMyWorkerRecord();
+        if (mine) return { worker: mine, table: mine.worker_type === 'local' ? 'local_worker_details' : 'worker_details' };
     }
 
     const foreignResult = await supabase

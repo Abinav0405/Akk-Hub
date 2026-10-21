@@ -1,13 +1,15 @@
 /**
+ * Local workers' HR table is admin-only on the database. Everyone else works through server
+ * functions (core.worker_type_of / my_worker_record / local_worker_ids).
+ *
  * Managers and supervisors never see local workers (their shifts, timesheets, leave, forms,
  * Materials requests, site photos, deployments). Admins see everyone.
- *
- * Local workers are identified by the Attendance `local_worker_details` ID list (read once and
- * cached). Use `withoutLocalWorkers(rows, row => row.employee_id)` on a list a manager or
- * supervisor is about to see; it is a no-op for every other role.
+ * `withoutLocalWorkers(rows, row => row.employee_id)` is a no-op for every role except
+ * manager / supervisor.
  */
-import { supabaseTimesheet } from '@/core/supabase';
+import { UNIFIED, supabaseCore, supabaseTimesheet } from '@/core/supabase';
 import { getIdentity } from '@/core/auth/identity';
+import { getRoleSessionToken } from '@/core/auth/timesheetSession';
 
 const TTL_MS = 5 * 60 * 1000;
 let cache = null; // { at, promise }
@@ -18,18 +20,25 @@ export function hidesLocalWorkers() {
     return role === 'manager' || role === 'supervisor';
 }
 
+/** IDs of local workers (no names, no HR), for staff sessions. */
 export function getLocalWorkerIds() {
     if (!cache || Date.now() - cache.at > TTL_MS) {
-        const promise = supabaseTimesheet
-            .from('local_worker_details')
-            .select('employee_id')
-            .then(({ data, error }) => {
-                if (error) {
-                    cache = null;
-                    throw error;
-                }
-                return new Set((data || []).map((r) => String(r.employee_id).trim()));
-            });
+        const request = UNIFIED
+            ? supabaseCore.rpc('local_worker_ids', { p_token: getRoleSessionToken() || null }).then(({ data, error }) => {
+                  if (error) throw error;
+                  return data || [];
+              })
+            : supabaseTimesheet
+                  .from('local_worker_details')
+                  .select('employee_id')
+                  .then(({ data, error }) => {
+                      if (error) throw error;
+                      return (data || []).map((r) => r.employee_id);
+                  });
+        const promise = request.then((ids) => new Set(ids.map((id) => String(id).trim()))).catch((e) => {
+            cache = null;
+            throw e;
+        });
         cache = { at: Date.now(), promise };
     }
     return cache.promise;
@@ -53,4 +62,15 @@ export async function withoutLocalWorkers(rows, getId) {
         const id = getId(row);
         return id == null || !local.has(String(id).trim());
     });
+}
+
+/**
+ * The signed-in worker's own non-secret record (name, designation, in_company, leave balances and
+ * limits) — works for local and foreign workers on the one backend. null when not available.
+ */
+export async function fetchMyWorkerRecord() {
+    if (!UNIFIED) return null;
+    const { data, error } = await supabaseCore.rpc('my_worker_record', { p_token: getRoleSessionToken() || null });
+    if (error) throw error;
+    return data || null;
 }

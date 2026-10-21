@@ -12,6 +12,7 @@
  *   node migrate.mjs verify     row counts old vs new, sign-in links, access + sites summary
  *   node migrate.mjs all        check → snapshot → build → apply → auth → copy → finish → verify
  *   node migrate.mjs storage    copy photo / file buckets (needs the service keys; resumable)
+ *   node migrate.mjs sync progress   add newer rows from Site Progress only (nothing deleted)
  *   node migrate.mjs push       push triggers + a fresh webhook secret (after finish; needs supabase CLI login)
  *   node migrate.mjs reset --confirm-reset-new-project   wipe what this tool created in the NEW project
  *
@@ -145,7 +146,7 @@ async function apply() {
         if (existing.rows[0].n > 0) {
             throw new Error('The new project already has the migrated schemas. Run "reset --confirm-reset-new-project" first to rebuild.');
         }
-        await applyStructure(c, snaps, { onStep: ok });
+        await applyStructure(c, snaps, { onStep: ok, live: true });
     });
 }
 
@@ -346,7 +347,8 @@ async function storage() {
     if (!newUrl.includes(NEW_REF)) throw new Error('NEW_URL must be the new AKK Hub project.');
     const concurrency = 6;
 
-    for (const src of SOURCES) {
+    const only = (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+    for (const src of SOURCES.filter((x) => !only || x.key === only)) {
         const snap = readJson(`snapshot-${src.key}.json`);
         if (!snap.storage.buckets.length) continue;
         const srcUrl = need(src.urlEnv).replace(/\/$/, '');
@@ -451,6 +453,119 @@ async function push() {
 }
 
 // ---------------------------------------------------------------------------------------------
+/**
+ * Bring ONE old project's newer rows into the new project without touching anything else:
+ *   · rows missing in the new project (by primary key) are added
+ *   · rows that exist in both and are NEWER in the old project (updated_at) are updated
+ *   · rows that only exist in the new project, and everything in the other areas, are left alone
+ * Today only Site Progress ("progress") is supported (the old apps are still used live).
+ *   node migrate.mjs sync progress
+ */
+const SYNC_SKIP = new Set(['role_sessions', 'manager_sessions', 'exporter_sessions', 'push_delivery_config', 'device_tokens']);
+async function sync() {
+    const key = process.argv[3] || '';
+    if (key !== 'progress') throw new Error('Usage: node migrate.mjs sync progress');
+    const src = SOURCES.find((x) => x.key === key);
+    const target = TARGET_SCHEMA[key];
+    step('Sync Site Progress → new project (incremental, nothing is deleted)');
+    const s = await openSource(src);
+    const d = await openTarget();
+    const added = {};
+    const updated = {};
+    try {
+        const schema = await readSchema(s, 'public');
+        const pk = {};
+        for (const k of schema.constraints.filter((x) => x.type === 'p')) {
+            const m = /PRIMARY KEY \(([^)]+)\)/.exec(k.def);
+            if (m) pk[k.table] = m[1].split(',').map((x) => x.trim().replace(/"/g, ''));
+        }
+        await d.query('BEGIN');
+        await d.query('SET LOCAL session_replication_role = replica');
+        for (const t of schema.tables) {
+            if (SYNC_SKIP.has(t.name)) continue;
+            if (!pk[t.name]) {
+                warn(`${t.name}: no primary key — skipped`);
+                continue;
+            }
+            const exists = await d.query('select to_regclass($1) r', [`${target}.${q(t.name)}`]);
+            if (!exists.rows[0].r) {
+                warn(`${t.name}: not in the new project (new table in the old one?) — skipped`);
+                continue;
+            }
+            const cols = t.columns.filter((c) => c.generated !== 's').map((c) => q(c.name));
+            const list = cols.join(', ');
+            const stg = `stg_${t.name}`.slice(0, 60);
+            await d.query(`create temp table ${q(stg)} on commit drop as select ${list} from ${target}.${q(t.name)} with no data`);
+            await pipeline(
+                s.query(copyTo(`COPY (SELECT ${list} FROM public.${q(t.name)}) TO STDOUT`)),
+                d.query(copyFrom(`COPY ${q(stg)} (${list}) FROM STDIN`)),
+            );
+            const keys = pk[t.name].map(q);
+            const on = keys.map((k) => `t.${k} = x.${k}`).join(' and ');
+            const ins = await d.query(
+                `insert into ${target}.${q(t.name)} (${list}) select ${list} from ${q(stg)} x
+                  where not exists (select 1 from ${target}.${q(t.name)} t where ${on})`,
+            );
+            if (ins.rowCount) added[t.name] = ins.rowCount;
+            if (t.columns.some((c) => c.name === 'updated_at')) {
+                const setList = cols.filter((c) => !keys.includes(c)).map((c) => `${c} = x.${c}`).join(', ');
+                if (setList) {
+                    const up = await d.query(
+                        `update ${target}.${q(t.name)} t set ${setList} from ${q(stg)} x where ${on} and x.updated_at > t.updated_at`,
+                    );
+                    if (up.rowCount) updated[t.name] = up.rowCount;
+                }
+            }
+        }
+        // numbering continues from the old project's latest values
+        for (const sq of schema.sequences) {
+            const r = (await s.query(`select last_value::text v, is_called from public.${q(sq.name)}`)).rows[0];
+            if (!r.is_called) continue;
+            let seq = `${target}.${q(sq.name)}`;
+            if (sq.owned_by) {
+                const [tbl, col] = sq.owned_by.split('.');
+                const g = await d.query('select pg_get_serial_sequence($1, $2) s', [`${target}.${q(tbl)}`, col]);
+                if (g.rows[0]?.s) seq = g.rows[0].s;
+            }
+            await d.query('select setval($1::regclass, greatest($2::bigint, (select last_value from ${seq} )), true)'.replace('${seq}', seq), [seq, r.v]);
+        }
+        // New site-work users: attach them to the one worker record (Attendance is the master).
+        const wa = await d.query(`
+            insert into core.worker_access (employee_id, worker_type, materials, progress, updated_by)
+            select u.employee_code, w.t, false, u.is_active, 'sync'
+              from progress.app_users u
+              join (select employee_id::text id, 'foreign'::text t from attendance.worker_details
+                    union all select employee_id::text, 'local'::text from attendance.local_worker_details) w on w.id = u.employee_code
+             where not exists (select 1 from core.worker_access a where a.employee_id = u.employee_code)`);
+        const orphan = await d.query(`select employee_code from progress.app_users u
+             where not exists (select 1 from core.worker_access a where a.employee_id = u.employee_code)`);
+        await d.query(`update progress.app_users u set display_name = trim(w.n)
+              from (select employee_id::text id, employee_name::text n from attendance.worker_details
+                    union all select employee_id::text, employee_name::text from attendance.local_worker_details) w
+             where w.id = u.employee_code and nullif(trim(w.n), '') is not null and u.display_name is distinct from trim(w.n)`);
+        // New sites in the old project: give them a place in the one Sites list.
+        const places = await d.query(`
+            insert into core.sites (name, progress_site_id)
+            select p.name, p.id from progress.sites p
+             where not exists (select 1 from core.sites c where c.progress_site_id = p.id)`);
+        await d.query('COMMIT');
+        const sum = (o) => Object.values(o).reduce((a, b) => a + b, 0);
+        ok(`added ${fmt(sum(added))} new rows${Object.keys(added).length ? ': ' + Object.entries(added).map(([k, v]) => `${k} ${v}`).join(', ') : ''}`);
+        ok(`updated ${fmt(sum(updated))} changed rows${Object.keys(updated).length ? ': ' + Object.entries(updated).map(([k, v]) => `${k} ${v}`).join(', ') : ''}`);
+        if (wa.rowCount) ok(`${wa.rowCount} new site-work user(s) linked to their employee record`);
+        if (places.rowCount) ok(`${places.rowCount} new site(s) added to the Sites list`);
+        for (const o of orphan.rows) warn(`site-work user ${o.employee_code} has no Attendance employee record — add the employee in Admin → Employees`);
+    } catch (e) {
+        await d.query('ROLLBACK').catch(() => {});
+        throw e;
+    } finally {
+        await s.end();
+        await d.end();
+    }
+    log('\n  Photos / files: run  node migrate.mjs storage --only=progress');
+}
+
+// ---------------------------------------------------------------------------------------------
 async function reset() {
     if (!process.argv.includes('--confirm-reset-new-project')) {
         throw new Error('reset wipes what this tool created in the NEW project. Add --confirm-reset-new-project to do it.');
@@ -480,7 +595,7 @@ async function reset() {
 }
 
 // ---------------------------------------------------------------------------------------------
-const commands = { check, snapshot, build, apply, auth, copy, finish, verify, storage, push, reset };
+const commands = { check, snapshot, build, apply, auth, copy, finish, verify, storage, push, sync, reset };
 const cmd = process.argv[2];
 
 (async () => {

@@ -54,7 +54,7 @@ async function inTransaction(c, fn) {
 }
 
 /** Create schemas attendance / materials / progress / core. `snaps` = { key: snapshot }. */
-export async function applyStructure(c, snaps, { prereqSql = readSqlFile('00_prereq.sql'), onStep = () => {} } = {}) {
+export async function applyStructure(c, snaps, { prereqSql = readSqlFile('00_prereq.sql'), onStep = () => {}, live = false } = {}) {
     const clash = bucketCollisions(Object.fromEntries(SOURCE_KEYS.map((k) => [k, snaps[k].storage])));
     if (clash.length) throw new Error(`The same storage bucket name exists in more than one project: ${clash.join(', ')}. Decide how to merge them first.`);
     await c.query(prereqSql);
@@ -78,7 +78,14 @@ export async function applyStructure(c, snaps, { prereqSql = readSqlFile('00_pre
         onStep(`${key} → schema ${target} (${schemaStatements.length} statements, ${snap.storage.buckets.length} buckets)`);
     }
 
-    for (const file of ['20_core.sql', '30_unify.sql', '50_sites.sql', '60_people.sql', '70_deployment.sql']) {
+    // `live` = the real project: also the later, idempotent migrations added after the first copy
+    // (Camera registry, supervisor push tokens, photo overlay, local-worker table lock-down).
+    const files = [
+        '20_core.sql', '30_unify.sql', '50_sites.sql', '60_people.sql',
+        ...(live ? ['60_overlay_opacity.sql', '61_akk_camera.sql', '62_device_push_supervisor.sql', '63_local_worker_details_rls.sql'] : []),
+        '64_local_access.sql', '70_deployment.sql',
+    ];
+    for (const file of files) {
         await inTransaction(c, () => c.query(readSqlFile(file))).catch((e) => {
             throw new Error(`${file}: ${e.message}`);
         });
