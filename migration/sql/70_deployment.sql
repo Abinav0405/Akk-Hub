@@ -151,13 +151,25 @@ $$;
 create or replace function core._sg_today()
 returns date language sql stable as $$ select (now() at time zone 'Asia/Singapore')::date $$;
 
--- All workers (Attendance is the master record).
+-- All workers (Attendance is the master record). Managers and supervisors only ever get the FOREIGN,
+-- still-employed ones (core._dep_foreign_only() + the filters below); admins see everyone.
 create or replace function core._dep_workers()
 returns table (employee_id text, name text, worker_type text, designation text, in_company boolean)
 language sql stable security definer set search_path = core as $$
     select d.employee_id::text, d.employee_name::text, 'foreign', d.designation::text, coalesce(d.in_company, true) from attendance.worker_details d
     union all
     select l.employee_id::text, l.employee_name::text, 'local', l.designation::text, coalesce(l.in_company, true) from attendance.local_worker_details l;
+$$;
+
+-- true for managers and supervisors: they must never see local workers.
+create or replace function core._dep_foreign_only(p_token text)
+returns boolean
+language plpgsql stable security definer set search_path = core as $$
+declare a record;
+begin
+    select * into a from core.dep_actor(p_token);
+    return coalesce(a.kind, '') <> 'admin';
+end;
 $$;
 
 create or replace function core._dep_on_leave(p_employee text, p_day date)
@@ -167,7 +179,8 @@ returns boolean language sql stable security definer set search_path = core as $
 $$;
 
 -- One day as JSON (live rows; planners only).
-create or replace function core._dep_day_json(p_day_id uuid)
+drop function if exists core._dep_day_json(uuid);
+create or replace function core._dep_day_json(p_day_id uuid, p_foreign_only boolean default false)
 returns jsonb
 language sql
 stable
@@ -182,7 +195,9 @@ as $$
             select jsonb_agg(jsonb_build_object(
                 'id', s.id, 'place_id', s.place_id, 'place_name', p.name,
                 'start_time', to_char(s.start_time, 'HH24:MI'), 'end_time', to_char(s.end_time, 'HH24:MI'),
-                'team_lead', s.team_lead, 'vehicle_id', s.vehicle_id, 'driver_id', s.driver_id,
+                'team_lead', case when p_foreign_only and exists (select 1 from attendance.local_worker_details l where l.employee_id = s.team_lead) then null else s.team_lead end,
+                'vehicle_id', s.vehicle_id,
+                'driver_id', case when p_foreign_only and exists (select 1 from attendance.local_worker_details l where l.employee_id = s.driver_id) then null else s.driver_id end,
                 'job_ref', s.job_ref, 'notes', s.notes,
                 'crew', coalesce((
                     select jsonb_agg(jsonb_build_object(
@@ -191,7 +206,8 @@ as $$
                         'leave_override', a.leave_override, 'seen_at', a.seen_at) order by w.name)
                       from core.deployment_assignments a
                       left join core._dep_workers() w on w.employee_id = a.employee_id
-                     where a.site_row_id = s.id), '[]'::jsonb)
+                     where a.site_row_id = s.id
+                       and (not p_foreign_only or exists (select 1 from attendance.worker_details fd where fd.employee_id = a.employee_id))), '[]'::jsonb)
             ) order by s.sort, p.name)
               from core.deployment_sites s join core.sites p on p.id = s.place_id
              where s.day_id = d.id), '[]'::jsonb))
@@ -208,6 +224,8 @@ stable
 security definer
 set search_path = core
 as $$
+declare
+    v_fo boolean := core._dep_foreign_only(p_token);
 begin
     perform core._dep_planner(p_token);
     if p_to < p_from or p_to - p_from > 31 then
@@ -215,7 +233,7 @@ begin
     end if;
     return jsonb_build_object(
         'today', core._sg_today(),
-        'days', coalesce((select jsonb_agg(core._dep_day_json(d.id) order by d.day)
+        'days', coalesce((select jsonb_agg(core._dep_day_json(d.id, v_fo) order by d.day)
                             from core.deployment_days d where d.day between p_from and p_to), '[]'::jsonb),
         'places', coalesce((select jsonb_agg(jsonb_build_object(
                                 'id', s.id, 'name', s.name, 'latitude', a.latitude, 'longitude', a.longitude,
@@ -225,7 +243,7 @@ begin
         'workers', coalesce((select jsonb_agg(jsonb_build_object(
                                 'employee_id', w.employee_id, 'name', w.name, 'worker_type', w.worker_type,
                                 'designation', w.designation) order by w.name)
-                              from core._dep_workers() w where w.in_company), '[]'::jsonb),
+                              from core._dep_workers() w where w.in_company and (not v_fo or w.worker_type = 'foreign')), '[]'::jsonb),
         'leave', coalesce((select jsonb_agg(jsonb_build_object('employee_id', r.employee_id, 'from', r.from_date, 'to', r.to_date, 'type', r.leave_type))
                              from attendance.leave_requests r
                             where r.status = 'approved' and r.to_date >= p_from and r.from_date <= p_to), '[]'::jsonb),
@@ -251,6 +269,10 @@ set search_path = core, extensions
 as $$
 declare
     v_who text := core._dep_planner(p_token);
+    v_fo boolean := core._dep_foreign_only(p_token);
+    v_keep jsonb := '[]'::jsonb;
+    k jsonb;
+    v_row uuid;
     d core.deployment_days%rowtype;
     s jsonb;
     c jsonb;
@@ -278,6 +300,17 @@ begin
       from core.deployment_assignments a join core.deployment_sites s2 on s2.id = a.site_row_id
      where a.day_id = d.id and a.seen_at is not null;
 
+    -- A manager's plan never touches local workers an admin deployed: remember them, put them back.
+    if v_fo then
+        select coalesce(jsonb_agg(jsonb_build_object(
+                   'place_id', s2.place_id, 's_start', s2.start_time, 's_end', s2.end_time, 'lead', s2.team_lead,
+                   'vehicle', s2.vehicle_id, 'driver', s2.driver_id, 'job', s2.job_ref, 'notes', s2.notes,
+                   'emp', a.employee_id, 'a_start', a.start_time, 'a_end', a.end_time, 'lo', a.leave_override, 'seen', a.seen_at)), '[]'::jsonb)
+          into v_keep
+          from core.deployment_assignments a join core.deployment_sites s2 on s2.id = a.site_row_id
+         where a.day_id = d.id and exists (select 1 from attendance.local_worker_details l where l.employee_id = a.employee_id);
+    end if;
+
     delete from core.deployment_sites where day_id = d.id;
 
     for s in select * from jsonb_array_elements(coalesce(p_payload -> 'sites', '[]'::jsonb)) loop
@@ -293,9 +326,10 @@ begin
         returning id into v_site;
 
         for c in select * from jsonb_array_elements(coalesce(s -> 'crew', '[]'::jsonb)) loop
-            select w.name into v_name from core._dep_workers() w where w.employee_id = c ->> 'employee_id' and w.in_company;
+            select w.name into v_name from core._dep_workers() w
+             where w.employee_id = c ->> 'employee_id' and w.in_company and (not v_fo or w.worker_type = 'foreign');
             if v_name is null then
-                raise exception 'Worker % is not in the company', c ->> 'employee_id';
+                raise exception 'Worker % can''t be deployed (not employed, or not a foreign worker)', c ->> 'employee_id';
             end if;
             if core._dep_on_leave(c ->> 'employee_id', p_day) and not coalesce((c ->> 'leave_override')::boolean, false) then
                 raise exception '% is on approved leave on %', v_name, to_char(p_day, 'DD Mon');
@@ -312,11 +346,34 @@ begin
         end loop;
     end loop;
 
+    for k in select * from jsonb_array_elements(v_keep) loop
+        select id into v_row from core.deployment_sites where day_id = d.id and place_id = (k ->> 'place_id')::uuid order by sort limit 1;
+        if v_row is null then
+            v_sort := v_sort + 1;
+            insert into core.deployment_sites (day_id, place_id, start_time, end_time, team_lead, vehicle_id, driver_id, job_ref, notes, sort)
+            values (d.id, (k ->> 'place_id')::uuid, (k ->> 's_start')::time, (k ->> 's_end')::time,
+                    case when exists (select 1 from attendance.local_worker_details l where l.employee_id = k ->> 'lead') then k ->> 'lead' end,
+                    nullif(k ->> 'vehicle', '')::uuid,
+                    case when exists (select 1 from attendance.local_worker_details l where l.employee_id = k ->> 'driver') then k ->> 'driver' end,
+                    k ->> 'job', k ->> 'notes', v_sort)
+            returning id into v_row;
+        else
+            update core.deployment_sites set team_lead = k ->> 'lead'
+             where id = v_row and team_lead is null and exists (select 1 from attendance.local_worker_details l where l.employee_id = k ->> 'lead');
+        end if;
+        begin
+            insert into core.deployment_assignments (day_id, site_row_id, employee_id, start_time, end_time, leave_override, seen_at)
+            values (d.id, v_row, k ->> 'emp', (k ->> 'a_start')::time, (k ->> 'a_end')::time, coalesce((k ->> 'lo')::boolean, false), nullif(k ->> 'seen', '')::timestamptz);
+        exception when exclusion_violation then
+            null; -- an admin-deployed local worker never blocks a manager's save
+        end;
+    end loop;
+
     update core.deployment_days
        set notes = nullif(trim(p_payload ->> 'notes'), ''), rev = rev + 1, dirty = true,
            updated_at = now(), updated_by = v_who
      where id = d.id;
-    return core._dep_day_json(d.id);
+    return core._dep_day_json(d.id, v_fo);
 exception when check_violation then
     raise exception 'End time must be after start time';
 end;
@@ -455,7 +512,8 @@ as $$
                   from jsonb_array_elements(coalesce(p_day_json -> 'sites', '[]'::jsonb)) s), '[]'::jsonb));
 $$;
 
-create or replace function core._dep_filter_payload(p_payload jsonb, p_day date)
+drop function if exists core._dep_filter_payload(jsonb, date);
+create or replace function core._dep_filter_payload(p_payload jsonb, p_day date, p_foreign_only boolean default false)
 returns jsonb
 language sql
 stable
@@ -466,7 +524,7 @@ as $$
         'notes', p_payload -> 'notes',
         'sites', coalesce((select jsonb_agg(s || jsonb_build_object('crew', coalesce((
                     select jsonb_agg(c) from jsonb_array_elements(coalesce(s -> 'crew', '[]'::jsonb)) c
-                     where exists (select 1 from core._dep_workers() w where w.employee_id = c ->> 'employee_id' and w.in_company)
+                     where exists (select 1 from core._dep_workers() w where w.employee_id = c ->> 'employee_id' and w.in_company and (not p_foreign_only or w.worker_type = 'foreign'))
                        and not core._dep_on_leave(c ->> 'employee_id', p_day)), '[]'::jsonb)))
                   from jsonb_array_elements(coalesce(p_payload -> 'sites', '[]'::jsonb)) s
                  where exists (select 1 from core.sites p join attendance.sites a on a.id = p.attendance_site_id
@@ -493,7 +551,7 @@ begin
     if dst.id is not null and exists (select 1 from core.deployment_sites where day_id = dst.id) then
         raise exception '% already has a plan — clear it first', to_char(p_to, 'DD Mon');
     end if;
-    return core.dep_save_day(p_token, p_to, core._dep_filter_payload(core._dep_payload_from(core._dep_day_json(src)), p_to), dst.rev);
+    return core.dep_save_day(p_token, p_to, core._dep_filter_payload(core._dep_payload_from(core._dep_day_json(src, core._dep_foreign_only(p_token))), p_to, core._dep_foreign_only(p_token)), dst.rev);
 end;
 $$;
 
@@ -513,7 +571,7 @@ begin
         raise exception 'Pick a planned day and a template name';
     end if;
     insert into core.deployment_templates (name, payload, created_by)
-    values (trim(p_name), core._dep_payload_from(core._dep_day_json(src)), v_who)
+    values (trim(p_name), core._dep_payload_from(core._dep_day_json(src, core._dep_foreign_only(p_token))), v_who)
     on conflict (name) do update set payload = excluded.payload, created_by = excluded.created_by, created_at = now();
 end;
 $$;
@@ -538,7 +596,7 @@ begin
     if dst.id is not null and exists (select 1 from core.deployment_sites where day_id = dst.id) then
         raise exception '% already has a plan — clear it first', to_char(p_day, 'DD Mon');
     end if;
-    return core.dep_save_day(p_token, p_day, core._dep_filter_payload(v_payload, p_day), dst.rev);
+    return core.dep_save_day(p_token, p_day, core._dep_filter_payload(v_payload, p_day, core._dep_foreign_only(p_token)), dst.rev);
 end;
 $$;
 
@@ -652,7 +710,7 @@ begin
     return jsonb_build_object('day', p_day, 'sites', coalesce((
         select jsonb_agg(jsonb_build_object(
             'place', s ->> 'place_name', 'start', s ->> 'start_time', 'end', s ->> 'end_time', 'notes', s ->> 'notes',
-            'lead', (select w.name from core._dep_workers() w where w.employee_id = s ->> 'team_lead'),
+            'lead', (select w.name from core._dep_workers() w where w.employee_id = s ->> 'team_lead' and (a.kind = 'admin' or w.worker_type = 'foreign')),
             'crew', (select jsonb_agg(jsonb_build_object(
                         'employee_id', c ->> 'employee_id', 'name', c ->> 'name',
                         'start', c ->> 'start_time', 'end', c ->> 'end_time',
@@ -661,7 +719,8 @@ begin
                         'clocked_site', (select ast2.site_name from attendance.shifts sh join attendance.sites ast2 on ast2.id = sh.site_id
                                           where sh.worker_id = c ->> 'employee_id' and sh.work_date = p_day order by sh.entry_time desc limit 1))
                       order by c ->> 'name')
-                       from jsonb_array_elements(s -> 'crew') c)))
+                       from jsonb_array_elements(s -> 'crew') c
+                      where a.kind = 'admin' or exists (select 1 from attendance.worker_details fd where fd.employee_id = c ->> 'employee_id'))))
           from jsonb_array_elements(v_snap -> 'sites') s
           join core.sites ps on ps.id = (s ->> 'place_id')::uuid
          where a.kind in ('admin', 'manager') or ps.attendance_site_id = a.site_id), '[]'::jsonb));
@@ -718,11 +777,12 @@ create trigger dep_push after insert on core.deployment_notifications for each r
 revoke all on function core.dep_actor(text) from public, anon, authenticated;
 revoke all on function core._dep_planner(text) from public, anon, authenticated;
 revoke all on function core._dep_workers() from public, anon, authenticated;
+revoke all on function core._dep_foreign_only(text) from public, anon, authenticated;
 revoke all on function core._dep_on_leave(text, date) from public, anon, authenticated;
-revoke all on function core._dep_day_json(uuid) from public, anon, authenticated;
+revoke all on function core._dep_day_json(uuid, boolean) from public, anon, authenticated;
 revoke all on function core._dep_worker_view(jsonb, text) from public, anon, authenticated;
 revoke all on function core._dep_payload_from(jsonb) from public, anon, authenticated;
-revoke all on function core._dep_filter_payload(jsonb, date) from public, anon, authenticated;
+revoke all on function core._dep_filter_payload(jsonb, date, boolean) from public, anon, authenticated;
 revoke all on function core.dep_push() from public, anon, authenticated;
 do $$
 declare f text;

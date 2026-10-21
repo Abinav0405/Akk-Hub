@@ -1,4 +1,5 @@
 import { supabaseProgress } from '@/core/supabase'
+import { withoutLocalWorkers } from '@/core/localWorkers';
 import { portalManagerToken } from '@/core/auth/progress/portalAuth';
 import { isMissingRpcError } from '@/modules/progress/lib/networkError';
 import { PHOTO_DELETE_MIGRATION_HINT } from '@/modules/progress/lib/jsrPermissions';
@@ -26,7 +27,8 @@ async function invalidatePackageArtifact(packageId) {
 export async function listAllPackages() {
   const { data, error } = await supabaseProgress.rpc('staff_list_packages', { p_manager_token: managerToken() });
   if (error) throw error;
-  return (data || []).map((p) => ({
+  const visible = await withoutLocalWorkers(data || [], (p) => p.worker_employee_code);
+  return visible.map((p) => ({
     id: p.id,
     display_id: p.display_id || null,
     lcb_id: p.lcb_id,

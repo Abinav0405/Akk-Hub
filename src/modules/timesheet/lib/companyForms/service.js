@@ -1,4 +1,5 @@
 import { supabaseTimesheet } from '@/core/supabase'
+import { hidesLocalWorkers } from '@/core/localWorkers';
 import { shareHtmlAsPdf } from '@/modules/timesheet/lib/pdfDownload';
 import { printHtmlDocument } from '@/modules/timesheet/lib/printHtmlDocument';
 import { isNativeApp } from '@/core/platform';
@@ -252,14 +253,16 @@ export async function listReviewSubmissions({
     status = 'all',
     limit = 100,
 } = {}) {
-    const rows = await selectSubmissionList((query) => {
+    const rows0 = await selectSubmissionList((query) => {
         let next = query
             .order('is_flagged', { ascending: false })
             .order('created_at', { ascending: false })
             .limit(limit);
         if (status && status !== 'all') next = next.eq('status', status);
+        if (hidesLocalWorkers()) next = next.neq('worker_type', 'local');
         return next;
     });
+    const rows = rows0;
     return rows.sort((a, b) => {
         const ap = a.status === 'pending' ? 0 : 1;
         const bp = b.status === 'pending' ? 0 : 1;
@@ -477,7 +480,8 @@ export async function countPendingFlagged() {
         .from('company_form_submissions')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'pending')
-        .eq('is_flagged', true);
+        .eq('is_flagged', true)
+        .neq('worker_type', hidesLocalWorkers() ? 'local' : '__none__');
     if (error) throw error;
     return count || 0;
 }
@@ -564,7 +568,8 @@ export async function countPending() {
     const { count, error } = await supabaseTimesheet
         .from('company_form_submissions')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'pending');
+        .eq('status', 'pending')
+        .neq('worker_type', hidesLocalWorkers() ? 'local' : '__none__');
     if (error) throw error;
     return count || 0;
 }

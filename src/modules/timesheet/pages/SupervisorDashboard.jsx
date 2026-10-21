@@ -202,11 +202,7 @@ export default function SupervisorDashboard() {
                 const siteIds = [...new Set(allShifts.map(shift => shift.site_id))];
 
                 // Fetch workers from both tables
-                const [localWorkersResult, foreignWorkersResult, sitesResult] = await Promise.all([
-                    supabase
-                        .from('local_worker_details')
-                        .select('employee_id, employee_name')
-                        .in('employee_id', workerIds),
+                const [foreignWorkersResult, sitesResult] = await Promise.all([
                     supabase
                         .from('worker_details')
                         .select('employee_id, employee_name')
@@ -218,10 +214,7 @@ export default function SupervisorDashboard() {
                 ]);
 
                 // Combine workers from both tables
-                const workers = [
-                    ...(localWorkersResult.data || []),
-                    ...(foreignWorkersResult.data || [])
-                ];
+                const workers = [...(foreignWorkersResult.data || [])];
 
                 const sites = sitesResult.data || [];
 

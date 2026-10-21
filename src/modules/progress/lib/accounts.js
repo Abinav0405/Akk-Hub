@@ -1,4 +1,5 @@
 import { supabaseProgress } from '@/core/supabase'
+import { withoutLocalWorkers } from '@/core/localWorkers';
 import { portalManagerToken } from '@/core/auth/progress/portalAuth';
 import { isMissingRpcError } from '@/modules/progress/lib/networkError';
 import { JSR_PERM_MIGRATION_HINT } from '@/modules/progress/lib/jsrPermissions';
@@ -12,7 +13,7 @@ function managerToken() {
 export async function listWorkers() {
   const { data, error } = await supabaseProgress.rpc('staff_list_workers', { p_manager_token: managerToken() });
   if (error) throw error;
-  return data || [];
+  return withoutLocalWorkers(data || [], (w) => w.employee_code);
 }
 
 export async function createWorker({ employeeCode, displayName, password }) {

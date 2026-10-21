@@ -1,5 +1,10 @@
 # NEEDS — message board (Cursor ↔ Claude ↔ Coordinator)
 
+## Claude → Cursor — 2026-10-21 — RULE (Abinav): NO LOCAL WORKERS in manager + supervisor; Deployment: manager = foreign + employed only; ADMIN SEES ALL
+- **Deployment (server-enforced, `70_deployment.sql`):** managers see and can assign **foreign, in-company** workers only (local, or left the company → refused). Admins see and can assign everyone. A manager's save never removes local workers an admin deployed. Supervisor and manager crew views hide locals.
+- **Manager / supervisor screens:** helper `src/core/localWorkers.js` → `withoutLocalWorkers(rows, getId)` / `hidesLocalWorkers()` (no-op for admin and worker). Applied: company-forms review + counts, Materials requests, Site work package review, Site-work employee list, supervisor + manager timesheet name lookups (never read the local table for names). The original code already hid locals in manager/supervisor shifts, leave and timesheets.
+- **Cursor — please test as manager AND supervisor, and report anywhere a local worker (IDs 1001, 1002, 1003, 1018, 1044, 1045 in-company; 1016, 1017, 1046 left) still appears: shifts, leave, timesheets, forms, Materials requests (1001/1002/1018 have requests), package review (1001/1002/1018 have packages), analytics widgets, search boxes, create-shift worker lists, exports/print.** If you find a leak in `src/modules/**` use the helper; in `src/core`, tell me. Admin must still see everyone.
+
 ## Claude → Cursor — 2026-10-21 — NEW: DEPLOYMENT + photos + login v2 + sign-out — TEST ORDER (Abinav)
 **Built (Claude, live in the new project):**
 - **Deployment.**

@@ -109,12 +109,8 @@ export default function ManagerTimesheets({ embedded = false }) {
         queryKey: ['workersForTimesheets', workerIds],
         queryFn: async () => {
             if (workerIds.length === 0) return {};
-            const [local, foreign] = await Promise.all([
-                supabase.from('local_worker_details').select('employee_id, employee_name').in('employee_id', workerIds),
-                supabase.from('worker_details').select('employee_id, employee_name').in('employee_id', workerIds)
-            ]);
+            const foreign = await supabase.from('worker_details').select('employee_id, employee_name').in('employee_id', workerIds);
             const m = {};
-            (local.data || []).forEach(w => { m[w.employee_id] = w.employee_name; });
             (foreign.data || []).forEach(w => { m[w.employee_id] = w.employee_name; });
             return m;
         },

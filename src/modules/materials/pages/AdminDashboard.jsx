@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback, memo, lazy, Suspense } from 'react';
+import { withoutLocalWorkers } from '@/core/localWorkers';
 import { storageKey } from '@/core/storage';
 import { UNIFIED, supabaseMaterials as supabase } from '@/core/supabase';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -419,7 +420,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                 .order('created_at', { ascending: false })
                 .limit(TRANSACTION_QUERY_LIMIT);
             if (error) throw error;
-            return data || [];
+            return withoutLocalWorkers(data || [], (t) => t.worker_id);
         },
         refetchInterval: 30_000,
         refetchIntervalInBackground: false,
