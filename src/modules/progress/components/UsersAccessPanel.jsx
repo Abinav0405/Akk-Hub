@@ -18,7 +18,7 @@ import {
 } from '@/modules/progress/lib/accounts';
 import { friendlyDbError } from '@/modules/progress/lib/networkError';
 import { JSR_PERM_MIGRATION_HINT } from '@/modules/progress/lib/jsrPermissions';
-import { supabaseProgress } from '@/core/supabase'
+import { UNIFIED, supabaseProgress } from '@/core/supabase';
 import { cn } from '@/modules/progress/lib/utils';
 import { isNativeApp } from '@/core/platform';
 import {
@@ -33,7 +33,7 @@ import {
   RegisterAdminDialog,
 } from '@/modules/progress/components/StaffAccountsPanel';
 
-const ROLES = [
+const ALL_ROLES = [
   {
     id: 'technicians',
     label: 'Technicians',
@@ -50,6 +50,9 @@ const ROLES = [
     hint: 'Full access to this admin portal',
   },
 ];
+
+/** Unified Hub: worker app access lives on Admin → Employees; keep staff accounts here. */
+const ROLES = UNIFIED ? ALL_ROLES.filter((r) => r.id !== 'technicians') : ALL_ROLES;
 
 function initials(name) {
   const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -89,7 +92,7 @@ function ActiveToggle({ active, disabled, onToggle, label = 'Active' }) {
 
 export default function UsersAccessPanel() {
   const native = isNativeApp();
-  const [role, setRole] = useState('technicians');
+  const [role, setRole] = useState(() => ROLES[0]?.id || 'managers');
   const [statusFilter, setStatusFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
