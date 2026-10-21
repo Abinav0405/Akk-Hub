@@ -843,7 +843,7 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
         <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
+            exit={{ opacity: 0, x: -20, transition: { duration: 0.12 } }}
             className="w-full max-w-2xl mx-auto"
         >
             {/* overflow-visible so catalog autocomplete / pickers are not clipped */}

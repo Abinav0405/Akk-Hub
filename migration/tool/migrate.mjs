@@ -12,6 +12,7 @@
  *   node migrate.mjs verify     row counts old vs new, sign-in links, access + sites summary
  *   node migrate.mjs all        check → snapshot → build → apply → auth → copy → finish → verify
  *   node migrate.mjs storage    copy photo / file buckets (needs the service keys; resumable)
+ *   node migrate.mjs push       push triggers + a fresh webhook secret (after finish; needs supabase CLI login)
  *   node migrate.mjs reset --confirm-reset-new-project   wipe what this tool created in the NEW project
  *
  * Old projects: connections are forced read-only by the server. Nothing there is changed or deleted.
@@ -410,6 +411,46 @@ async function storage() {
 }
 
 // ---------------------------------------------------------------------------------------------
+/** Push from the database: triggers + a fresh shared secret (DB + edge function env, never printed). */
+async function push() {
+    step('Push notifications (new secret)');
+    const { randomBytes } = await import('node:crypto');
+    const { execFileSync } = await import('node:child_process');
+    const os = await import('node:os');
+    const secret = randomBytes(24).toString('hex');
+    const base = `https://${NEW_REF}.supabase.co`;
+    await withTarget(async (c) => {
+        await c.query('BEGIN');
+        try {
+            await c.query(fs.readFileSync(path.join(MIGRATION_DIR, 'sql', '40_push.sql'), 'utf8'));
+            await c.query(
+                'insert into core.push_config (id, base_url, secret) values (1, $1, $2) on conflict (id) do update set base_url = excluded.base_url, secret = excluded.secret, updated_at = now()',
+                [base, secret]
+            );
+            await c.query('update progress.push_delivery_config set webhook_url = $1, webhook_secret = $2 where id = 1', [base + '/functions/v1/prg-push-send', secret]);
+            await c.query('COMMIT');
+        } catch (e) {
+            await c.query('ROLLBACK').catch(() => {});
+            throw e;
+        }
+    });
+    ok('database triggers + secret');
+    const tmp = path.join(os.tmpdir(), `akk-push-${process.pid}.env`);
+    fs.writeFileSync(tmp, `FCM_WEBHOOK_SECRET=${secret}
+`);
+    try {
+        execFileSync('npx', ['--no-install', 'supabase', 'secrets', 'set', '--env-file', tmp, '--project-ref', NEW_REF], {
+            cwd: path.resolve(MIGRATION_DIR, '..'),
+            stdio: ['ignore', 'ignore', 'pipe'],
+            shell: process.platform === 'win32',
+        });
+        ok('edge function secret updated');
+    } finally {
+        fs.rmSync(tmp, { force: true });
+    }
+}
+
+// ---------------------------------------------------------------------------------------------
 async function reset() {
     if (!process.argv.includes('--confirm-reset-new-project')) {
         throw new Error('reset wipes what this tool created in the NEW project. Add --confirm-reset-new-project to do it.');
@@ -439,7 +480,7 @@ async function reset() {
 }
 
 // ---------------------------------------------------------------------------------------------
-const commands = { check, snapshot, build, apply, auth, copy, finish, verify, storage, reset };
+const commands = { check, snapshot, build, apply, auth, copy, finish, verify, storage, push, reset };
 const cmd = process.argv[2];
 
 (async () => {

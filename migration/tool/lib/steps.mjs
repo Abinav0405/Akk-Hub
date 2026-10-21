@@ -354,6 +354,22 @@ export async function finishOn(c, ctx) {
         const merged = places.filter((p) => [p.attendance, p.materials, p.progress].filter(Boolean).length > 1).length;
         onStep(`places: ${places.length} (${merged} linked across areas)`);
 
+        // 6b. One employee record: the Attendance name is the name everywhere (old names logged).
+        await c.query(`insert into core.migration_log (step, detail)
+            select 'names-before-unify', coalesce(jsonb_agg(jsonb_build_object('id', x.id, 'materials_name', x.mn, 'site_work_name', x.pn)), '[]')
+              from (select r.requester_id id, r.name mn, u.display_name pn
+                      from materials.requesters r left join progress.app_users u on u.employee_code = r.requester_id
+                    union
+                    select u.employee_code, r.name, u.display_name
+                      from progress.app_users u left join materials.requesters r on r.requester_id = u.employee_code) x`);
+        const workerNames = `(select employee_id::text id, employee_name::text n from attendance.worker_details
+                              union all select employee_id::text, employee_name::text from attendance.local_worker_details)`;
+        const rn1 = await c.query(`update materials.requesters r set name = trim(w.n) from ${workerNames} w
+             where w.id = r.requester_id and nullif(trim(w.n), '') is not null and r.name is distinct from trim(w.n)`);
+        const rn2 = await c.query(`update progress.app_users u set display_name = trim(w.n) from ${workerNames} w
+             where w.id = u.employee_code and nullif(trim(w.n), '') is not null and u.display_name is distinct from trim(w.n)`);
+        onStep(`employee names unified (${rn1.affectedRows ?? rn1.rowCount} Materials, ${rn2.affectedRows ?? rn2.rowCount} Site work)`);
+
         // 7. No real push notifications from the new project before the switch-over.
         const push = await c.query('update progress.push_delivery_config set webhook_url = null where webhook_url is not null');
         onStep(`Site Progress push paused until switch-over (${push.affectedRows ?? push.rowCount})`);

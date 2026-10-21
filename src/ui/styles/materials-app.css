@@ -1335,7 +1335,7 @@ html.akk-native .n-alert {
   line-height: 1.4;
   background: var(--n-danger-soft);
   color: var(--n-danger-text);
-  animation: n-rise var(--n-dur) var(--n-ease) both;
+  animation: n-rise var(--n-dur) var(--n-ease) backwards;
 }
 
 html.akk-native .n-alert[data-tone='warning'] { background: var(--n-warning-soft); color: var(--n-warning); }
@@ -1833,7 +1833,7 @@ html.akk-native .n-tx__expanded {
   gap: 8px;
   margin: 2px var(--n-4) 0;
   font-size: var(--n-fs-footnote);
-  animation: n-rise var(--n-dur) var(--n-ease) both;
+  animation: n-rise var(--n-dur) var(--n-ease) backwards;
 }
 
 html.akk-native .n-tx__expanded .rounded {
@@ -2079,7 +2079,7 @@ html.akk-native .n-state {
   align-items: center;
   padding: var(--n-8) var(--n-5);
   text-align: center;
-  animation: n-fade var(--n-dur) var(--n-ease) both;
+  animation: n-fade var(--n-dur) var(--n-ease) backwards;
 }
 
 html.akk-native .n-state__icon {
@@ -2221,11 +2221,11 @@ html.akk-native .akk-app .rounded-full.bg-slate-100 {
 
 @media (prefers-reduced-motion: no-preference) {
   html.akk-native .n-route {
-    animation: n-route-in 200ms var(--n-ease) both;
+    animation: n-route-in 200ms var(--n-ease) backwards;
   }
 
   html.akk-native .n-enter {
-    animation: n-rise 300ms var(--n-ease) both;
+    animation: n-rise 300ms var(--n-ease) backwards;
   }
 
   html.akk-native .n-enter:nth-child(2) { animation-delay: 30ms; }
@@ -2234,7 +2234,7 @@ html.akk-native .akk-app .rounded-full.bg-slate-100 {
   html.akk-native .n-enter:nth-child(n + 5) { animation-delay: 110ms; }
 
   html.akk-native .n-auth__card {
-    animation: n-rise 360ms var(--n-ease) 40ms both;
+    animation: n-rise 360ms var(--n-ease) 40ms backwards;
   }
 
 }

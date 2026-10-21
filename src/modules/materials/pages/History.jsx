@@ -318,7 +318,7 @@ export default function History() {
                                     key={transaction.id}
                                     initial={{ opacity: 0, y: 12 }}
                                     animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: Math.min(index, 20) * 0.03 }}
+                                    transition={{ delay: Math.min(index, 8) * 0.02 }}
                                 >
                                     <Card className="overflow-hidden">
                                         <div className={`h-0.5 ${transaction.transaction_type === 'return' ? 'bg-emerald-600' : 'bg-brand'}`} />

@@ -323,7 +323,7 @@ export default function RequestPortal() {
                         key="selection"
                         initial={{ opacity: 0, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -12 }}
+                        exit={{ opacity: 0, y: -12, transition: { duration: 0.12 } }}
                         className="space-y-6"
                     >
                         <div className="space-y-1">

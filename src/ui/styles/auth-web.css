@@ -616,19 +616,19 @@
 
 /* Direct URL / soft enter */
 .lx-stage--enter .lx-shell {
-  animation: lx-rise 280ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+  animation: lx-rise 280ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) backwards;
 }
 
 /* From homescreen portal click — coordinated reveal */
 .lx-stage--from-home .lx-shell {
-  animation: lx-shell-in 300ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+  animation: lx-shell-in 300ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) backwards;
 }
 
 .lx-stage--from-home .lx-form__head,
 .lx-stage--from-home .lx-form .akk-role-toggle,
 .lx-stage--from-home .lx-fields > *,
 .lx-stage--from-home .lx-footer {
-  animation: lx-rise 280ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+  animation: lx-rise 280ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) backwards;
 }
 
 .lx-stage--from-home .lx-form__head { animation-delay: 40ms; }
@@ -640,7 +640,7 @@
 .lx-stage--from-home .lx-footer { animation-delay: 200ms; }
 
 .lx-stage--from-home .lx-brand {
-  animation: lx-brand-in 320ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) both;
+  animation: lx-brand-in 320ms var(--g-ease-out, cubic-bezier(0.32, 0.72, 0, 1)) backwards;
   animation-delay: 90ms;
 }
 
