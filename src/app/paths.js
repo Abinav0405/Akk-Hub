@@ -23,6 +23,8 @@ export const paths = {
 
     adminSites: '/admin/sites',
 
+    myInfo: '/me/info',
+
     deployment: {
         plan: '/deployment',
         mine: '/me/deployment',

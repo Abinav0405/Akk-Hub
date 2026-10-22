@@ -100,6 +100,7 @@ import { registerNativeBackHandler } from '@/core/nativeShell';
 import { getSingaporeGreeting } from '@/ui/native/NativeChrome';
 import TopBar from '@/ui/hub/TopBar';
 import { isAppUI, useWideLayout } from '@/core/platform';
+import { MyInfoTasksBanner } from '@/features/workerInfo/MyInfo';
 
 // Camera, PDF and tutorial code are only needed after an explicit action. Keeping them out of
 // the first employee-home chunk makes the post-login screen responsive on lower-end phones.
@@ -2044,6 +2045,7 @@ export default function EmployeeHome() {
                             </div>
 
                             <div className="wh-home-side">
+                            <MyInfoTasksBanner />
                             <MyDeploymentCard />
                             <ActionTiles
                                 tour="worker-shortcuts"

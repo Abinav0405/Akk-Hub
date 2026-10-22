@@ -34,6 +34,7 @@ import {
     UserRound,
     Users,
     CalendarRange,
+    IdCard,
     Wallet,
 } from 'lucide-react';
 import { paths } from '@/app/paths';
@@ -85,6 +86,7 @@ export const NAV = {
                 tone: 'timesheet',
                 items: [
                     ...(UNIFIED ? [{ id: 'deploy', label: 'My deployment', icon: CalendarRange, to: paths.deployment.mine }] : []),
+                    ...(UNIFIED ? [{ id: 'myinfo', label: 'My information', icon: IdCard, to: paths.myInfo }] : []),
                     { id: 'shifts', label: 'My shifts', labelKey: 'hub.nav.myShifts', icon: History, to: paths.timesheet.shifts },
                     { id: 'leave', label: 'Leave', labelKey: 'hub.nav.leave', icon: CalendarDays, to: paths.timesheet.leaveHistory },
                     { id: 'timesheets', label: 'Timesheets', labelKey: 'hub.nav.timesheets', icon: FileSpreadsheet, to: paths.timesheet.timesheets },

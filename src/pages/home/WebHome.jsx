@@ -184,8 +184,8 @@ export default function WebHome() {
                 </section>
 
                 <nav className="hx-grid hx-in hx-in-1" aria-label="Sign in">
-                    {PORTALS.map((p) => (
-                        <PortalCard key={p.key} {...p} onNavigate={leaveTo} />
+                    {PORTALS.map(({ key, ...p }) => (
+                        <PortalCard key={key} {...p} onNavigate={leaveTo} />
                     ))}
                 </nav>
 

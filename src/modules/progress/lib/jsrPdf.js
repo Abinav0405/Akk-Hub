@@ -312,7 +312,7 @@ function groupLinkedPhotos(photos) {
  * (e.g. "Details: LP 40") and street name. A street already typed in another line is
  * not repeated.
  */
-function packageDetailLines(group) {
+function packageDetailLines(group, siteLabel = '') {
   const desc = group?.description || '';
   const sectionValue = group?.sectionValue || '';
   const street = group?.street || '';
@@ -320,7 +320,7 @@ function packageDetailLines(group) {
   return [
     desc ? ['Description', desc] : null,
     sectionValue ? [group?.sectionName || 'Section', sectionValue] : null,
-    street && !elsewhere.includes(street.toLowerCase()) ? ['Street', street] : null,
+    street && street !== siteLabel && !elsewhere.includes(street.toLowerCase()) ? ['Street', street] : null,
   ].filter(Boolean);
 }
 
@@ -329,8 +329,9 @@ function jsrPhotoInners(j, photos) {
   const jsrLabel = String(j.jsr_no || '').trim();
   const pages = [];
   for (const group of groupLinkedPhotos(photos)) {
-    const site = location || group.site_name || '';
-    const details = packageDetailLines(group);
+    // The package's own street (not the whole JSR's combined location); the site name if it has none.
+    const site = group.street || group.site_name || location;
+    const details = packageDetailLines(group, site);
     // Height of the text above the photos, so long details shrink the photos instead of
     // pushing them off the page.
     const headerPx = 2 + (jsrLabel ? 18 : 0) + textLines(`SITE: ${site}`, 72) * 18

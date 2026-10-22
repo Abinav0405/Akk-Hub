@@ -5,6 +5,9 @@ import { Button } from '@/ui/button';
 import { Edit2, FileSpreadsheet, Loader2, Printer, Search, Trash2, User, UserCheck, Users } from 'lucide-react';
 import { cn } from '@/modules/timesheet/lib/utils';
 import { isHubAdmin } from '@/modules/timesheet/lib/workerPrivacy';
+import { UNIFIED } from '@/core/supabase';
+import WorkerInfoCenter from '@/features/workerInfo/WorkerInfoCenter';
+import { openWorkerLookup, openWorkerProfile } from '@/features/workerInfo/WorkerProfile';
 
 /**
  * Sticky identity columns — widths/left/z-index live in glass.css (.akk-worker-table).
@@ -142,7 +145,7 @@ export default function WorkerInfoTab() {
             tone="amber"
             title={t('ui.searchWorker')}
             subtitle={t('ui.searchWorkerHint')}
-            onClick={handleWorkerSearchClick}
+            onClick={UNIFIED ? openWorkerLookup : handleWorkerSearchClick}
             className="min-h-[7.5rem]"
           />
           <AdminChoiceCard
@@ -171,6 +174,8 @@ export default function WorkerInfoTab() {
           />
         </div>
       </section>
+
+      {UNIFIED ? <WorkerInfoCenter /> : null}
 
       <section className={cn(glassPanel, 'akk-panel p-4 sm:p-5')}>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -275,11 +280,23 @@ export default function WorkerInfoTab() {
                               notInCompany ? 'font-semibold text-red-700' : 'text-slate-800',
                             )}
                           >
-                            {w.employee_id}
+                            {UNIFIED ? (
+                              <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline">
+                                {w.employee_id}
+                              </button>
+                            ) : (
+                              w.employee_id
+                            )}
                           </td>
                           <td className={TD_NRIC()}>{w.nric_fin}</td>
                           <td className={TD_NAME()} title={w.employee_name}>
-                            {w.employee_name}
+                            {UNIFIED ? (
+                              <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="text-left font-medium text-slate-900 underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline">
+                                {w.employee_name}
+                              </button>
+                            ) : (
+                              w.employee_name
+                            )}
                           </td>
                           <td className={cn(TD, 'max-w-[140px] break-words')}>{w.designation}</td>
                           <td className={cn(TD, 'whitespace-nowrap')}>{w.date_joined}</td>
@@ -414,11 +431,23 @@ export default function WorkerInfoTab() {
                               notInCompany ? 'font-semibold text-red-700' : 'text-slate-800',
                             )}
                           >
-                            {w.employee_id}
+                            {UNIFIED ? (
+                              <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline">
+                                {w.employee_id}
+                              </button>
+                            ) : (
+                              w.employee_id
+                            )}
                           </td>
                           <td className={TD_NRIC()}>{w.nric_fin}</td>
                           <td className={TD_NAME()} title={w.employee_name}>
-                            {w.employee_name}
+                            {UNIFIED ? (
+                              <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="text-left font-medium text-slate-900 underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline">
+                                {w.employee_name}
+                              </button>
+                            ) : (
+                              w.employee_name
+                            )}
                           </td>
                           <td className={cn(TD, 'max-w-[140px] break-words')}>{w.designation}</td>
                           <td className={cn(TD, 'whitespace-nowrap')}>{w.date_joined}</td>

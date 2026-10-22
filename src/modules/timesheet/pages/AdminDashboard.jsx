@@ -4618,8 +4618,22 @@ export default function AdminDashboard() {
         setShowWorkerSearchDialog(true);
     };
 
-    const runWorkerSearch = async () => {
-        const id = workerSearchId.trim();
+    // Worker card → "Timesheets & payslips": open the existing search straight on that worker.
+    const runWorkerSearchRef = useRef(null);
+    useEffect(() => {
+        const onRecords = (e) => {
+            const id = String(e.detail?.id || '');
+            if (!id) return;
+            setWorkerSearchId(id);
+            setShowWorkerSearchDialog(true);
+            void runWorkerSearchRef.current?.(id);
+        };
+        window.addEventListener('akk:worker-records', onRecords);
+        return () => window.removeEventListener('akk:worker-records', onRecords);
+    }, []);
+
+    const runWorkerSearch = async (overrideId) => {
+        const id = String(typeof overrideId === 'string' ? overrideId : workerSearchId).trim();
         if (!id) {
             toast.error('Please enter a worker ID');
             return;
@@ -4681,6 +4695,7 @@ export default function AdminDashboard() {
             setWorkerSearchLoading(false);
         }
     };
+    runWorkerSearchRef.current = runWorkerSearch;
 
     const handlePrintWorkerProfileFromSearch = async () => {
         if (!workerSearchResult) return;

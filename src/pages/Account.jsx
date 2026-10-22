@@ -18,6 +18,7 @@ import BiometricLoginSettings from '@/ui/biometric/BiometricLoginSettings';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { isNativeApp } from '@/core/platform';
 import { paths } from '@/app/paths';
+import { MyIdCard, MyInfoTasksBanner } from '@/features/workerInfo/MyInfo';
 
 function initials(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -96,6 +97,12 @@ export default function Account() {
 
     return (
         <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow>
+            {isWorker ? (
+                <div className="mb-4 space-y-3">
+                    <MyIdCard />
+                    <MyInfoTasksBanner />
+                </div>
+            ) : null}
             <section className="g-card g-card--pad g-rise flex items-center gap-4">
                 <MyPhotoAvatar name={identity?.name} isWorker={isWorker} />
                 <div className="min-w-0">

@@ -26,6 +26,7 @@ const SitesPage = lazy(() => import('@/pages/admin/SitesPage'));
 const DeploymentPlanner = lazy(() => import('@/pages/deployment/DeploymentPlanner'));
 const MyDeployment = lazy(() => import('@/pages/deployment/MyDeployment'));
 const SiteCrew = lazy(() => import('@/pages/deployment/SiteCrew'));
+const MyInfoPage = lazy(() => import('@/features/workerInfo/MyInfo'));
 const Misc = {
     Notifications: lazy(() => import('@/pages/Misc').then((m) => ({ default: m.Notifications }))),
     ConnectPage: lazy(() => import('@/pages/Misc').then((m) => ({ default: m.ConnectPage }))),
@@ -151,6 +152,7 @@ export default function AppRoutes() {
                     <Route path="/manage" element={<RequireHubRole roles={['manager']}><RoleHome /></RequireHubRole>} />
                     <Route path="/admin" element={<RequireHubRole roles={['admin']}><RoleHome /></RequireHubRole>} />
                     <Route path="/deployment" element={<RequireHubRole roles={['manager', 'admin']}><DeploymentPlanner /></RequireHubRole>} />
+                    <Route path="/me/info" element={<RequireHubRole roles={['worker']}><MyInfoPage /></RequireHubRole>} />
                     <Route path="/me/deployment" element={<RequireHubRole roles={['worker']}><MyDeployment /></RequireHubRole>} />
                     <Route path="/site/crew" element={<RequireHubRole roles={['supervisor']}><SiteCrew /></RequireHubRole>} />
                     <Route path="/admin/sites" element={<RequireHubRole roles={['admin']}><SitesPage /></RequireHubRole>} />

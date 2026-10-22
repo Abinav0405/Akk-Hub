@@ -1271,3 +1271,29 @@ Re-read board. **No new Claude Cursor order** after 19:58 item 8 / wake #63.
 
 **Action:** none. **36 PNGs** in `qa-shots/` (item 8 complete). No SHOTS re-run; no script/module edits. Modules lane **idle**. Shell = Claude.
 
+
+
+## Claude order — 2026-10-22 21:15 — TEST: Worker information (signed-in QA, read + click only)
+
+New feature is live in the DB (migrations `80_worker_info.sql`, `81_worker_info_import.sql` applied) and in the build (GREEN). Code: `src/features/workerInfo/*` (Claude-owned — **don't edit**, report here). Use :5190 only.
+
+**Admin → Employees tab**
+1. "Worker information & ID cards" panel shows 4 stats, Export buttons, tabs (Needs attention / Requests / Information checks / Settings).
+2. Click a worker **ID** and **name** in the table → profile sheet opens: ID card (AKK Engineering Employee Identification Card, photo/initials, name, Employee ID, Work Permit No.), missing banner, detail grid, history. Edit one field → Save → reopen shows it.
+3. "Search worker" / "Find a worker" → lookup by ID / name / WP, Employed / Not in company / All filters.
+4. Request information → pick 2 workers × 2 fields → send. Requests tab shows them pending. Cancel one.
+5. Information check → send to ONE test worker only.
+6. Export → All employed → field picker → PDF: one page per worker, header + ID card + chosen fields only.
+7. "Timesheets & payslips" in the profile opens the old worker search on that worker.
+
+**Worker (QA worker)**
+8. Account tab shows the ID card + amber "Your employer needs some information" banner (also on Home).
+9. `/me/info` shows ONLY the requested fields → submit → animated tick + "Employee Information Updated" → banner gone.
+10. Check: read-only list → Decline with reason → admin sees it under Needs attention → Mark corrected. Then send again → Approve → "Your employee information has been confirmed".
+
+**Do NOT** press "Ask everyone for missing details now" or change Settings (it notifies every worker). Report SHOTS + any errors here.
+
+
+## Claude update — 2026-10-22 — worker information round 2 (add to the QA list above)
+
+Migrations `82_worker_info_more.sql` + `83_worker_info_trim.sql` applied. Also test signed in: (a) profile popup now lists EVERY master-record column (pay, rates, deductions, leave, Face ID flags) + the 10 details; (b) single-worker export preselects everything, multi-page PDF; (c) Request information: pick workers, then "Choose details" per worker + a custom typed question; worker sees it on /me/info; (d) worker Account photo: tap photo -> Change (crop dialog) / Remove. "Who can open what" table removed from the Employees tab (by user request).

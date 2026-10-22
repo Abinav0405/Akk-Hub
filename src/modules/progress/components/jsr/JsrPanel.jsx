@@ -222,6 +222,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
         draft={draft}
         setDraft={setDraft}
         editId={editId}
+        existingJsrs={rows}
         editStatus={editId ? (draft?.status || 'draft') : 'draft'}
         canSubmit={can('submit_jsr')}
         canSaveDraft={editId ? can('edit_jsr') : can('create_jsr')}
@@ -680,7 +681,7 @@ function packageMonthKey(p) {
   return m ? `${m[1]}-${m[2]}` : '';
 }
 
-function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onCancel, onSaved, canSubmit, canSaveDraft }) {
+function JsrEditor({ lookups, draft, setDraft, editId, existingJsrs = null, editStatus = 'draft', onCancel, onSaved, canSubmit, canSaveDraft }) {
   const [sites, setSites] = useState([]);
   const [packages, setPackages] = useState([]);
   const [pkgSearch, setPkgSearch] = useState('');
@@ -741,6 +742,22 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
       cancelled = true;
     };
   }, [sites]);
+
+  // package id → numbers of the OTHER JSRs it is already attached to (so the picker can say so).
+  const attachedElsewhere = useMemo(() => {
+    const map = new Map();
+    (existingJsrs || []).forEach((j) => {
+      if (editId && j.id === editId) return;
+      (j.linked_packages || []).forEach((lp) => {
+        const id = lp.package_id || lp.id;
+        if (!id) return;
+        const list = map.get(id) || [];
+        if (!list.includes(j.jsr_no)) list.push(j.jsr_no);
+        map.set(id, list);
+      });
+    });
+    return map;
+  }, [existingJsrs, editId]);
 
   const total = (draft.items || []).reduce((a, it) => a + Number(it.amount || 0), 0);
   const selectedSite = sites.find((s) => s.id === draft.site_id);
@@ -833,24 +850,35 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
     setDraft((d) => ({ ...d, contract_id: id, loa: ct?.loa || d.loa, sc_work: ct?.sc_work || d.sc_work }));
   };
 
+  // Location = the street of EVERY selected package, one per package, in selection order,
+  // comma separated (even when several packages share a street). A location typed by hand is kept.
+  const streetOf = (p) => String(p?.street_name || p?.place || '').trim();
+  const streetsFor = (ids) =>
+    ids
+      .map((pid) => streetOf((packages || []).find((x) => x.id === pid)))
+      .filter(Boolean)
+      .join(', ');
+
   const togglePkg = (pkg) => {
     const id = pkg.id;
-    const place = pkg.place;
     const pkgSiteId = pkg.site_id;
     setDraft((d) => {
       const has = d.package_ids.includes(id);
-      if (has) {
-        return { ...d, package_ids: d.package_ids.filter((x) => x !== id) };
-      }
-      const switching = pkgSiteId && d.site_id && d.site_id !== pkgSiteId;
-      const package_ids = [...(switching ? [] : d.package_ids), id];
+      const switching = !has && pkgSiteId && d.site_id && d.site_id !== pkgSiteId;
+      const package_ids = has
+        ? d.package_ids.filter((x) => x !== id)
+        : [...(switching ? [] : d.package_ids), id];
+      const wasAuto = !d.location || d.location === streetsFor(d.package_ids);
       return {
         ...d,
-        site_id: pkgSiteId || d.site_id,
+        site_id: has ? d.site_id : pkgSiteId || d.site_id,
         package_ids,
-        location: !d.location && place ? place : d.location,
+        location: wasAuto ? streetsFor(package_ids) : d.location,
       };
     });
+    if (!draft.package_ids.includes(id) && attachedElsewhere.has(id)) {
+      toast.message(`${pkg.display_id || 'This package'} is already on JSR ${attachedElsewhere.get(id).join(', ')}`);
+    }
     if (pkgSiteId) setPkgSiteF(pkgSiteId);
   };
 
@@ -1037,7 +1065,17 @@ function JsrEditor({ lookups, draft, setDraft, editId, editStatus = 'draft', onC
                 <TableCell className="text-muted-foreground">{p.site_name || '—'}</TableCell>
                 <TableCell>{formatDate(p.package_date)}</TableCell>
                 <TableCell>{p.photo_count}</TableCell>
-                <TableCell>{p.approval_status}</TableCell>
+                <TableCell>
+                  {p.approval_status}
+                  {attachedElsewhere.has(p.id) ? (
+                    <span
+                      className="mt-1 block max-w-[11rem] break-words rounded-md bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold leading-snug text-amber-800"
+                      title={`Already attached to JSR ${attachedElsewhere.get(p.id).join(', ')}`}
+                    >
+                      Already on JSR {attachedElsewhere.get(p.id).map((n) => shortJsrLabel(n)).join(', ')}
+                    </span>
+                  ) : null}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>

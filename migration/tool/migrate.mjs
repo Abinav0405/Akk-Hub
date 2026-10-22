@@ -572,6 +572,13 @@ async function reset() {
     }
     step('Reset the NEW project (old projects untouched)');
     await withTarget(async (c) => {
+        // Data that exists ONLY in the new project would be lost by a reset (it is not in the old projects).
+        const own = await c.query(`select
+            (select count(*) from core.worker_info)::int + (select count(*) from core.worker_photos)::int
+          + (select count(*) from core.deployment_days)::int + (select count(*) from core.worker_info_requests)::int n`).catch(() => ({ rows: [{ n: 0 }] }));
+        if (own.rows[0].n > 0 && !process.argv.includes('--discard-hub-data')) {
+            throw new Error(`The new project has ${own.rows[0].n} records that exist only there (worker details, photos, deployments, requests). Use "sync progress" instead, or add --discard-hub-data to really wipe them.`);
+        }
         for (const s of ['core', 'attendance', 'materials', 'progress']) {
             await c.query(`drop schema if exists ${q(s)} cascade`);
             ok(`dropped schema ${s}`);

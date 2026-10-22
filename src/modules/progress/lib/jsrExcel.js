@@ -209,8 +209,9 @@ function addPhotosSheet(workbook, j, photos, co, logo) {
   const SLOT_ROWS = 15; // 15 × 15pt ≈ 300px — room for a 4:3 photo 300px wide
   const location = j.location || j.site?.name || '';
   groups.forEach((group) => {
-    row = addSectionTitle(ws, row, `SITE: ${location || group.site_name || ''}${group.label ? ` · ${group.label}` : ''}`, 3);
-    const details = packageDetailLines(group).map(([label, value]) => `${label}: ${value}`).join('\n');
+    const packageSite = group.street || group.site_name || location || '';
+    row = addSectionTitle(ws, row, `SITE: ${packageSite}${group.label ? ` · ${group.label}` : ''}`, 3);
+    const details = packageDetailLines(group, packageSite).map(([label, value]) => `${label}: ${value}`).join('\n');
     if (details) row = addNote(ws, row - 1, details, 3);
     STAGES.forEach((stage) => {
       const list = group.stagePhotos[stage] || [];
