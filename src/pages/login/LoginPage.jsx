@@ -27,7 +27,10 @@ export default function LoginPage() {
 
     useEffect(() => prefetchPortalHome(role), [role]);
 
-    if (wasSignedIn && identity) return <Navigate to={homePathFor(identity.role)} replace />;
+    // Guard denial sets state.from. Never bounce those users straight back to the hub home —
+    // that looped /admin ↔ /login with a blank outlet when admin markers outlived the JWT.
+    const deniedBounce = Boolean(location.state?.from);
+    if (wasSignedIn && identity && !deniedBounce) return <Navigate to={homePathFor(identity.role)} replace />;
     if (role === 'admin') return <AdminLogin />;
     if (role === 'management') return <ManagementLogin />;
     return <EmployeeLogin />;

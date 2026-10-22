@@ -129,11 +129,25 @@ export async function signOutAdmin() {
     clearAdminSession();
 }
 
+/**
+ * Re-check the admin Supabase Auth session.
+ * @returns {Promise<true | false | 'offline'>} `false` clears stale hub markers when the JWT
+ *   is gone (avoids LoginPage ↔ /admin bounce). `'offline'` keeps markers on unexpected errors.
+ */
 export async function verifyAdminSession() {
     try {
-        const { data } = await supabase.auth.getSession();
+        const { data, error } = await supabase.auth.getSession();
+        if (error) {
+            if (isAdminAuthenticated()) return 'offline';
+            return false;
+        }
         const user = data?.session?.user;
-        if (!user) return false;
+        if (!user) {
+            // Markers without a JWT (storage-key drift, cleared sb-auth, etc.) — drop them so
+            // identity goes null and the login screen can show once instead of looping.
+            if (isAdminAuthenticated()) clearAdminSession();
+            return false;
+        }
         if (!isAuthorizedAdmin(user)) {
             await signOutAdmin();
             return false;
@@ -144,6 +158,7 @@ export async function verifyAdminSession() {
         });
         return true;
     } catch {
+        if (isAdminAuthenticated()) return 'offline';
         return false;
     }
 }

@@ -138,9 +138,11 @@ export async function verifyIdentity(expectedRoles) {
     if (expectedRoles && !expectedRoles.includes(current.role)) return 'denied';
 
     if (current.role === 'admin') {
-        const ok = await verifyAdminSession();
+        const result = await verifyAdminSession();
         notifyIdentity();
-        return ok ? 'ok' : 'denied';
+        if (result === true) return 'ok';
+        if (result === 'offline') return 'offline';
+        return 'denied';
     }
     const row = await verifyRoleSession({ keepOnNetworkError: true });
     notifyIdentity();

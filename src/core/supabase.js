@@ -29,6 +29,16 @@ const env = import.meta.env;
         const key = 'akk.hub.backend';
         if (localStorage.getItem(key) === marker) return;
         const prefixes = ['akk.materials.', 'akk.progress.', 'akk.hub.conn', 'akk.hub.access', 'akk.hub.lastAutoConnect'];
+        // Attendance / admin JWT from the previous backend must not be reused — wrong project
+        // or pre-UNIFIED storage key would look "signed in" then blank the shell on verify.
+        const exact = [
+            'akk.timesheet.sb-auth',
+            'akk.hub.timesheet.sb-auth',
+            'akk.timesheet.adminLoggedIn',
+            'akk.timesheet.adminEmail',
+            'akk.timesheet.adminName',
+            'akk.hub.authKeyMigration',
+        ];
         for (const store of [localStorage, sessionStorage]) {
             const doomed = [];
             for (let i = 0; i < store.length; i += 1) {
@@ -36,10 +46,36 @@ const env = import.meta.env;
                 if (k && prefixes.some((p) => k.startsWith(p))) doomed.push(k);
             }
             doomed.forEach((k) => store.removeItem(k));
+            exact.forEach((k) => store.removeItem(k));
         }
         localStorage.setItem(key, marker);
     } catch {
         /* storage blocked — nothing to clean */
+    }
+})();
+
+/**
+ * UNIFIED clients read `akk.hub.<area>.sb-auth`; pre-UNIFIED builds wrote `akk.<area>.sb-auth`.
+ * Without this copy, admin markers stay true while getSession() finds no JWT → guard denies →
+ * LoginPage still sees identity → /admin ↔ /login loop → blank shell outlet (white screen).
+ * Must run before createClient below.
+ */
+(function migrateLegacyAuthStorageToHubKeys() {
+    try {
+        if (!(env.VITE_SUPABASE_URL && env.VITE_SUPABASE_ANON_KEY)) return;
+        const flag = 'akk.hub.authKeyMigration';
+        if (localStorage.getItem(flag) === 'hub-v1') return;
+        for (const name of ['timesheet', 'materials', 'progress']) {
+            const legacy = `akk.${name}.sb-auth`;
+            const hub = `akk.hub.${name}.sb-auth`;
+            for (const store of [localStorage, sessionStorage]) {
+                const from = store.getItem(legacy);
+                if (from && !store.getItem(hub)) store.setItem(hub, from);
+            }
+        }
+        localStorage.setItem(flag, 'hub-v1');
+    } catch {
+        /* storage blocked — clients will treat session as missing */
     }
 })();
 
