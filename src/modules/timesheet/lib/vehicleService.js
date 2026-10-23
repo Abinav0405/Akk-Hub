@@ -63,6 +63,11 @@ export async function deactivateVehicle(id) {
     return updateVehicle(id, { is_active: false });
 }
 
+/** New QR for a vehicle (old stickers stop working — e.g. a sticker was lost or copied). */
+export async function regenerateVehicleQr(vehicle) {
+    return updateVehicle(vehicle.id, { qr_token: generateVehicleQrToken(vehicle.vehicle_number) });
+}
+
 export async function countVehicleJourneys(vehicleId) {
     const { count, error } = await supabaseTimesheet
         .from('vehicle_journeys')
@@ -133,15 +138,30 @@ export async function listActiveJourneys() {
     return data || [];
 }
 
-export async function listCompletedJourneys({ limit = 50 } = {}) {
-    const { data, error } = await supabaseTimesheet
+/** Completed journeys, newest first. `from` / `to` are YYYY-MM-DD (Singapore days, by start time). */
+export async function listCompletedJourneys({ limit = 50, from = null, to = null, vehicleId = null } = {}) {
+    let query = supabaseTimesheet
         .from('vehicle_journeys')
         .select('*, vehicles(*)')
-        .eq('status', 'completed')
-        .order('ended_at', { ascending: false })
-        .limit(limit);
+        .eq('status', 'completed');
+    if (from) query = query.gte('started_at', `${from}T00:00:00+08:00`);
+    if (to) query = query.lte('started_at', `${to}T23:59:59.999+08:00`);
+    if (vehicleId) query = query.eq('vehicle_id', vehicleId);
+    const { data, error } = await query.order('ended_at', { ascending: false }).limit(limit);
     if (error) throw error;
     return data || [];
+}
+
+/** GPS point count + last point time per journey (for "GPS quality" in the admin list). */
+export async function getJourneyGpsSummary(journeyIds) {
+    const out = {};
+    await Promise.all(
+        (journeyIds || []).map(async (id) => {
+            const { count } = await supabaseTimesheet.from('vehicle_location_points').select('id', { count: 'exact', head: true }).eq('journey_id', id);
+            out[id] = { points: count || 0 };
+        }),
+    );
+    return out;
 }
 
 export async function getJourneyById(journeyId) {
@@ -213,36 +233,47 @@ export async function getLatestLocationPoint(journeyId) {
     return data;
 }
 
-export async function insertLocationPoint(journeyId, coords) {
+function pointRow(journeyId, coords) {
     const lat = Number(coords.latitude);
     const lng = Number(coords.longitude);
     if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-
     const speedMs = coords.speed != null ? Number(coords.speed) : null;
-    const speedKmh = speedMs != null && Number.isFinite(speedMs) ? speedMs * 3.6 : null;
-    // Stamp the point with when the GPS fix was taken, not when the upload happened, so
-    // distance/speed maths isn't skewed by upload delay. Ignore implausible fix times.
+    const speedKmh = speedMs != null && Number.isFinite(speedMs) && speedMs >= 0 ? speedMs * 3.6 : null;
+    // Stamp the point with when the GPS fix was taken, not when the upload happened (points can wait
+    // in the offline queue). Ignore implausible fix times (future, or older than a day).
     const fixMs = Number(coords.timestamp);
+    const now = Date.now();
     const recordedAt =
-        Number.isFinite(fixMs) && fixMs > 0 && Math.abs(Date.now() - fixMs) < 5 * 60 * 1000
+        Number.isFinite(fixMs) && fixMs > 0 && fixMs <= now + 60 * 1000 && now - fixMs < 24 * 3600 * 1000
             ? new Date(fixMs).toISOString()
-            : new Date().toISOString();
+            : new Date(now).toISOString();
+    const heading = coords.heading != null ? Number(coords.heading) : null;
+    return {
+        journey_id: journeyId,
+        latitude: lat,
+        longitude: lng,
+        accuracy_m: coords.accuracy != null && Number.isFinite(Number(coords.accuracy)) ? Number(coords.accuracy) : null,
+        speed_kmh: speedKmh,
+        heading: Number.isFinite(heading) ? heading : null,
+        recorded_at: recordedAt,
+    };
+}
 
-    const { data, error } = await supabaseTimesheet
-        .from('vehicle_location_points')
-        .insert([{
-            journey_id: journeyId,
-            latitude: lat,
-            longitude: lng,
-            accuracy_m: coords.accuracy != null ? Number(coords.accuracy) : null,
-            speed_kmh: speedKmh,
-            heading: coords.heading != null ? Number(coords.heading) : null,
-            recorded_at: recordedAt,
-        }])
-        .select()
-        .single();
+export async function insertLocationPoint(journeyId, coords) {
+    const row = pointRow(journeyId, coords);
+    if (!row) return null;
+    const { data, error } = await supabaseTimesheet.from('vehicle_location_points').insert([row]).select().single();
     if (error) throw error;
     return data;
+}
+
+/** Batch upload (offline queue). */
+export async function insertLocationPoints(journeyId, coordsList) {
+    const rows = (coordsList || []).map((c) => pointRow(journeyId, c)).filter(Boolean);
+    if (!rows.length) return 0;
+    const { error } = await supabaseTimesheet.from('vehicle_location_points').insert(rows);
+    if (error) throw error;
+    return rows.length;
 }
 
 function isUniqueViolation(error) {
@@ -407,6 +438,13 @@ async function closeOpenBreaksForJourney(journeyId, endedAt) {
 }
 
 export async function endJourney(journeyId, { lat, lng } = {}) {
+    // Points still waiting in this device's offline queue belong in the distance / speed figures.
+    try {
+        const { flushVehicleTrackingQueue } = await import('@/modules/timesheet/lib/vehicleTracking');
+        await Promise.race([flushVehicleTrackingQueue(), new Promise((r) => setTimeout(r, 8000))]);
+    } catch {
+        /* ignore — the queue is retried later */
+    }
     const endedAt = new Date().toISOString();
     await closeOpenBreaksForJourney(journeyId, endedAt);
 

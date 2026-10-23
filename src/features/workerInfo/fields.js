@@ -17,8 +17,8 @@ const f = (key, label, kind, group, applies = 'all') => ({ key, label, kind, gro
 export const INFO_FIELDS = [
     f('work_permit_no', 'Work Permit No.', 'text', 'employment', 'foreign'),
     f('permit_expiry_date', 'Work Permit Expiry', 'date', 'employment', 'foreign'),
-    f('soc_no', 'SOC No.', 'text', 'employment', 'all'),
-    f('soc_expiry_date', 'SOC Expiry', 'date', 'employment', 'all'),
+    f('safety_cert_no', 'Safety Certificate Number', 'text', 'employment', 'all'),
+    f('safety_cert_expiry_date', 'Safety Certificate Expiry', 'date', 'employment', 'all'),
     f('hp_number', 'Mobile (HP) Number', 'tel', 'personal', 'all'),
     f('nationality', 'Nationality', 'text', 'personal', 'all'),
     f('address', 'Residential Address', 'textarea', 'personal', 'all'),
@@ -78,7 +78,7 @@ export const ASKABLE_BY_KEY = Object.fromEntries(ASKABLE_FIELDS.map((x) => [x.ke
 
 export const GROUPS = [
     { key: 'identification', label: 'Employee identification' },
-    { key: 'employment', label: 'Work permit & SOC' },
+    { key: 'employment', label: 'Work permit & safety certificate' },
     { key: 'personal', label: 'Personal information' },
     { key: 'passport', label: 'Passport' },
     { key: 'emergency', label: 'Emergency contact' },

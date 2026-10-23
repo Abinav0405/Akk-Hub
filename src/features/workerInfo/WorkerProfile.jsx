@@ -5,7 +5,7 @@
  */
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
-    AlertTriangle, CheckCircle2, ClipboardCheck, Clock, FileDown, History, Loader2, Pencil, Search, Send, X, XCircle,
+    AlertTriangle, CheckCircle2, ClipboardCheck, Clock, FileDown, History, Loader2, Pencil, Search, Send, XCircle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/ui/dialog';
@@ -14,21 +14,22 @@ import { Banner } from '@/ui/hub/primitives';
 import { cn } from '@/ui/utils';
 import EmployeeIdCard from './EmployeeIdCard';
 import {
-    BASE_FIELDS, FIELD_BY_KEY, GROUPS, INFO_FIELDS, customFieldDefs, daysUntil, formatValue, inputType,
-    isEditableBaseKey, labelOf, showField, toFormValue,
+    BASE_FIELDS, FIELD_BY_KEY, GROUPS, INFO_FIELDS, customFieldDefs, daysUntil, formatValue, labelOf, showField,
 } from './fields';
 import { workerInfoAdmin } from './api';
+import { openWorkerEdit } from './EditWorkerExtras';
 import { ExportDialog, RequestInfoDialog, SendCheckDialog } from './AdminDialogs';
 
 /* ---------------- tiny store: which sheet is open ---------------- */
-let state = { profileId: null, lookup: false, nonce: 0 };
+let state = { profileId: null, lookup: false, lookupMode: 'view', nonce: 0 };
 const listeners = new Set();
 const emit = (patch) => {
     state = { ...state, ...patch, nonce: state.nonce + 1 };
     listeners.forEach((l) => l());
 };
 export const openWorkerProfile = (id) => emit({ profileId: String(id), lookup: false });
-export const openWorkerLookup = () => emit({ lookup: true });
+/** mode 'view' opens the worker's profile; 'edit' goes straight to the Edit Worker dialog. */
+export const openWorkerLookup = (mode = 'view') => emit({ lookup: true, lookupMode: mode === 'edit' ? 'edit' : 'view' });
 const useSheets = () => useSyncExternalStore((l) => (listeners.add(l), () => listeners.delete(l)), () => state);
 
 /* ---------------- shared bits ---------------- */
@@ -68,76 +69,10 @@ export const StatusPill = ({ status }) => (
 );
 const when = (t) => (t ? new Date(t).toLocaleString('en-SG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
-/** Editable control for one detail field in admin edit mode. */
-function EditField({ field, value, onChange }) {
-    const set = (v) => onChange(field.key, v);
-    const box = cn('rounded-xl border border-[var(--g-brand)]/30 bg-white px-3 py-2', field.kind === 'textarea' && 'sm:col-span-2');
-    if (field.key === 'in_company') {
-        return (
-            <label className={box}>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{field.label}</span>
-                <select value={value ?? 'true'} onChange={(e) => set(e.target.value)} className="mt-1 h-9 w-full rounded-md border border-slate-200 px-2 text-sm">
-                    <option value="true">Employed</option>
-                    <option value="false">Not in company</option>
-                </select>
-            </label>
-        );
-    }
-    if (field.kind === 'bool') {
-        return (
-            <label className={box}>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{field.label}</span>
-                <select value={value ?? 'false'} onChange={(e) => set(e.target.value)} className="mt-1 h-9 w-full rounded-md border border-slate-200 px-2 text-sm">
-                    <option value="true">Yes</option>
-                    <option value="false">No</option>
-                </select>
-            </label>
-        );
-    }
-    if (field.kind === 'textarea') {
-        return (
-            <label className={box}>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{field.label}</span>
-                <textarea rows={2} value={value ?? ''} onChange={(e) => set(e.target.value)} className="mt-1 w-full rounded-md border border-slate-200 p-1.5 text-sm" />
-            </label>
-        );
-    }
-    if (field.key === 'rejoin_dates') {
-        return (
-            <label className={cn(box, 'sm:col-span-2')}>
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{field.label}</span>
-                <input
-                    type="text"
-                    value={value ?? ''}
-                    onChange={(e) => set(e.target.value)}
-                    placeholder="YYYY-MM-DD, YYYY-MM-DD"
-                    className="mt-1 h-9 w-full rounded-md border border-slate-200 px-2 text-sm"
-                />
-            </label>
-        );
-    }
-    const type = field.kind === 'money' || field.kind === 'num' ? 'number' : inputType(field.kind);
-    return (
-        <label className={box}>
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{field.label}</span>
-            <input
-                type={type}
-                step={field.kind === 'money' ? '0.01' : field.kind === 'num' ? '1' : undefined}
-                value={value ?? ''}
-                onChange={(e) => set(e.target.value)}
-                className="mt-1 h-9 w-full rounded-md border border-slate-200 px-2 text-sm"
-            />
-        </label>
-    );
-}
-
 /* ---------------- profile sheet ---------------- */
 function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
     const [p, setP] = useState(null);
     const [error, setError] = useState('');
-    const [editing, setEditing] = useState(false);
-    const [form, setForm] = useState({});
-    const [saving, setSaving] = useState(false);
     const [dialog, setDialog] = useState(null); // 'request' | 'check' | 'export'
     const [resolveNote, setResolveNote] = useState('');
 
@@ -155,7 +90,6 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
     useEffect(() => {
         if (open) {
             setP(null);
-            setEditing(false);
             load();
         }
     }, [open, load]);
@@ -163,42 +97,8 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
     const infoFields = useMemo(() => [...INFO_FIELDS.filter((f) => showField(f, p?.worker_type, p?.info?.[f.key])), ...customFieldDefs(p?.custom_labels)], [p]);
     const baseSrc = (key) => (p?.base || p)?.[key];
     const startEdit = () => {
-        const next = {};
-        for (const f of BASE_FIELDS) {
-            if (!showField(f, p.worker_type, baseSrc(f.key)) || !isEditableBaseKey(f.key)) continue;
-            next[f.key] = toFormValue(f.key, baseSrc(f.key));
-        }
-        for (const f of infoFields) {
-            next[f.key] = toFormValue(f.key, p.info?.[f.key]);
-        }
-        setForm(next);
-        setEditing(true);
-    };
-    const setFormField = (key, value) => setForm((x) => ({ ...x, [key]: value }));
-    const save = async () => {
-        const name = String(form.name ?? '').trim();
-        if (!name) {
-            toast.error('Full Name is required');
-            return;
-        }
-        const nric = String(form.nric_fin ?? '').trim().toUpperCase();
-        if (nric && /^[STFGM]/.test(nric) && !/^[STFGM][0-9]{7}[A-Z]$/.test(nric) && !/x/i.test(nric)) {
-            toast.error('NRIC / FIN must look like S1234567A');
-            return;
-        }
-        setSaving(true);
-        try {
-            const payload = { ...form, name, nric_fin: nric || form.nric_fin };
-            const next = await workerInfoAdmin.save(p.employee_id, payload);
-            setP(next);
-            setEditing(false);
-            toast.success('Worker details saved');
-            reloadDirectory?.();
-        } catch (e) {
-            toast.error(e.message);
-        } finally {
-            setSaving(false);
-        }
+        onClose();
+        openWorkerEdit(p.employee_id, p.worker_type);
     };
 
     const openRequests = (p?.requests || []).filter((r) => r.status === 'pending');
@@ -359,20 +259,9 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
                                 <section>
                                     <div className="mb-2 flex items-center justify-between">
                                         <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Employee details</h3>
-                                        {!editing ? (
-                                            <Button type="button" size="sm" variant="outline" onClick={startEdit}>
-                                                <Pencil className="h-3.5 w-3.5" /> Edit details
-                                            </Button>
-                                        ) : (
-                                            <div className="flex gap-2">
-                                                <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={saving}>
-                                                    <X className="h-3.5 w-3.5" /> Cancel
-                                                </Button>
-                                                <Button type="button" size="sm" onClick={save} disabled={saving}>
-                                                    {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />} Save
-                                                </Button>
-                                            </div>
-                                        )}
+                                        <Button type="button" size="sm" variant="outline" onClick={startEdit}>
+                                            <Pencil className="h-3.5 w-3.5" /> Edit details
+                                        </Button>
                                     </div>
                                     <div className="space-y-4">
                                         {GROUPS.map((g) => {
@@ -383,20 +272,12 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
                                                 <div key={g.key}>
                                                     <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</h4>
                                                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                                                        {base.map((f) =>
-                                                            editing && isEditableBaseKey(f.key) ? (
-                                                                <EditField key={f.key} field={f} value={form[f.key]} onChange={setFormField} />
-                                                            ) : (
-                                                                <Field key={f.key} label={f.label} value={formatValue(f.key, baseSrc(f.key))} />
-                                                            ),
-                                                        )}
-                                                        {mine.map((f) =>
-                                                            editing ? (
-                                                                <EditField key={f.key} field={f} value={form[f.key]} onChange={setFormField} />
-                                                            ) : (
-                                                                <Field key={f.key} label={f.label} value={formatValue(f.key, p.info?.[f.key])} warn={expiryWarn(f.key, p.info?.[f.key])} />
-                                                            ),
-                                                        )}
+                                                        {base.map((f) => (
+                                                            <Field key={f.key} label={f.label} value={formatValue(f.key, baseSrc(f.key))} />
+                                                        ))}
+                                                        {mine.map((f) => (
+                                                            <Field key={f.key} label={f.label} value={formatValue(f.key, p.info?.[f.key])} warn={expiryWarn(f.key, p.info?.[f.key])} />
+                                                        ))}
                                                     </div>
                                                 </div>
                                             );
@@ -442,7 +323,13 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
 }
 
 /* ---------------- lookup (redesigned "Search worker") ---------------- */
-function WorkerLookup({ open, onClose, directory, loading }) {
+function WorkerLookup({ open, onClose, directory, loading, mode = 'view' }) {
+    const pick = (w) => {
+        if (mode === 'edit') {
+            onClose();
+            openWorkerEdit(w.employee_id, w.worker_type);
+        } else openWorkerProfile(w.employee_id);
+    };
     const [q, setQ] = useState('');
     const [scope, setScope] = useState('employed');
     useEffect(() => {
@@ -459,7 +346,7 @@ function WorkerLookup({ open, onClose, directory, loading }) {
         <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
             <DialogContent className="max-w-xl">
                 <DialogHeader>
-                    <DialogTitle>Find a worker</DialogTitle>
+                    <DialogTitle>{mode === 'edit' ? 'Edit a worker' : 'Find a worker'}</DialogTitle>
                     <DialogDescription>Search by employee ID, name or work permit number.</DialogDescription>
                 </DialogHeader>
                 <div className="relative">
@@ -468,7 +355,7 @@ function WorkerLookup({ open, onClose, directory, loading }) {
                         autoFocus
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && results[0] && openWorkerProfile(results[0].employee_id)}
+                        onKeyDown={(e) => e.key === 'Enter' && results[0] && pick(results[0])}
                         placeholder="e.g. 1006, Ganesan, 0 38281712"
                         className="h-12 w-full rounded-2xl border border-[var(--g-hairline)] bg-white pl-11 pr-3 text-base shadow-sm"
                     />
@@ -489,7 +376,7 @@ function WorkerLookup({ open, onClose, directory, loading }) {
                     {!loading && !results.length ? <li className="p-4 text-center text-sm text-slate-500">No worker matches “{q}”.</li> : null}
                     {results.map((w) => (
                         <li key={w.employee_id}>
-                            <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
+                            <button type="button" onClick={() => pick(w)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left hover:bg-slate-50">
                                 <span className={cn('flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold', w.in_company ? 'bg-[var(--g-brand-soft)] text-[var(--g-brand-text)]' : 'bg-red-50 text-red-700')}>
                                     {String(w.name || '?').split(/\s+/).map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
                                 </span>
@@ -535,7 +422,7 @@ export function WorkerInfoAdminHost() {
     }, [s.lookup, s.profileId, directory, loading, reloadDirectory]);
     return (
         <>
-            <WorkerLookup open={s.lookup && !s.profileId} onClose={() => emit({ lookup: false })} directory={directory} loading={loading && !directory} />
+            <WorkerLookup open={s.lookup && !s.profileId} mode={s.lookupMode} onClose={() => emit({ lookup: false })} directory={directory} loading={loading && !directory} />
             <WorkerProfileSheet
                 id={s.profileId}
                 open={Boolean(s.profileId)}

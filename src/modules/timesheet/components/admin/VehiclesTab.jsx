@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import {
-    Car, Loader2, QrCode, Edit2, Trash2, MapPin, Navigation, Eye, Plus,
+    Car, Loader2, QrCode, Edit2, Trash2, MapPin, Navigation, Eye, Plus, Flag, AlertTriangle, FileSpreadsheet, RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
@@ -26,13 +26,21 @@ import {
     updateVehicle,
     getLatestLocationPoint,
     countVehicleJourneys,
+    endJourney,
+    regenerateVehicleQr,
+    getJourneyGpsSummary,
 } from '@/modules/timesheet/lib/vehicleService';
+import { downloadJourneysExcel } from '@/modules/timesheet/lib/vehicleJourneyExport';
 import { formatDuration } from '@/modules/timesheet/lib/vehicleJourneyStats';
 import { glassPanel, glassDialog, glassInput } from '@/ui/PortalShell';
 import { cn } from '@/modules/timesheet/lib/utils';
 
 const VehicleLiveMap = lazy(() => import('@/modules/timesheet/components/VehicleLiveMap'));
 const VehicleJourneyDetail = lazy(() => import('@/modules/timesheet/components/VehicleJourneyDetail'));
+
+const sgDate = (d) => new Date(d.getTime() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+const minsAgo = (iso) => (iso ? Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000)) : null);
+const agoText = (m) => (m == null ? 'no GPS yet' : m < 1 ? 'just now' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`);
 
 export default function VehiclesTab() {
     const queryClient = useQueryClient();
@@ -46,6 +54,10 @@ export default function VehiclesTab() {
     const [pendingDeleteVehicle, setPendingDeleteVehicle] = useState(null);
     const [pendingDeleteJourney, setPendingDeleteJourney] = useState(null);
     const [deleteJourneyCount, setDeleteJourneyCount] = useState(0);
+    const [pendingEndJourney, setPendingEndJourney] = useState(null);
+    const [filter, setFilter] = useState(() => ({ from: sgDate(new Date(Date.now() - 30 * 864e5)), to: sgDate(new Date()), vehicleId: '' }));
+    const [gpsSummary, setGpsSummary] = useState({});
+    const [exporting, setExporting] = useState(false);
 
     const { data: vehicles = [], isLoading: loadingVehicles } = useQuery({
         queryKey: ['vehicles'],
@@ -59,10 +71,31 @@ export default function VehiclesTab() {
     });
 
     const { data: completedJourneys = [], isLoading: loadingCompleted } = useQuery({
-        queryKey: ['vehicleJourneys', 'completed'],
-        queryFn: () => listCompletedJourneys({ limit: 30 }),
-        refetchInterval: 30000,
+        queryKey: ['vehicleJourneys', 'completed', filter],
+        queryFn: () => listCompletedJourneys({ limit: 300, from: filter.from || null, to: filter.to || null, vehicleId: filter.vehicleId || null }),
+        refetchInterval: 60000,
     });
+
+    // GPS point counts → flag journeys where tracking clearly did not run (e.g. app used instead of website).
+    useEffect(() => {
+        const ids = completedJourneys.slice(0, 120).map((j) => j.id).filter((id) => gpsSummary[id] == null);
+        if (!ids.length) return;
+        let cancelled = false;
+        getJourneyGpsSummary(ids).then((m) => !cancelled && setGpsSummary((g) => ({ ...g, ...m }))).catch(() => {});
+        return () => {
+            cancelled = true;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [completedJourneys]);
+
+    const totals = completedJourneys.reduce(
+        (t, j) => ({ km: t.km + Number(j.total_distance_km || 0), s: t.s + Number(j.duration_seconds || 0) }),
+        { km: 0, s: 0 },
+    );
+    const lowGps = (j) => {
+        const pts = gpsSummary[j.id]?.points;
+        return pts != null && Number(j.duration_seconds || 0) > 30 * 60 && pts < Math.max(10, Number(j.duration_seconds) / 600);
+    };
 
     useEffect(() => {
         if (!activeJourneys.length) return;
@@ -116,6 +149,44 @@ export default function VehiclesTab() {
         },
         onError: (e) => toast.error(e.message || 'Failed to delete vehicle'),
     });
+
+    const endJourneyMutation = useMutation({
+        mutationFn: (j) => {
+            const loc = journeyLocations[j.id];
+            return endJourney(j.id, loc ? { lat: Number(loc.latitude), lng: Number(loc.longitude) } : {});
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['vehicleJourneys'] });
+            queryClient.invalidateQueries({ queryKey: ['activeVehicleJourney'] });
+            toast.success('Journey ended — it is now in Completed journeys');
+            setPendingEndJourney(null);
+        },
+        onError: (e) => toast.error(e.message || 'Could not end the journey'),
+    });
+
+    const regenerateMutation = useMutation({
+        mutationFn: regenerateVehicleQr,
+        onSuccess: (v) => {
+            queryClient.invalidateQueries({ queryKey: ['vehicles'] });
+            toast.success(`New QR for ${v.vehicle_number} — print it; the old sticker no longer works`);
+            setEditVehicle(null);
+            void openQrPreview(v);
+        },
+        onError: (e) => toast.error(e.message || 'Could not make a new QR'),
+    });
+
+    const exportJourneys = async () => {
+        setExporting(true);
+        try {
+            const missing = completedJourneys.map((j) => j.id).filter((id) => gpsSummary[id] == null);
+            const extra = missing.length ? await getJourneyGpsSummary(missing) : {};
+            await downloadJourneysExcel(completedJourneys, { ...gpsSummary, ...extra }, `AKK-Vehicle-Journeys-${filter.from || 'all'}-to-${filter.to || 'now'}.xlsx`);
+        } catch (e) {
+            toast.error(e.message || 'Export failed');
+        } finally {
+            setExporting(false);
+        }
+    };
 
     const deleteJourneyMutation = useMutation({
         mutationFn: deleteJourney,
@@ -282,6 +353,27 @@ export default function VehiclesTab() {
                                                     {Number(loc.latitude).toFixed(5)}, {Number(loc.longitude).toFixed(5)}
                                                 </p>
                                             )}
+                                            {(() => {
+                                                const m = minsAgo(loc?.recorded_at);
+                                                const stale = j.status !== 'on_break' && (m == null || m > 10);
+                                                const hours = (Date.now() - new Date(j.started_at).getTime()) / 3600000;
+                                                return (
+                                                    <>
+                                                        <p className={cn('mt-1 text-xs', stale ? 'font-semibold text-amber-700' : 'text-slate-500')}>
+                                                            Last GPS update: {agoText(m)}
+                                                        </p>
+                                                        {stale ? (
+                                                            <p className="mt-1 flex items-start gap-1 rounded-lg bg-amber-50 px-2 py-1 text-xs text-amber-800">
+                                                                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                                                                GPS not updating — the driver may be using the app or has closed the website.
+                                                            </p>
+                                                        ) : null}
+                                                        {hours >= 12 ? (
+                                                            <p className="mt-1 text-xs font-semibold text-red-700">Running for {Math.floor(hours)} h — the driver may have forgotten to finish.</p>
+                                                        ) : null}
+                                                    </>
+                                                );
+                                            })()}
                                         <div className="mt-auto flex flex-col gap-2 pt-3">
                                             <Button
                                                 className="h-9 rounded-xl bg-slate-800 hover:bg-slate-900"
@@ -289,6 +381,10 @@ export default function VehiclesTab() {
                                             >
                                                 <Navigation className="mr-1.5 h-4 w-4" />
                                                 Track
+                                            </Button>
+                                            <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl border-slate-200 bg-white" onClick={() => setPendingEndJourney(j)}>
+                                                <Flag className="mr-1.5 h-4 w-4" />
+                                                End journey
                                             </Button>
                                             <Button
                                                 type="button"
@@ -310,7 +406,39 @@ export default function VehiclesTab() {
 
             {/* Completed */}
             <section className={cn(glassPanel, 'p-4 sm:p-5')}>
-                    <h2 className="mb-4 text-lg font-semibold tracking-tight text-slate-900">Completed journeys</h2>
+                    <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                        <div>
+                            <h2 className="text-lg font-semibold tracking-tight text-slate-900">Completed journeys</h2>
+                            <p className="text-sm text-slate-500">
+                                {completedJourneys.length} journey{completedJourneys.length === 1 ? '' : 's'} · {totals.km.toFixed(1)} km · {formatDuration(totals.s)}
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap items-end gap-2">
+                            <label className="text-xs font-medium text-slate-600">
+                                From
+                                <input type="date" value={filter.from} onChange={(e) => setFilter((f) => ({ ...f, from: e.target.value }))} className="mt-1 block h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm" />
+                            </label>
+                            <label className="text-xs font-medium text-slate-600">
+                                To
+                                <input type="date" value={filter.to} onChange={(e) => setFilter((f) => ({ ...f, to: e.target.value }))} className="mt-1 block h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm" />
+                            </label>
+                            <label className="text-xs font-medium text-slate-600">
+                                Vehicle
+                                <select value={filter.vehicleId} onChange={(e) => setFilter((f) => ({ ...f, vehicleId: e.target.value }))} className="mt-1 block h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm">
+                                    <option value="">All vehicles</option>
+                                    {vehicles.map((v) => (
+                                        <option key={v.id} value={v.id}>
+                                            {v.vehicle_number}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <Button type="button" variant="outline" className="h-9 rounded-lg border-slate-200 bg-white" onClick={exportJourneys} disabled={exporting || !completedJourneys.length}>
+                                {exporting ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileSpreadsheet className="mr-1.5 h-4 w-4" />}
+                                Export Excel
+                            </Button>
+                        </div>
+                    </div>
                     {loadingCompleted ? (
                         <Loader2 className="mx-auto h-8 w-8 animate-spin text-slate-400" />
                     ) : completedJourneys.length === 0 ? (
@@ -322,20 +450,36 @@ export default function VehiclesTab() {
                             <table className="w-full min-w-[640px] text-sm">
                                 <thead>
                                     <tr className="border-b border-slate-200 bg-slate-50/90 text-left text-xs font-semibold uppercase tracking-wide text-slate-600">
+                                        <th className="px-4 py-3">Date</th>
                                         <th className="px-4 py-3">Vehicle</th>
                                         <th className="px-4 py-3">Driver</th>
                                         <th className="px-4 py-3">Distance</th>
                                         <th className="px-4 py-3">Duration</th>
+                                        <th className="px-4 py-3">GPS</th>
                                         <th className="px-4 py-3 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
                                     {completedJourneys.map((j) => (
                                         <tr key={j.id} className="hover:bg-slate-50/80">
+                                            <td className="whitespace-nowrap px-4 py-3 text-slate-600">
+                                                {new Date(j.started_at).toLocaleString('en-SG', { timeZone: 'Asia/Singapore', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                            </td>
                                             <td className="px-4 py-3 font-semibold text-slate-900">{j.vehicles?.vehicle_number}</td>
                                             <td className="px-4 py-3 text-slate-700">{j.worker_name}</td>
                                             <td className="px-4 py-3 tabular-nums text-slate-800">{Number(j.total_distance_km || 0).toFixed(2)} km</td>
                                             <td className="px-4 py-3 text-slate-700">{formatDuration(j.duration_seconds)}</td>
+                                            <td className="px-4 py-3 text-xs">
+                                                {gpsSummary[j.id] == null ? (
+                                                    <span className="text-slate-400">…</span>
+                                                ) : lowGps(j) ? (
+                                                    <span className="rounded-full bg-amber-50 px-2 py-0.5 font-semibold text-amber-800" title="Very few GPS points for this long a journey — tracking was not running most of the time, so distance is under-counted.">
+                                                        Low · {gpsSummary[j.id].points} pts
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-500">{gpsSummary[j.id].points} pts</span>
+                                                )}
+                                            </td>
                                             <td className="px-4 py-3 text-right">
                                                 <div className="flex justify-end gap-1.5">
                                                     <Button variant="outline" size="sm" className="h-8 rounded-lg border-slate-200" onClick={() => setViewJourney(j)}>
@@ -402,19 +546,41 @@ export default function VehiclesTab() {
                         <DialogTitle>Edit {editVehicle?.vehicle_number}</DialogTitle>
                     </DialogHeader>
                     {editVehicle && (
-                        <Input
-                            defaultValue={editVehicle.description || ''}
-                            placeholder="Description"
-                            id="edit-vehicle-desc"
-                            className={glassInput}
-                        />
+                        <div className="space-y-3">
+                            <Input
+                                defaultValue={editVehicle.description || ''}
+                                placeholder="Description"
+                                id="edit-vehicle-desc"
+                                className={glassInput}
+                            />
+                            <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                                <input type="checkbox" id="edit-vehicle-active" defaultChecked={editVehicle.is_active !== false} className="h-4 w-4" />
+                                Active — drivers can scan this vehicle
+                            </label>
+                            <div className="rounded-xl border border-slate-200 bg-white/70 p-3 text-sm">
+                                <p className="font-medium text-slate-800">QR sticker lost or copied?</p>
+                                <p className="text-xs text-slate-500">Make a new QR. The old sticker stops working immediately.</p>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-2 h-9 rounded-lg"
+                                    disabled={regenerateMutation.isPending}
+                                    onClick={() => regenerateMutation.mutate(editVehicle)}
+                                >
+                                    {regenerateMutation.isPending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-1.5 h-4 w-4" />}
+                                    Make a new QR
+                                </Button>
+                            </div>
+                        </div>
                     )}
                     <DialogFooter>
                         <Button
                             className="h-10 rounded-xl bg-slate-800 hover:bg-slate-900"
                             onClick={() => {
                                 const desc = document.getElementById('edit-vehicle-desc')?.value;
-                                updateMutation.mutate({ id: editVehicle.id, patch: { description: desc } });
+                                const active = document.getElementById('edit-vehicle-active')?.checked;
+                                updateMutation.mutate({ id: editVehicle.id, patch: { description: desc, is_active: active !== false } });
                             }}
                         >
                             Save
@@ -457,6 +623,27 @@ export default function VehiclesTab() {
                             ) : (
                                 'Delete vehicle'
                             )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* End journey (admin) */}
+            <Dialog open={!!pendingEndJourney} onOpenChange={(o) => !o && setPendingEndJourney(null)}>
+                <DialogContent className={cn(glassDialog, 'max-w-md')}>
+                    <DialogHeader>
+                        <DialogTitle>End this journey?</DialogTitle>
+                        <DialogDescription>
+                            <strong>{pendingEndJourney?.vehicles?.vehicle_number}</strong> · {pendingEndJourney?.worker_name}. It is finished now at the last
+                            GPS position, and distance / time are worked out from the route recorded so far. The driver&apos;s card clears on their next refresh.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2 sm:gap-0">
+                        <Button variant="outline" onClick={() => setPendingEndJourney(null)}>
+                            Cancel
+                        </Button>
+                        <Button disabled={endJourneyMutation.isPending} onClick={() => pendingEndJourney && endJourneyMutation.mutate(pendingEndJourney)}>
+                            {endJourneyMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : 'End journey'}
                         </Button>
                     </DialogFooter>
                 </DialogContent>

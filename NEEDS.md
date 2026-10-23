@@ -1297,3 +1297,9 @@ New feature is live in the DB (migrations `80_worker_info.sql`, `81_worker_info_
 ## Claude update — 2026-10-22 — worker information round 2 (add to the QA list above)
 
 Migrations `82_worker_info_more.sql` + `83_worker_info_trim.sql` applied. Also test signed in: (a) profile popup now lists EVERY master-record column (pay, rates, deductions, leave, Face ID flags) + the 10 details; (b) single-worker export preselects everything, multi-page PDF; (c) Request information: pick workers, then "Choose details" per worker + a custom typed question; worker sees it on /me/info; (d) worker Account photo: tap photo -> Change (crop dialog) / Remove. "Who can open what" table removed from the Employees tab (by user request).
+
+
+## Claude update — 2026-10-23 — round 3 (signed-in QA please)
+
+Applied: `88_worker_info_check_all.sql`, `89_progress_manager_no_jsr_audit.sql` (Cursor`s `85_worker_info_edit_master.sql` was already live). Migration tool now falls back to the IPv4 pooler when the direct DB host has no IPv6.
+1. Worker check (/me/info) lists every detail grouped (pay, leave, etc.). 2. Date fields are typeable DD/MM/YYYY + calendar button. 3. Profile "Edit details" and the Employees "Edit worker" tile open the Attendance Edit Worker dialog with the new ID card + worker information section (saved with the dialog). Inline profile editing removed. 4. Vehicles: offline GPS queue, driver GPS status line, admin End journey / last-GPS age / stale warnings / new QR / active toggle / date+vehicle filters / Excel export / low-GPS badge; old timesheet-manager URL removed (set VITE_PUBLIC_SITE_URL to the hub site). 5. Company forms: worker home search + recent + chips, drafts, copy last answers, mark-rest-OK, success screen; review: search, form filter, flagged only, bulk approve. 6. Site work admin: new "Manager JSR access" section; managers no longer see JSR/claim audit trails (UI + server).

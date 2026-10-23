@@ -14,7 +14,8 @@ import { Button } from '@/ui/button';
 import { UNIFIED } from '@/core/supabase';
 import { paths } from '@/app/paths';
 import EmployeeIdCard from './EmployeeIdCard';
-import { ASKABLE_BY_KEY, INFO_FIELDS, formatValue, isCustomKey, showField } from './fields';
+import DateInput from '@/ui/DateInput';
+import { ASKABLE_BY_KEY, BASE_FIELDS, GROUPS, INFO_FIELDS, customFieldDefs, formatValue, isCustomKey, showField } from './fields';
 import { workerInfoMe } from './api';
 
 const INFO_PATH = '/me/info';
@@ -117,24 +118,33 @@ function RequestForm({ request, onDone }) {
                 <h2 className="text-lg font-semibold">{request.auto ? 'Missing details' : 'Information requested'}</h2>
                 {request.message ? <p className="mt-0.5 text-sm text-slate-600">{request.message}</p> : null}
             </div>
-            {fields.map((f) => (
-                <label key={f.key} className="block">
-                    <span className="mb-1 block text-sm font-medium text-slate-700">{f.label}</span>
-                    {f.approval ? <span className="mb-1 block text-xs text-slate-500">The office will check this before it is saved.</span> : null}
-                    {f.kind === 'textarea' ? (
-                        <textarea required rows={3} value={values[f.key]} onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))} className="w-full rounded-xl border border-[var(--g-hairline)] bg-white p-3 text-base" />
-                    ) : (
-                        <input
-                            required
-                            type={f.kind === 'date' ? 'date' : f.kind === 'tel' ? 'tel' : 'text'}
-                            inputMode={f.kind === 'tel' ? 'tel' : undefined}
-                            value={values[f.key]}
-                            onChange={(e) => setValues((v) => ({ ...v, [f.key]: e.target.value }))}
-                            className="h-12 w-full rounded-xl border border-[var(--g-hairline)] bg-white px-3 text-base"
-                        />
-                    )}
-                </label>
-            ))}
+            {fields.map((f) => {
+                const fid = `wi-${request.id}-${f.key}`;
+                const set = (val) => setValues((v) => ({ ...v, [f.key]: val }));
+                return (
+                    <div key={f.key}>
+                        <label htmlFor={fid} className="mb-1 block text-sm font-medium text-slate-700">
+                            {f.label}
+                        </label>
+                        {f.approval ? <span className="mb-1 block text-xs text-slate-500">The office will check this before it is saved.</span> : null}
+                        {f.kind === 'textarea' ? (
+                            <textarea id={fid} required rows={3} value={values[f.key]} onChange={(e) => set(e.target.value)} className="w-full rounded-xl border border-[var(--g-hairline)] bg-white p-3 text-base" />
+                        ) : f.kind === 'date' ? (
+                            <DateInput id={fid} required value={values[f.key]} onChange={set} />
+                        ) : (
+                            <input
+                                id={fid}
+                                required
+                                type={f.kind === 'tel' ? 'tel' : 'text'}
+                                inputMode={f.kind === 'tel' ? 'tel' : undefined}
+                                value={values[f.key]}
+                                onChange={(e) => set(e.target.value)}
+                                className="h-12 w-full rounded-xl border border-[var(--g-hairline)] bg-white px-3 text-base"
+                            />
+                        )}
+                    </div>
+                );
+            })}
             {error ? <Banner tone="danger">{error}</Banner> : null}
             <Button type="submit" className="w-full" disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Submit
@@ -150,14 +160,16 @@ function CheckReview({ check, onDone }) {
     const [wrong, setWrong] = useState([]);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
-    const rows = [
-        ['name', 'Full Name', d.name],
-        ['employee_id', 'Employee ID', d.employee_id],
-        ['designation', 'Designation', d.designation],
-        ['date_joined', 'Date Joined', formatValue('date_joined', d.date_joined)],
-        ...INFO_FIELDS.filter((f) => showField(f, d.worker_type, d[f.key])).map((f) => [f.key, f.label, formatValue(f.key, d[f.key])]),
-        ...Object.entries(d.custom_labels || {}).map(([k, label]) => [k, label, d[k]]),
-    ];
+    // Every detail on file: the whole employee record + the worker information + custom details, grouped.
+    const groups = GROUPS.map((g) => ({
+        ...g,
+        rows: [
+            ...BASE_FIELDS.filter((f) => f.group === g.key && showField(f, d.worker_type, d[f.key])),
+            ...INFO_FIELDS.filter((f) => f.group === g.key && showField(f, d.worker_type, d[f.key])),
+            ...(g.key === 'custom' ? customFieldDefs(d.custom_labels) : []),
+        ].map((f) => [f.key, f.label, formatValue(f.key, d[f.key])]),
+    })).filter((g) => g.rows.length);
+    const rows = groups.flatMap((g) => g.rows);
 
     const respond = async (approve) => {
         setBusy(true);
@@ -185,14 +197,19 @@ function CheckReview({ check, onDone }) {
                     <p className="text-sm text-slate-600">Is everything below correct? You can’t change it here — if something is wrong, tell us and the office will fix it.</p>
                 </div>
             </div>
-            <dl className="divide-y divide-[var(--g-hairline)] rounded-xl border border-[var(--g-hairline)]">
-                {rows.map(([key, label, value]) => (
-                    <div key={key} className="flex flex-col gap-0.5 px-3 py-2 sm:flex-row sm:gap-3">
-                        <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 sm:w-48 sm:shrink-0 sm:pt-0.5">{label}</dt>
-                        <dd className={value ? 'text-sm font-medium text-slate-900' : 'text-sm italic text-slate-400'}>{value || 'Not provided'}</dd>
-                    </div>
-                ))}
-            </dl>
+            {groups.map((g) => (
+                <div key={g.key}>
+                    <h3 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">{g.label}</h3>
+                    <dl className="divide-y divide-[var(--g-hairline)] rounded-xl border border-[var(--g-hairline)]">
+                        {g.rows.map(([key, label, value]) => (
+                            <div key={key} className="flex flex-col gap-0.5 px-3 py-2 sm:flex-row sm:gap-3">
+                                <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500 sm:w-52 sm:shrink-0 sm:pt-0.5">{label}</dt>
+                                <dd className={value ? 'text-sm font-medium text-slate-900' : 'text-sm italic text-slate-400'}>{value || 'Not provided'}</dd>
+                            </div>
+                        ))}
+                    </dl>
+                </div>
+            ))}
             {mode === 'decline' ? (
                 <div className="space-y-2 rounded-xl border border-red-200 bg-red-50/50 p-3">
                     <label className="block text-sm font-semibold text-red-900" htmlFor="wi-reason">

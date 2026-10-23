@@ -3,11 +3,33 @@ import { motion } from 'framer-motion';
 import { Capacitor } from '@capacitor/core';
 import { Badge } from '@/ui/badge';
 import { Button } from '@/ui/button';
-import { Car, MapPin, Coffee, Gauge, Route, Timer, LogOut, Play, Loader2 } from 'lucide-react';
+import { Car, MapPin, Coffee, Gauge, Route, Timer, LogOut, Play, Loader2, Globe, AlertTriangle, CloudUpload } from 'lucide-react';
+import { getVehicleTrackingHealth } from '@/modules/timesheet/lib/vehicleTracking';
+import { getDrivingSiteUrl, isNativeAppVehicleTrackingDisabled, openDrivingSite } from '@/modules/timesheet/lib/vehicleTrackingNotification';
 import { getJourneyBreaks, getJourneyPoints } from '@/modules/timesheet/lib/vehicleService';
 import { computeRouteDistanceKm, formatDuration } from '@/modules/timesheet/lib/vehicleJourneyStats';
 
 const VehicleLiveMap = lazy(() => import('@/modules/timesheet/components/VehicleLiveMap'));
+
+const ago = (ms) => {
+    const s = Math.max(0, Math.round((Date.now() - ms) / 1000));
+    if (s < 60) return `${s}s ago`;
+    if (s < 3600) return `${Math.round(s / 60)} min ago`;
+    return `${Math.round(s / 3600)} h ago`;
+};
+
+/** Website drivers: is GPS answering, and are points reaching the office? */
+function useTrackingHealth(enabled) {
+    const [h, setH] = useState(() => getVehicleTrackingHealth());
+    useEffect(() => {
+        if (!enabled) return undefined;
+        const tick = () => setH(getVehicleTrackingHealth());
+        tick();
+        const id = window.setInterval(tick, 5000);
+        return () => window.clearInterval(id);
+    }, [enabled]);
+    return h;
+}
 
 function JourneyTimer({ startedAt, isOnBreak, breakStartedAt }) {
     const [elapsed, setElapsed] = useState(0);
@@ -122,6 +144,12 @@ export default function DriverStatusCard({
     if (!journey) return null;
 
     const isWebDriver = Capacitor.getPlatform() === 'web';
+    // GPS is recorded on this device: the website, or the phone app with background GPS.
+    const liveGps = isWebDriver || !isNativeAppVehicleTrackingDisabled();
+    const health = useTrackingHealth(liveGps && !isOnBreak);
+    const hoursOn = (Date.now() - new Date(journey.started_at).getTime()) / 3600000;
+    const siteUrl = getDrivingSiteUrl();
+    const gpsStale = liveGps && !isOnBreak && (!health.lastFixAt || Date.now() - health.lastFixAt > 60000);
 
     return (
         <motion.div
@@ -182,17 +210,53 @@ export default function DriverStatusCard({
                 <p className="mt-4 text-center text-xs text-orange-100/80">
                     Tap the card for map &amp; details
                 </p>
-                {isWebDriver ? (
+                {liveGps && !isOnBreak ? (
+                    <div
+                        className={`mt-3 flex items-start gap-2 rounded-xl px-3 py-2 text-[12px] leading-snug ${gpsStale ? 'bg-amber-400/20 text-amber-100' : 'bg-white/10 text-emerald-100'}`}
+                        role="status"
+                    >
+                        {gpsStale ? <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> : <CloudUpload className="mt-0.5 h-4 w-4 shrink-0" />}
+                        <span>
+                            {gpsStale
+                                ? isWebDriver
+                                    ? 'Waiting for GPS — keep this page open with the screen on (GPS pauses when the browser is in the background).'
+                                    : 'Waiting for GPS — check Location is on. Tracking keeps running with the screen off.'
+                                : health.lastSentAt
+                                    ? `GPS sent ${ago(health.lastSentAt)}`
+                                    : 'GPS on — first update going out'}
+                            {health.queued > 0 ? ` · ${health.queued} point${health.queued === 1 ? '' : 's'} waiting for signal` : ''}
+                        </span>
+                    </div>
+                ) : null}
+                {!liveGps ? (
                     <p className="mt-2 text-center text-[11px] leading-relaxed text-amber-100/90">
-                        Keep this browser tab open while driving so GPS can keep updating.
+                        This app version can’t record GPS — update AKK Hub, or tap “Open website” below and keep it open while driving.
                     </p>
-                ) : (
-                    <p className="mt-2 text-center text-[11px] leading-relaxed text-amber-100/90">
-                        Live GPS runs on the website only — open https://timesheet-manager.akk.sg in Chrome while driving.
+                ) : !isWebDriver ? (
+                    <p className="mt-2 text-center text-[11px] leading-relaxed text-orange-100/80">
+                        GPS keeps recording with the screen off — you’ll see a “driving” notification until you finish.
                     </p>
-                )}
+                ) : null}
+                {hoursOn >= 10 ? (
+                    <p className="mt-2 rounded-xl bg-amber-400/20 px-3 py-2 text-center text-[12px] font-medium text-amber-100">
+                        Driving for over {Math.floor(hoursOn)} hours — tap Finish ride once the vehicle is parked for the day.
+                    </p>
+                ) : null}
             </button>
 
+            {!liveGps && siteUrl ? (
+                <div className="relative px-5 pb-2 sm:px-6">
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className="h-11 w-full rounded-xl border-white/30 bg-white/15 text-white hover:bg-white/25 hover:text-white"
+                        onClick={() => openDrivingSite()}
+                    >
+                        <Globe className="mr-2 h-4 w-4" />
+                        Open website for live GPS
+                    </Button>
+                </div>
+            ) : null}
             <div className="relative grid grid-cols-2 gap-2 px-5 pb-5 sm:px-6">
                 {isOnBreak ? (
                     <Button
@@ -255,7 +319,7 @@ export default function DriverStatusCard({
                             <Gauge className="h-3.5 w-3.5" />
                             {isOnBreak
                                 ? 'GPS paused on break'
-                                : isWebDriver
+                                : liveGps
                                     ? 'GPS tracking active'
                                     : 'Use website for live GPS'}
                         </span>

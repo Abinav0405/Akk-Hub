@@ -62,7 +62,7 @@ function toDate(s) {
 const lit = (v) => (v == null ? 'null' : `'${String(v).replace(/'/g, "''")}'`);
 const dlit = (v) => (v == null ? 'null' : `'${v}'::date`);
 
-const COLS = ['work_permit_no', 'hp_number', 'permit_expiry_date', 'passport_no', 'passport_expiry_date', 'nationality', 'soc_no', 'soc_expiry_date', 'address'];
+const COLS = ['work_permit_no', 'hp_number', 'permit_expiry_date', 'passport_no', 'passport_expiry_date', 'nationality', 'safety_cert_no', 'safety_cert_expiry_date', 'address'];
 const values = rows.map(([emp, name, wp, hp, pe, pp, ppe, nat, soc, soce, addr, note]) => {
     const v = [lit(emp), lit(wp), lit(hp), dlit(toDate(pe)), lit(pp), dlit(toDate(ppe)), lit(nat), lit(soc), dlit(toDate(soce)), lit(addr)];
     return `    (${v.join(', ')})${note ? ` -- ${emp} ${name}: ${note}` : ` -- ${emp} ${name}`}`;
@@ -74,7 +74,7 @@ const sql = `-- ================================================================
 --   · only rows whose Employee ID exists in Attendance are imported (others are listed by the check below)
 --   · a value already stored is NEVER overwritten (coalesce) — the PDF only fills blanks
 --   · names are not imported (Attendance is the master for names)
---   · SOC expiry 31-Dec-9999 in the PDF = "no expiry"; stored as 9999-12-31 and shown as "No expiry"
+--   · Safety certificate expiry 31-Dec-9999 in the PDF = "no expiry"; stored as 9999-12-31 and shown as "No expiry"
 -- Rows marked with a note below were ambiguous in the PDF and should be checked by an admin.
 -- =====================================================================================
 with src (employee_id, ${COLS.join(', ')}) as (

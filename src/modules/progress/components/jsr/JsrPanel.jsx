@@ -576,8 +576,8 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                   </div>
                 </Card>
               ) : null}
-              <HistoryTable history={detail.history} />
-              <DocumentAuditTrail kind="jsr" documentId={detail.id} />
+              {role !== 'manager' ? <HistoryTable history={detail.history} /> : null}
+              {role !== 'manager' ? <DocumentAuditTrail kind="jsr" documentId={detail.id} /> : null}
               <DialogFooter className="flex-col items-stretch gap-3 sm:flex-col sm:items-stretch sm:space-x-0">
                 <WorkflowBar
                   kind="jsr"

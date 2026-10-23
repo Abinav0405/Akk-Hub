@@ -4,10 +4,10 @@
 --   · only rows whose Employee ID exists in Attendance are imported (others are listed by the check below)
 --   · a value already stored is NEVER overwritten (coalesce) — the PDF only fills blanks
 --   · names are not imported (Attendance is the master for names)
---   · SOC expiry 31-Dec-9999 in the PDF = "no expiry"; stored as 9999-12-31 and shown as "No expiry"
+--   · Safety certificate expiry 31-Dec-9999 in the PDF = "no expiry"; stored as 9999-12-31 and shown as "No expiry"
 -- Rows marked with a note below were ambiguous in the PDF and should be checked by an admin.
 -- =====================================================================================
-with src (employee_id, work_permit_no, hp_number, permit_expiry_date, passport_no, passport_expiry_date, nationality, soc_no, soc_expiry_date, address) as (
+with src (employee_id, work_permit_no, hp_number, permit_expiry_date, passport_no, passport_expiry_date, nationality, safety_cert_no, safety_cert_expiry_date, address) as (
   values
     ('1006', '0 38281712', '83589458', '2026-12-11'::date, 'T4606824', '2029-03-21'::date, 'INDIAN', 'AWSHC-2024-TM001911-02', '2026-01-06'::date, '11A Jasmine Road Adelphi Park Estate Singapore 576583'), -- 1006 GANESAN VENGATESAN
     ('1007', '0 38090798', '84083815', '2026-12-11'::date, 'S4915469', '2028-09-17'::date, 'INDIAN', 'WSHMCI 2025-EN000688-10', '9999-12-31'::date, '11A Jasmine Road Adelphi Park Estate Singapore 576583'), -- 1007 RAMASAMY RAMESH
@@ -38,8 +38,8 @@ with src (employee_id, work_permit_no, hp_number, permit_expiry_date, passport_n
     ('1051', '0 98153535', '82298036', '2027-10-08'::date, 'AA111445', '2035-06-04'::date, 'INDIAN', 'WPH-WSH-3080-1.1', '9999-12-31'::date, null), -- 1051 RATHAKRISHNAN RAJAPRASANNA: Nationality printed "INDIA" — stored as INDIAN; no address in the PDF
     ('1052', '0 38786946', '98588329', '2027-10-16'::date, 'U9529807', '2031-03-04'::date, 'INDIAN', 'LC-KB-AWCS-2025-10-3733-13', '2027-10-27'::date, '11A Jasmine Road Adelphi Park Estate Singapore 576583') -- 1052 PUGAZHENTHI AKASH
 )
-insert into core.worker_info as w (employee_id, work_permit_no, hp_number, permit_expiry_date, passport_no, passport_expiry_date, nationality, soc_no, soc_expiry_date, address, updated_by)
-select s.employee_id, s.work_permit_no, s.hp_number, s.permit_expiry_date, s.passport_no, s.passport_expiry_date, s.nationality, s.soc_no, s.soc_expiry_date, s.address, 'import:Worker details.pdf'
+insert into core.worker_info as w (employee_id, work_permit_no, hp_number, permit_expiry_date, passport_no, passport_expiry_date, nationality, safety_cert_no, safety_cert_expiry_date, address, updated_by)
+select s.employee_id, s.work_permit_no, s.hp_number, s.permit_expiry_date, s.passport_no, s.passport_expiry_date, s.nationality, s.safety_cert_no, s.safety_cert_expiry_date, s.address, 'import:Worker details.pdf'
   from src s
  where exists (select 1 from attendance.worker_details d where d.employee_id = s.employee_id)
     or exists (select 1 from attendance.local_worker_details l where l.employee_id = s.employee_id)
@@ -50,13 +50,13 @@ on conflict (employee_id) do update set
     passport_no = coalesce(w.passport_no, excluded.passport_no),
     passport_expiry_date = coalesce(w.passport_expiry_date, excluded.passport_expiry_date),
     nationality = coalesce(w.nationality, excluded.nationality),
-    soc_no = coalesce(w.soc_no, excluded.soc_no),
-    soc_expiry_date = coalesce(w.soc_expiry_date, excluded.soc_expiry_date),
+    safety_cert_no = coalesce(w.safety_cert_no, excluded.safety_cert_no),
+    safety_cert_expiry_date = coalesce(w.safety_cert_expiry_date, excluded.safety_cert_expiry_date),
     address = coalesce(w.address, excluded.address),
     updated_at = now(),
     updated_by = coalesce(w.updated_by, excluded.updated_by);
 
 insert into core.worker_info_audit (employee_id, action, fields, actor)
-select employee_id, 'import', array['work_permit_no', 'hp_number', 'permit_expiry_date', 'passport_no', 'passport_expiry_date', 'nationality', 'soc_no', 'soc_expiry_date', 'address'], 'import:Worker details.pdf'
+select employee_id, 'import', array['work_permit_no', 'hp_number', 'permit_expiry_date', 'passport_no', 'passport_expiry_date', 'nationality', 'safety_cert_no', 'safety_cert_expiry_date', 'address'], 'import:Worker details.pdf'
   from core.worker_info where updated_by = 'import:Worker details.pdf'
    and not exists (select 1 from core.worker_info_audit a where a.employee_id = core.worker_info.employee_id and a.action = 'import');

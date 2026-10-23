@@ -155,6 +155,9 @@ export default function WorkerCompanyFormHistory() {
                                                 Result: {row.recommended_result}
                                             </p>
                                         ) : null}
+                                        {row.status === 'rejected' && row.review_note ? (
+                                            <p className="mt-1 text-xs font-medium text-red-700">Why: {row.review_note}</p>
+                                        ) : null}
                                     </div>
                                     <div className="flex shrink-0 flex-col items-end gap-1">
                                         {row.is_flagged && <Badge className="bg-red-600">Flagged</Badge>}

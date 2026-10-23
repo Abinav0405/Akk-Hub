@@ -183,6 +183,7 @@ import LeaveCalendar from '@/modules/timesheet/components/LeaveCalendar';
 import WorkerAccessPanel from '@/modules/timesheet/components/admin/WorkerAccessPanel';
 import WorkerAccessTable from '@/modules/timesheet/components/admin/WorkerAccessTable';
 import WorkerIdCard from '@/modules/timesheet/components/admin/WorkerIdCard';
+import { EditDialogIdCard, WorkerInfoEditSection } from '@/features/workerInfo/EditWorkerExtras';
 import {
     ShiftApprovalButtons,
     ShiftApprovalMeta,
@@ -816,6 +817,7 @@ export default function AdminDashboard() {
     const [showDeleteWorkerDialog, setShowDeleteWorkerDialog] = useState(false);
     const [selectedWorkerType, setSelectedWorkerType] = useState(''); // 'local' or 'foreign'
     const [editWorkerId, setEditWorkerId] = useState('');
+    const workerInfoEditRef = useRef(null);
     const [editWorkerType, setEditWorkerType] = useState(''); // 'local' | 'foreign' — pinned for edit save
     const [deleteWorkerId, setDeleteWorkerId] = useState('');
     const [deleteWorkerType, setDeleteWorkerType] = useState(''); // Store worker type for deletion
@@ -4381,6 +4383,8 @@ export default function AdminDashboard() {
 
             const targetEmployeeId = employeeIdChanged ? newEmployeeId : employee_id;
             await saveWorkerPassword(targetEmployeeId);
+            // Worker information (Date of Birth, passport, permit, …) edited in the same dialog.
+            if (UNIFIED) await workerInfoEditRef.current?.save(targetEmployeeId);
         },
         onSuccess: () => {
             toast.success(`${(editWorkerType || selectedWorkerType) === 'local' ? 'Local' : 'Foreign'} worker updated successfully`);
@@ -4617,6 +4621,20 @@ export default function AdminDashboard() {
         setWorkerSearchResult(null);
         setShowWorkerSearchDialog(true);
     };
+
+    // Worker card → "Edit details": open this Edit Worker dialog for that worker.
+    useEffect(() => {
+        const onEdit = (e) => {
+            const id = String(e.detail?.id || '');
+            if (!id) return;
+            const type = e.detail?.type === 'local' ? 'local' : 'foreign';
+            setSelectedWorkerType(type);
+            void loadWorkerForEdit(id, type);
+        };
+        window.addEventListener('akk:worker-edit', onEdit);
+        return () => window.removeEventListener('akk:worker-edit', onEdit);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Worker card → "Timesheets & payslips": open the existing search straight on that worker.
     const runWorkerSearchRef = useRef(null);
@@ -10589,7 +10607,11 @@ ${balanceBlock.html}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
-                        {workerFormData.employee_id ? (
+                        {UNIFIED && editWorkerId ? (
+                            <div className="md:col-span-2">
+                                <EditDialogIdCard id={editWorkerId} />
+                            </div>
+                        ) : workerFormData.employee_id ? (
                             <div className="md:col-span-2">
                                 <WorkerIdCard worker={workerFormData} type={selectedWorkerType} inCompany={workerFormData.in_company !== false} />
                             </div>
@@ -11058,6 +11080,11 @@ ${balanceBlock.html}
                             )}
                         </div>
                     </div>
+                    {UNIFIED && editWorkerId ? (
+                        <div className="mt-4">
+                            <WorkerInfoEditSection ref={workerInfoEditRef} id={editWorkerId} type={selectedWorkerType} />
+                        </div>
+                    ) : null}
                     <DialogFooter >
                         <div >
                             <Button

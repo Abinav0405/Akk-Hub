@@ -30,9 +30,43 @@ export async function openSource(src) {
     return client;
 }
 
+// Supabase's direct host (db.<ref>.supabase.co) is IPv6-only. On networks without IPv6, fall back to the
+// IPv4 session pooler (same database, same password; user becomes postgres.<ref>). NEW_DB_POOLER_HOST can
+// pin the pooler host; otherwise the usual regional hosts are tried.
+const POOLER_HOSTS = ['aws-1-ap-southeast-1', 'aws-0-ap-southeast-1', 'aws-0-ap-south-1', 'aws-1-ap-south-1', 'aws-0-ap-northeast-1', 'aws-0-us-east-1', 'aws-0-eu-central-1']
+    .map((h) => `${h}.pooler.supabase.com`);
+
+function poolerUrls(direct) {
+    const u = new URL(direct);
+    const m = /^db\.([a-z0-9]+)\.supabase\.co$/.exec(u.hostname);
+    if (!m) return [];
+    const hosts = process.env.NEW_DB_POOLER_HOST ? [process.env.NEW_DB_POOLER_HOST] : POOLER_HOSTS;
+    return hosts.map((host) => {
+        const p = new URL(direct);
+        p.hostname = host;
+        p.port = '5432';
+        if (!p.username.includes('.')) p.username = `${p.username}.${m[1]}`;
+        return p.toString();
+    });
+}
+
 /** The new project — the only database this tool writes to. */
 export async function openTarget() {
-    return open(newDbUrl(), 'akk-hub-migration-write', 'New AKK Hub project (NEW_DB_URL)');
+    const direct = newDbUrl();
+    const label = 'New AKK Hub project (NEW_DB_URL)';
+    try {
+        return await open(direct, 'akk-hub-migration-write', label);
+    } catch (e) {
+        if (!/ENOTFOUND|ENETUNREACH|EHOSTUNREACH|EADDRNOTAVAIL/.test(e.message)) throw e;
+        for (const url of poolerUrls(direct)) {
+            try {
+                return await open(url, 'akk-hub-migration-write', label + ' via pooler');
+            } catch {
+                /* try the next region */
+            }
+        }
+        throw e;
+    }
 }
 
 export const q = (ident) => '"' + String(ident).replace(/"/g, '""') + '"';

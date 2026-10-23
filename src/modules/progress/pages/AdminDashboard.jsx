@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, ClipboardList, Users, BarChart3, FileDown, Palette, FileText, MapPin } from 'lucide-react';
+import { Loader2, ClipboardList, Users, BarChart3, FileDown, Palette, FileText, MapPin, SlidersHorizontal } from 'lucide-react';
+import { ManagerAccountsSection } from '@/modules/progress/components/StaffAccountsPanel';
 import ProgressPortalShell from '@/modules/progress/components/ProgressPortalShell';
 import PackageReviewBoard from '@/modules/progress/components/PackageReviewBoard';
 import UsersAccessPanel from '@/modules/progress/components/UsersAccessPanel';
@@ -18,7 +19,7 @@ import { useHubSection } from '@/app/useHubSection';
 import { UNIFIED } from '@/core/supabase';
 
 const ADMIN_SECTIONS = UNIFIED
-  ? ['packages', 'exports', 'jsr', 'analytics', 'users', 'branding']
+  ? ['packages', 'exports', 'jsr', 'managers', 'analytics', 'users', 'branding']
   : ['packages', 'exports', 'jsr', 'analytics', 'users', 'sites', 'branding'];
 
 const AnalyticsPanel = lazy(() => import('@/modules/progress/components/AnalyticsPanel'));
@@ -40,6 +41,7 @@ const SECTION_LABELS = {
   jsr: 'JSR & billing',
   analytics: 'Analytics',
   users: 'Users & access',
+  managers: 'Manager JSR access',
   sites: 'Sites',
   branding: 'Branding',
 };
@@ -100,6 +102,7 @@ export default function AdminDashboard() {
           ...(!UNIFIED ? [{ id: 'sites', label: 'Sites', icon: MapPin }] : []),
           { id: 'exports', label: 'Export queue', icon: FileDown },
           { id: 'jsr', label: 'JSR & billing', icon: FileText, badge: jsrBadge },
+          { id: 'managers', label: 'Manager JSR access', icon: SlidersHorizontal },
           { id: 'analytics', label: 'Analytics', icon: BarChart3 },
         ],
       },
@@ -135,6 +138,15 @@ export default function AdminDashboard() {
       >
         {tab === 'packages' ? <PackageReviewBoard role="admin" /> : null}
         {tab === 'users' ? <UsersAccessPanel /> : null}
+        {tab === 'managers' ? (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Site work manager logins and what each one may do in JSR & billing (create, edit, submit, review, pass out, claims, invoices, catalog,
+              deleting package photos). Tap the sliders icon next to a manager. New managers start view-only. Managers never see audit trails.
+            </p>
+            <ManagerAccountsSection />
+          </div>
+        ) : null}
         {tab === 'exports' ? <ExportOnlyAdminPanel /> : null}
         {tab === 'analytics' ? (
           <Suspense fallback={<PanelFallback label="analytics" />}>

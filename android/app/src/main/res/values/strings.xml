@@ -4,4 +4,7 @@
     <string name="title_activity_main">AKK Hub</string>
     <string name="package_name">sg.akk.hub</string>
     <string name="custom_url_scheme">sg.akk.hub</string>
+    <!-- Vehicle journey tracking (background GPS foreground-service notification) -->
+    <string name="capacitor_background_geolocation_notification_icon">drawable/ic_tracking</string>
+    <string name="capacitor_background_geolocation_notification_channel_name">Vehicle tracking</string>
 </resources>

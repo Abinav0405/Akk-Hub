@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckCircle, Loader2, Pencil, XCircle } from 'lucide-react';
+import { CheckCircle, CheckCheck, Loader2, Pencil, Search, XCircle } from 'lucide-react';
 import CompanyFormPrintActions from '@/modules/timesheet/components/companyForms/CompanyFormPrintActions';
 import CompanyFormFiller from '@/modules/timesheet/components/companyForms/CompanyFormFiller';
 import { toast } from 'sonner';
@@ -48,6 +48,13 @@ export default function CompanyFormReviewPanel({
     const [recommendedResult, setRecommendedResult] = useState('');
     const [rejectNote, setRejectNote] = useState('');
     const [selectedIds, setSelectedIds] = useState(() => new Set());
+    const [q, setQ] = useState('');
+    const [formFilter, setFormFilter] = useState('');
+    const [flaggedOnly, setFlaggedOnly] = useState(false);
+    const [bulkOpen, setBulkOpen] = useState(false);
+    const [bulkResult, setBulkResult] = useState('');
+    const [bulkNote, setBulkNote] = useState('');
+    const [bulkProgress, setBulkProgress] = useState(null);
 
     const { data: rows = [], isLoading } = useQuery({
         queryKey: ['company-form-review', statusFilter],
@@ -78,8 +85,50 @@ export default function CompanyFormReviewPanel({
         modules.find((m) => m.form_key === selected?.form_key)?.definition ||
         getFormDefinition(selected?.form_key);
 
-    const selectedRows = rows.filter((row) => selectedIds.has(row.id));
-    const allSelected = rows.length > 0 && selectedRows.length === rows.length;
+    const formOptions = useMemo(() => {
+        const m = new Map();
+        for (const r of rows) if (!m.has(r.form_key)) m.set(r.form_key, titleFor(r));
+        return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rows, modules]);
+    const term = q.trim().toLowerCase();
+    const visible = rows.filter(
+        (r) =>
+            (!formFilter || r.form_key === formFilter) &&
+            (!flaggedOnly || r.is_flagged) &&
+            (!term || `${r.worker_name} ${r.worker_id} ${titleFor(r)}`.toLowerCase().includes(term)),
+    );
+    const flaggedCount = rows.filter((r) => r.is_flagged && r.status === 'pending').length;
+    const selectedRows = visible.filter((row) => selectedIds.has(row.id));
+    const allSelected = visible.length > 0 && selectedRows.length === visible.length;
+    const bulkRows = selectedRows.filter((r) => r.status === 'pending');
+
+    const runBulkApprove = async () => {
+        setBulkProgress({ done: 0, total: bulkRows.length, failed: 0 });
+        let failed = 0;
+        for (let i = 0; i < bulkRows.length; i += 1) {
+            try {
+                await reviewSubmission({
+                    id: bulkRows[i].id,
+                    status: SUBMISSION_STATUS.APPROVED,
+                    reviewedBy: reviewerName || reviewerRole,
+                    reviewedByRole: reviewerRole,
+                    reviewNote: bulkNote.trim() || null,
+                    recommendedResult: bulkResult,
+                });
+            } catch {
+                failed += 1;
+            }
+            setBulkProgress({ done: i + 1, total: bulkRows.length, failed });
+        }
+        if (failed) toast.error(`${failed} could not be approved — open them one by one`);
+        else toast.success(`Approved ${bulkRows.length} form${bulkRows.length === 1 ? '' : 's'}`);
+        setBulkOpen(false);
+        setBulkProgress(null);
+        setBulkNote('');
+        setSelectedIds(new Set());
+        invalidate();
+    };
 
     const toggleRow = (id) => {
         setSelectedIds((prev) => {
@@ -162,7 +211,7 @@ export default function CompanyFormReviewPanel({
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                    {rows.length > 0 && (
+                    {visible.length > 0 && (
                         <>
                             <Button
                                 type="button"
@@ -170,12 +219,25 @@ export default function CompanyFormReviewPanel({
                                 className="h-10 rounded-xl"
                                 onClick={() =>
                                     setSelectedIds(
-                                        allSelected ? new Set() : new Set(rows.map((row) => row.id))
+                                        allSelected ? new Set() : new Set(visible.map((row) => row.id))
                                     )
                                 }
                             >
-                                {allSelected ? 'Clear selection' : 'Select all'}
+                                {allSelected ? 'Clear selection' : `Select all (${visible.length})`}
                             </Button>
+                            {bulkRows.length > 0 && (
+                                <Button
+                                    type="button"
+                                    className="h-10 rounded-xl bg-emerald-600 hover:bg-emerald-700"
+                                    onClick={() => {
+                                        setBulkResult('');
+                                        setBulkOpen(true);
+                                    }}
+                                >
+                                    <CheckCheck className="mr-1.5 h-4 w-4" />
+                                    Approve {bulkRows.length}
+                                </Button>
+                            )}
                             <CompanyFormPrintActions
                                 submissions={selectedRows}
                                 disabled={!selectedRows.length}
@@ -196,17 +258,54 @@ export default function CompanyFormReviewPanel({
                 </div>
             </div>
 
+            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <input
+                        value={q}
+                        onChange={(e) => setQ(e.target.value)}
+                        placeholder="Search worker name, ID or form"
+                        className="h-10 w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 text-sm"
+                        aria-label="Search submissions"
+                    />
+                </div>
+                <select
+                    value={formFilter}
+                    onChange={(e) => setFormFilter(e.target.value)}
+                    className="h-10 rounded-xl border border-slate-200 bg-white px-2 text-sm sm:max-w-[240px]"
+                    aria-label="Filter by form"
+                >
+                    <option value="">All forms</option>
+                    {formOptions.map(([key, title]) => (
+                        <option key={key} value={key}>
+                            {title}
+                        </option>
+                    ))}
+                </select>
+                <button
+                    type="button"
+                    aria-pressed={flaggedOnly}
+                    onClick={() => setFlaggedOnly((v) => !v)}
+                    className={cn(
+                        'h-10 shrink-0 rounded-xl border px-3 text-sm font-semibold',
+                        flaggedOnly ? 'border-red-300 bg-red-50 text-red-700' : 'border-slate-200 bg-white text-slate-600',
+                    )}
+                >
+                    Flagged only{flaggedCount ? ` (${flaggedCount})` : ''}
+                </button>
+            </div>
+
             {isLoading ? (
                 <div className="flex justify-center py-10">
                     <Loader2 className="h-7 w-7 animate-spin text-slate-400" />
                 </div>
-            ) : rows.length === 0 ? (
+            ) : visible.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-200 bg-white/50 py-10 text-center text-sm text-slate-500">
-                    No submissions in this filter.
+                    {rows.length ? 'Nothing matches your search or filters.' : 'No submissions in this filter.'}
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {rows.map((row) => (
+                    {visible.map((row) => (
                         <div
                             key={row.id}
                             className="flex w-full items-start gap-3 rounded-2xl border border-slate-200/80 bg-white/80 p-3 hover:bg-white"
@@ -257,6 +356,47 @@ export default function CompanyFormReviewPanel({
                     ))}
                 </div>
             )}
+
+            <Dialog open={bulkOpen} onOpenChange={(o) => !o && !bulkProgress && setBulkOpen(false)}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Approve {bulkRows.length} form{bulkRows.length === 1 ? '' : 's'}</DialogTitle>
+                        <DialogDescription>
+                            The same recommended result is recorded on each one.
+                            {bulkRows.some((r) => r.is_flagged) ? ' Some of these are flagged — make sure you have looked at them.' : ''}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                        <Select value={bulkResult || undefined} onValueChange={setBulkResult}>
+                            <SelectTrigger className={glassInput}>
+                                <SelectValue placeholder="Select result…" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {resultOptions.map((opt) => (
+                                    <SelectItem key={opt} value={opt}>
+                                        {opt}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <Input value={bulkNote} onChange={(e) => setBulkNote(e.target.value)} placeholder="Comment (optional)" className={glassInput} />
+                        {bulkProgress ? (
+                            <p className="text-sm text-slate-600">
+                                Approving {bulkProgress.done} of {bulkProgress.total}…
+                            </p>
+                        ) : null}
+                    </div>
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setBulkOpen(false)} disabled={Boolean(bulkProgress)}>
+                            Cancel
+                        </Button>
+                        <Button className="bg-emerald-600 hover:bg-emerald-700" disabled={!bulkResult || Boolean(bulkProgress)} onClick={() => void runBulkApprove()}>
+                            {bulkProgress ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="mr-1.5 h-4 w-4" />}
+                            Approve all
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             <Dialog
                 open={!!selected}

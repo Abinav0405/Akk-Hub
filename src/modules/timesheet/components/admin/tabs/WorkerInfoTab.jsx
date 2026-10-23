@@ -137,7 +137,7 @@ export default function WorkerInfoTab() {
             tone="sky"
             title={t('ui.editWorker')}
             subtitle={t('ui.editWorkerHint')}
-            onClick={handleEditWorkerClick}
+            onClick={UNIFIED ? () => openWorkerLookup('edit') : handleEditWorkerClick}
             className="min-h-[7.5rem]"
           />
           <AdminChoiceCard

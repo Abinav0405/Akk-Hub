@@ -18,6 +18,8 @@ export const workerInfoAdmin = {
     directory: (scope = 'all') => rpc('admin_worker_directory', { p_scope: scope }),
     profile: (id) => rpc('admin_worker_profile', { p_employee_id: id }),
     save: (id, values) => rpc('admin_save_worker_info', { p_employee_id: id, p_values: values }),
+    /** Passport JPEG data URL (or null to clear). Same `core.worker_photos` path as Timesheet Manager. */
+    setPhoto: (id, photo) => rpc('admin_set_worker_photo', { p_employee_id: id, p_photo: photo }),
     /** items: [{ employee_id, fields: string[], custom: string[] }] — each worker gets their own list. */
     requestItems: (items, message) => rpc('admin_request_worker_info_items', { p_items: items, p_message: message || null }),
     customLabels: () => rpc('admin_info_custom_labels'),

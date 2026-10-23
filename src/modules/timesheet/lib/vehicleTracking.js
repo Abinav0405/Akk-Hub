@@ -1,32 +1,77 @@
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { calculateDistance } from '@/modules/timesheet/lib/timeUtils';
-import { insertLocationPoint } from '@/modules/timesheet/lib/vehicleService';
+import { insertLocationPoints } from '@/modules/timesheet/lib/vehicleService';
 import { storageKey } from '@/core/storage'
 import {
     startVehicleTrackingNotification,
     stopVehicleTrackingNotification,
     isNativeAppVehicleTrackingDisabled,
+    isNativeBackgroundGpsAvailable,
     getUseWebsiteForDrivingMessage,
 } from '@/modules/timesheet/lib/vehicleTrackingNotification';
 
+/** Native background GPS (foreground service). Registered lazily: the web build never calls it. */
+let BackgroundGeolocation = null;
+const bgGps = () => (BackgroundGeolocation ||= registerPlugin('BackgroundGeolocation'));
+
+/**
+ * Live GPS for a driver's vehicle journey — website (browser GPS while the page is open) and phone app
+ * (background GPS service: keeps recording with the screen off or another app open).
+ *
+ * Every good GPS fix goes into a small on-device queue first (saved in localStorage), and the queue is
+ * uploaded in batches. So a weak signal, a tunnel or a slow network no longer loses points — they are
+ * sent as soon as the connection is back (also after a reload). A stationary vehicle still sends a
+ * heartbeat point every 2 minutes, so the office can tell "parked" from "GPS stopped".
+ */
 export const VEHICLE_GPS_INTERVAL_MS = 5000;
-const MIN_UPLOAD_DELTA_M = 5;
+const MIN_MOVE_M = 5; // queue a point once the vehicle moved this far …
+const HEARTBEAT_MS = 2 * 60 * 1000; // … or this long passed (parked / traffic)
+const MIN_GAP_MS = 4000; // never more than one point every 4 s
 const MAX_ACCURACY_M = 100;
+const MAX_QUEUE = 3000;
+const BATCH = 200;
 
 const STORAGE_KEY = storageKey('timesheet', 'akk_active_vehicle_journey_id');
+const QUEUE_KEY = storageKey('timesheet', 'akk_vehicle_point_queue');
 
 let watchId = null;
 let capWatchId = null;
 let uploadTimer = null;
-let lastUploaded = null;
 let currentJourneyId = null;
 let currentVehicleLabel = null;
 let lastCoords = null;
+let lastQueued = null; // { latitude, longitude, at }
 let onErrorCallback = null;
 let wakeLock = null;
 let visibilityHandler = null;
+let onlineHandler = null;
 /** True while driver is on a short break — must not auto-restart GPS on tab focus. */
 let uploadsPaused = false;
+let lastFixAt = null;
+let lastSentAt = null;
+let lastError = null;
+let lastFlushAt = 0;
+
+/* ---------------- queue (survives reloads) ---------------- */
+let queue = loadQueue(); // [{ journeyId, coords }]
+
+function loadQueue() {
+    try {
+        const q = JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+        return Array.isArray(q) ? q : [];
+    } catch {
+        return [];
+    }
+}
+function persistQueue() {
+    try {
+        if (queue.length > MAX_QUEUE) queue = queue.slice(-MAX_QUEUE);
+        if (queue.length) localStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
+        else localStorage.removeItem(QUEUE_KEY);
+    } catch {
+        /* storage full / blocked — keep in memory */
+    }
+}
 
 function saveActiveJourneyId(id) {
     try {
@@ -66,41 +111,44 @@ async function releaseWebWakeLock() {
     wakeLock = null;
 }
 
-function attachVisibilityResume() {
-    if (visibilityHandler) return;
-    visibilityHandler = () => {
-        if (document.visibilityState !== 'visible' || !currentJourneyId || uploadsPaused) return;
-        void requestWebWakeLock();
-        const needsWatch = Capacitor.isNativePlatform() ? capWatchId == null : watchId == null;
-        if (needsWatch) {
-            if (Capacitor.isNativePlatform()) {
-                void startCapacitorWatch();
-            } else {
-                void startBrowserWatch();
+function attachResumeHandlers() {
+    if (!visibilityHandler) {
+        visibilityHandler = () => {
+            if (document.visibilityState !== 'visible' || !currentJourneyId || uploadsPaused) return;
+            void requestWebWakeLock();
+            const needsWatch = Capacitor.isNativePlatform() ? capWatchId == null : watchId == null;
+            if (needsWatch) {
+                if (Capacitor.isNativePlatform()) void startCapacitorWatch();
+                else void startBrowserWatch();
             }
-        }
-        if (!uploadTimer) startUploadInterval();
-        void tickUpload();
-    };
-    document.addEventListener('visibilitychange', visibilityHandler);
+            if (!uploadTimer) startUploadInterval();
+            void flushVehicleTrackingQueue();
+        };
+        document.addEventListener('visibilitychange', visibilityHandler);
+    }
+    if (!onlineHandler && typeof window !== 'undefined') {
+        onlineHandler = () => void flushVehicleTrackingQueue();
+        window.addEventListener('online', onlineHandler);
+    }
 }
 
-function detachVisibilityResume() {
-    if (!visibilityHandler) return;
-    document.removeEventListener('visibilitychange', visibilityHandler);
-    visibilityHandler = null;
+function detachResumeHandlers() {
+    if (visibilityHandler) {
+        document.removeEventListener('visibilitychange', visibilityHandler);
+        visibilityHandler = null;
+    }
+    if (onlineHandler) {
+        window.removeEventListener('online', onlineHandler);
+        onlineHandler = null;
+    }
 }
 
-function shouldUpload(coords) {
-    if (!coords || coords.accuracy > MAX_ACCURACY_M) return false;
-    if (!lastUploaded) return true;
-    const d = calculateDistance(
-        lastUploaded.latitude,
-        lastUploaded.longitude,
-        coords.latitude,
-        coords.longitude
-    );
-    return d >= MIN_UPLOAD_DELTA_M;
+function shouldQueue(coords, now) {
+    if (!coords || !(coords.accuracy <= MAX_ACCURACY_M)) return false;
+    if (!lastQueued) return true;
+    if (now - lastQueued.at < MIN_GAP_MS) return false;
+    const d = calculateDistance(lastQueued.latitude, lastQueued.longitude, coords.latitude, coords.longitude);
+    return d >= MIN_MOVE_M || now - lastQueued.at >= HEARTBEAT_MS;
 }
 
 function isGoneJourneyUploadError(error) {
@@ -115,27 +163,44 @@ function isGoneJourneyUploadError(error) {
     );
 }
 
-/** True while an insert is in flight, so a slow upload can't be duplicated by the next 5s tick. */
-let uploadInFlight = false;
+let flushInFlight = null;
 
-async function uploadCoords(journeyId, coords) {
-    if (!journeyId || !coords) return;
-    if (uploadInFlight) return;
-    if (!shouldUpload(coords)) return;
-
-    uploadInFlight = true;
-    try {
-        await insertLocationPoint(journeyId, coords);
-        lastUploaded = { latitude: coords.latitude, longitude: coords.longitude };
-    } catch (e) {
-        console.error('Failed to upload vehicle location', e);
-        if (isGoneJourneyUploadError(e) && currentJourneyId === journeyId) {
-            void stopVehicleTracking();
+/** Upload everything queued for the current journey (batches). Safe to call any time. */
+export async function flushVehicleTrackingQueue() {
+    if (flushInFlight) return flushInFlight;
+    flushInFlight = (async () => {
+        try {
+            while (queue.length) {
+                const journeyId = queue[0].journeyId;
+                const batch = [];
+                for (const item of queue) {
+                    if (item.journeyId !== journeyId || batch.length >= BATCH) break;
+                    batch.push(item.coords);
+                }
+                try {
+                    await insertLocationPoints(journeyId, batch);
+                } catch (e) {
+                    if (isGoneJourneyUploadError(e)) {
+                        // Journey deleted by an admin: drop its points and stop tracking it.
+                        queue = queue.filter((x) => x.journeyId !== journeyId);
+                        persistQueue();
+                        if (currentJourneyId === journeyId) void stopVehicleTracking({ flush: false });
+                        continue;
+                    }
+                    lastError = e;
+                    onErrorCallback?.(e);
+                    return; // offline / server busy: keep the queue, retry on the next tick
+                }
+                queue = queue.slice(batch.length);
+                persistQueue();
+                lastSentAt = Date.now();
+                lastError = null;
+            }
+        } finally {
+            flushInFlight = null;
         }
-        onErrorCallback?.(e);
-    } finally {
-        uploadInFlight = false;
-    }
+    })();
+    return flushInFlight;
 }
 
 function handlePosition(position) {
@@ -148,19 +213,27 @@ function handlePosition(position) {
         timestamp: position.timestamp,
     };
     lastCoords = coords;
-}
-
-async function tickUpload() {
-    if (!currentJourneyId || !lastCoords) return;
-    await uploadCoords(currentJourneyId, lastCoords);
+    lastFixAt = Date.now();
+    if (!currentJourneyId || uploadsPaused) return;
+    const now = Number(position.timestamp) || Date.now();
+    if (shouldQueue(coords, now)) {
+        queue.push({ journeyId: currentJourneyId, coords });
+        lastQueued = { latitude: coords.latitude, longitude: coords.longitude, at: now };
+        persistQueue();
+        // In the background the app's timers are slowed down a lot; GPS callbacks still arrive, so
+        // send from here too.
+        if (queue.length >= 6 || Date.now() - lastFlushAt > 30000) {
+            lastFlushAt = Date.now();
+            void flushVehicleTrackingQueue();
+        }
+    }
 }
 
 function startUploadInterval() {
     stopUploadInterval();
-    uploadTimer = window.setInterval(() => {
-        if (typeof document !== 'undefined' && document.hidden) return;
-        void tickUpload();
-    }, VEHICLE_GPS_INTERVAL_MS);
+    // Runs while the page is hidden too (the browser slows it down, it doesn't stop it), so queued
+    // points still go out when the network is back.
+    uploadTimer = window.setInterval(() => void flushVehicleTrackingQueue(), VEHICLE_GPS_INTERVAL_MS);
 }
 
 function stopUploadInterval() {
@@ -180,6 +253,7 @@ async function startBrowserWatch() {
             (pos) => handlePosition(pos),
             (err) => {
                 console.error('Browser geolocation watch error', err);
+                lastError = err;
                 onErrorCallback?.(err);
             },
             { enableHighAccuracy: true, maximumAge: 5000, timeout: 20000 }
@@ -189,12 +263,48 @@ async function startBrowserWatch() {
 }
 
 async function startCapacitorWatch() {
+    if (isNativeBackgroundGpsAvailable()) {
+        const label = currentVehicleLabel ? ` ${currentVehicleLabel}` : '';
+        capWatchId = await bgGps().addWatcher(
+            {
+                backgroundTitle: `AKK Hub — driving${label}`,
+                backgroundMessage: 'Vehicle location is being recorded. Tap Finish ride in AKK Hub when you park.',
+                requestPermissions: true,
+                stale: false,
+                distanceFilter: 10,
+            },
+            (location, err) => {
+                if (err) {
+                    console.error('Background GPS error', err);
+                    lastError = err;
+                    if (err.code === 'NOT_AUTHORIZED') {
+                        err.message = 'Location permission is off for AKK Hub. Allow it in phone Settings so the journey can be tracked.';
+                    }
+                    onErrorCallback?.(err);
+                    return;
+                }
+                if (!location) return;
+                handlePosition({
+                    coords: {
+                        latitude: location.latitude,
+                        longitude: location.longitude,
+                        accuracy: location.accuracy,
+                        speed: location.speed,
+                        heading: location.bearing,
+                    },
+                    timestamp: location.time || Date.now(),
+                });
+            },
+        );
+        return;
+    }
     const { Geolocation } = await import('@capacitor/geolocation');
     capWatchId = await Geolocation.watchPosition(
         { enableHighAccuracy: true, timeout: 20000 },
         (position, err) => {
             if (err) {
                 console.error('Capacitor geolocation watch error', err);
+                lastError = err;
                 onErrorCallback?.(err);
                 return;
             }
@@ -213,8 +323,12 @@ function stopBrowserWatch() {
 async function stopCapacitorWatch() {
     if (capWatchId != null) {
         try {
-            const { Geolocation } = await import('@capacitor/geolocation');
-            await Geolocation.clearWatch({ id: capWatchId });
+            if (isNativeBackgroundGpsAvailable()) {
+                await bgGps().removeWatcher({ id: capWatchId });
+            } else {
+                const { Geolocation } = await import('@capacitor/geolocation');
+                await Geolocation.clearWatch({ id: capWatchId });
+            }
         } catch (e) {
             console.warn('clearWatch failed', e);
         }
@@ -222,9 +336,18 @@ async function stopCapacitorWatch() {
     }
 }
 
+/** Phone app: open AKK Hub's settings page (e.g. after location was denied). */
+export async function openAppLocationSettings() {
+    if (!isNativeBackgroundGpsAvailable()) return;
+    try {
+        await bgGps().openSettings();
+    } catch {
+        /* ignore */
+    }
+}
+
 /**
- * Start GPS tracking for an active vehicle journey (website only).
- * Native Android/iOS apps must use https://timesheet-manager.akk.sg for driving.
+ * Start GPS tracking for an active vehicle journey (website only — see vehicleTrackingNotification).
  */
 export async function startVehicleTracking({ journeyId, vehicleLabel = '', onError }) {
     if (!journeyId) return;
@@ -239,13 +362,14 @@ export async function startVehicleTracking({ journeyId, vehicleLabel = '', onErr
         return;
     }
 
-    await stopVehicleTracking();
+    await stopVehicleTracking({ flush: false });
 
     currentJourneyId = journeyId;
     currentVehicleLabel = vehicleLabel;
     onErrorCallback = onError || null;
-    lastUploaded = null;
+    lastQueued = null;
     lastCoords = null;
+    lastError = null;
     uploadsPaused = false;
     saveActiveJourneyId(journeyId);
 
@@ -259,21 +383,28 @@ export async function startVehicleTracking({ journeyId, vehicleLabel = '', onErr
         }
 
         startUploadInterval();
-        attachVisibilityResume();
+        attachResumeHandlers();
         if (!Capacitor.isNativePlatform()) {
             await requestWebWakeLock();
         }
-        void tickUpload();
+        void flushVehicleTrackingQueue();
     } catch (e) {
         // Don't leave a half-started tracker (notification / stored journey id) behind.
-        await stopVehicleTracking();
+        await stopVehicleTracking({ flush: false });
         throw e;
     }
 }
 
-export async function stopVehicleTracking() {
+export async function stopVehicleTracking({ flush = true } = {}) {
+    if (flush && queue.length) {
+        try {
+            await Promise.race([flushVehicleTrackingQueue(), new Promise((r) => setTimeout(r, 8000))]);
+        } catch {
+            /* the rest stays queued and goes out next time */
+        }
+    }
     stopUploadInterval();
-    detachVisibilityResume();
+    detachResumeHandlers();
     await releaseWebWakeLock();
     stopBrowserWatch();
     await stopCapacitorWatch();
@@ -281,7 +412,7 @@ export async function stopVehicleTracking() {
 
     currentJourneyId = null;
     currentVehicleLabel = null;
-    lastUploaded = null;
+    lastQueued = null;
     lastCoords = null;
     onErrorCallback = null;
     uploadsPaused = false;
@@ -301,12 +432,26 @@ export function getLastKnownCoords() {
     return lastCoords;
 }
 
+/** For the driver card: when GPS last answered, when points last reached the office, how many wait. */
+export function getVehicleTrackingHealth() {
+    return {
+        active: isVehicleTrackingActive(),
+        paused: uploadsPaused,
+        lastFixAt,
+        lastSentAt,
+        queued: queue.length,
+        error: lastError ? String(lastError.message || lastError) : null,
+    };
+}
+
 /**
  * Resume tracking after page reload / app reopen if worker still has an active journey in DB.
- * Works on website and APK — does not rely on session-only storage.
  */
 export async function resumeVehicleTrackingIfNeeded(fetchActiveJourney) {
-    // Native app: never auto-resume continuous GPS (Play FGS policy).
+    // Points recorded before a reload are still in the queue — send them.
+    if (queue.length) void flushVehicleTrackingQueue();
+
+    // Old app build without background GPS: nothing to resume.
     if (isNativeAppVehicleTrackingDisabled()) {
         const journey = await fetchActiveJourney();
         return journey?.status === 'completed' ? null : journey;
@@ -334,6 +479,7 @@ export async function resumeVehicleTrackingIfNeeded(fetchActiveJourney) {
 
 /** Pause uploads during break but keep notification until full stop. */
 export async function pauseVehicleTrackingUploads() {
+    void flushVehicleTrackingQueue();
     uploadsPaused = true;
     stopUploadInterval();
     stopBrowserWatch();
@@ -348,6 +494,7 @@ export async function resumeVehicleTrackingUploads(journeyId, vehicleLabel) {
     currentJourneyId = journeyId;
     currentVehicleLabel = vehicleLabel;
     uploadsPaused = false;
+    lastQueued = null;
     saveActiveJourneyId(journeyId);
 
     // Never stack a second GPS watch on top of one that is still running.
@@ -359,11 +506,11 @@ export async function resumeVehicleTrackingUploads(journeyId, vehicleLabel) {
         await startBrowserWatch();
     }
     startUploadInterval();
-    attachVisibilityResume();
+    attachResumeHandlers();
     if (!Capacitor.isNativePlatform()) {
         await requestWebWakeLock();
     }
-    void tickUpload();
+    void flushVehicleTrackingQueue();
 }
 
 function positionToCoords(pos) {
@@ -391,7 +538,7 @@ const WEB_POSITION_ATTEMPTS = [
 export async function captureCurrentPosition() {
     if (Capacitor.isNativePlatform()) {
         const { Geolocation } = await import('@capacitor/geolocation');
-        let lastError = null;
+        let lastErr = null;
         for (const opts of NATIVE_POSITION_ATTEMPTS) {
             try {
                 const pos = await Geolocation.getCurrentPosition(opts);
@@ -399,18 +546,18 @@ export async function captureCurrentPosition() {
                     return positionToCoords(pos);
                 }
             } catch (e) {
-                lastError = e;
+                lastErr = e;
                 console.warn('captureCurrentPosition attempt failed', opts, e);
             }
         }
-        throw lastError || new Error('Could not get GPS fix');
+        throw lastErr || new Error('Could not get GPS fix');
     }
 
     if (!navigator.geolocation) {
         throw new Error('Geolocation not supported');
     }
 
-    let lastError = null;
+    let lastErr = null;
     for (const opts of WEB_POSITION_ATTEMPTS) {
         try {
             const pos = await new Promise((resolve, reject) => {
@@ -420,8 +567,8 @@ export async function captureCurrentPosition() {
                 return positionToCoords(pos);
             }
         } catch (e) {
-            lastError = e;
+            lastErr = e;
         }
     }
-    throw lastError || new Error('Could not get GPS fix');
+    throw lastErr || new Error('Could not get GPS fix');
 }

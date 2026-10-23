@@ -83,8 +83,8 @@ export async function applyStructure(c, snaps, { prereqSql = readSqlFile('00_pre
     const files = [
         '20_core.sql', '30_unify.sql', '50_sites.sql', '60_people.sql',
         ...(live ? ['60_overlay_opacity.sql', '61_akk_camera.sql', '62_device_push_supervisor.sql', '63_local_worker_details_rls.sql'] : []),
-        '64_local_access.sql', '70_deployment.sql', '80_worker_info.sql', '82_worker_info_more.sql', '83_worker_info_trim.sql', '84_worker_info_master.sql', '85_worker_info_dob.sql', '87_worker_info_age.sql',
-        ...(live ? ['81_worker_info_import.sql', '86_worker_info_dob_import.sql'] : []),
+        '64_local_access.sql', '70_deployment.sql', '80_worker_info.sql', '82_worker_info_more.sql', '83_worker_info_trim.sql', '84_worker_info_master.sql', '85_worker_info_dob.sql', '85_worker_info_edit_master.sql', '87_worker_info_age.sql', '88_worker_info_check_all.sql', '90_worker_info_safety_cert_labels.sql',
+        ...(live ? ['81_worker_info_import.sql', '86_worker_info_dob_import.sql', '89_progress_manager_no_jsr_audit.sql'] : []),
     ];
     for (const file of files) {
         await inTransaction(c, () => c.query(readSqlFile(file))).catch((e) => {

@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Loader2, ChevronLeft, ChevronRight, Send } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Loader2, ChevronLeft, ChevronRight, Send, CheckCheck, RotateCcw } from 'lucide-react';
 import { Button } from '@/ui/button';
 import { Badge } from '@/ui/badge';
 import { FieldBlock, ChecklistItemButtons } from '@/modules/timesheet/components/companyForms/FormFieldControls';
@@ -25,6 +25,26 @@ function buildInitialFields(def, workerName) {
     return fields;
 }
 
+/* ---- drafts: a half-filled form survives closing the app / losing signal ---- */
+const DRAFT_PREFIX = 'akk:company-form-draft:';
+function readDraft(key) {
+    if (!key) return null;
+    try {
+        const d = JSON.parse(localStorage.getItem(DRAFT_PREFIX + key) || 'null');
+        // Drafts older than 3 days are dropped (a daily checklist from last week is not useful).
+        return d && Date.now() - (d.savedAt || 0) < 3 * 864e5 ? d : null;
+    } catch {
+        return null;
+    }
+}
+export function clearFormDraft(key) {
+    try {
+        if (key) localStorage.removeItem(DRAFT_PREFIX + key);
+    } catch {
+        /* ignore */
+    }
+}
+
 function validateFields(fieldDefs, values) {
     for (const field of fieldDefs) {
         if (field.required === false) continue;
@@ -46,26 +66,31 @@ export default function CompanyFormFiller({
     submitLabel = 'Submit for review',
     reviewTitle = 'Review & submit',
     reviewHint = 'Check your answers before sending to managers/admins.',
+    /** When set, answers are saved on this device as the worker goes (restored next time). */
+    draftKey = null,
 }) {
+    const [draft] = useState(() => (initialPayload ? null : readDraft(draftKey)));
+    const start = initialPayload || draft?.payload || null;
     const [fields, setFields] = useState(() => {
         const base = buildInitialFields(definition, workerName);
-        if (initialPayload?.fields && typeof initialPayload.fields === 'object') {
-            return { ...base, ...initialPayload.fields };
+        if (start?.fields && typeof start.fields === 'object') {
+            return { ...base, ...start.fields };
         }
         return base;
     });
     const [checklist, setChecklist] = useState(() =>
-        initialPayload?.checklist && typeof initialPayload.checklist === 'object'
-            ? { ...initialPayload.checklist }
+        start?.checklist && typeof start.checklist === 'object'
+            ? { ...start.checklist }
             : {}
     );
     const [tableRows, setTableRows] = useState(() => {
-        if (Array.isArray(initialPayload?.tableRows) && initialPayload.tableRows.length) {
-            return initialPayload.tableRows.map((row) => ({ ...row }));
+        if (Array.isArray(start?.tableRows) && start.tableRows.length) {
+            return start.tableRows.map((row) => ({ ...row }));
         }
         return buildInitialTableRows(definition.table);
     });
-    const [step, setStep] = useState(0);
+    const [step, setStep] = useState(() => (draft?.step && Number.isInteger(draft.step) ? draft.step : 0));
+    const [draftNotice, setDraftNotice] = useState(Boolean(draft));
 
     const isChecklist = definition.layout === LAYOUT.CHECKLIST_STEPS;
     const sections = definition.sections || [];
@@ -84,6 +109,27 @@ export default function CompanyFormFiller({
         () => ({ fields, checklist, tableRows }),
         [fields, checklist, tableRows]
     );
+
+    useEffect(() => {
+        if (!draftKey) return undefined;
+        const t = setTimeout(() => {
+            try {
+                localStorage.setItem(DRAFT_PREFIX + draftKey, JSON.stringify({ payload, step, savedAt: Date.now() }));
+            } catch {
+                /* storage full — fine */
+            }
+        }, 400);
+        return () => clearTimeout(t);
+    }, [draftKey, payload, step]);
+
+    const startOver = () => {
+        clearFormDraft(draftKey);
+        setFields(buildInitialFields(definition, workerName));
+        setChecklist({});
+        setTableRows(buildInitialTableRows(definition.table));
+        setStep(0);
+        setDraftNotice(false);
+    };
 
     const previewFlags = useMemo(
         () => evaluateFormFlags(definition.key, payload),
@@ -164,7 +210,19 @@ export default function CompanyFormFiller({
         }
 
         await onSubmit(payload);
+        clearFormDraft(draftKey);
     };
+
+    const goodValue = definition.answerMode === 'done_pending' ? 'done' : 'ok';
+    const badValue = definition.answerMode === 'done_pending' ? 'pending' : 'not_ok';
+    const markSection = (sec) =>
+        setChecklist((prev) => {
+            const next = { ...prev };
+            for (const item of sec.items) if (!next[item.key]) next[item.key] = goodValue;
+            return next;
+        });
+    const allItems = sections.flatMap((sec) => sec.items.map((item) => ({ ...item, section: sec.title })));
+    const badItems = allItems.filter((item) => checklist[item.key] === badValue);
 
     const renderHeaderFields = () => (
         <div className="grid gap-4 sm:grid-cols-2">
@@ -181,13 +239,21 @@ export default function CompanyFormFiller({
 
     const renderSection = (sec) => (
         <div className="space-y-4">
-            <div>
-                <h3 className="text-base font-semibold text-slate-900">{sec.title}</h3>
-                <p className="text-sm text-slate-500">
-                    {definition.answerMode === 'done_pending'
-                        ? 'Mark each item Done or Pending'
-                        : 'Mark each item OK or NOT OK'}
-                </p>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                    <h3 className="text-base font-semibold text-slate-900">{sec.title}</h3>
+                    <p className="text-sm text-slate-500">
+                        {definition.answerMode === 'done_pending'
+                            ? 'Mark each item Done or Pending'
+                            : 'Mark each item OK or NOT OK'}
+                    </p>
+                </div>
+                {sec.items.some((item) => !checklist[item.key]) ? (
+                    <Button type="button" variant="outline" size="sm" className="h-9 rounded-xl" onClick={() => markSection(sec)}>
+                        <CheckCheck className="mr-1.5 h-4 w-4" />
+                        Mark the rest {definition.answerMode === 'done_pending' ? 'Done' : 'OK'}
+                    </Button>
+                ) : null}
             </div>
             {sec.items.map((item) => (
                 <div key={item.key} className="rounded-xl border border-slate-200 bg-white/70 p-3 space-y-2">
@@ -248,9 +314,23 @@ export default function CompanyFormFiller({
                 ))}
             </div>
             {isChecklist && (
-                <p className="text-sm text-slate-600">
-                    Checklist answers: {Object.keys(checklist).length} items recorded
-                </p>
+                <div className="space-y-2">
+                    <p className="text-sm text-slate-600">
+                        Checklist: {allItems.length - badItems.length} of {allItems.length} {definition.answerMode === 'done_pending' ? 'done' : 'OK'}
+                    </p>
+                    {badItems.length ? (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                            <p className="font-semibold">{definition.answerMode === 'done_pending' ? 'Pending items' : 'NOT OK items'} ({badItems.length})</p>
+                            <ul className="mt-1 list-disc pl-5">
+                                {badItems.map((item) => (
+                                    <li key={item.key}>
+                                        {item.label} <span className="text-amber-700/80">· {item.section}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    ) : null}
+                </div>
             )}
             {definition.table && (
                 <p className="text-sm text-slate-600">
@@ -302,6 +382,15 @@ export default function CompanyFormFiller({
                     </div>
                 </div>
             )}
+
+            {draftNotice ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-sm text-sky-900">
+                    <span>Your unsent answers were restored.</span>
+                    <Button type="button" variant="ghost" size="sm" className="h-8 rounded-lg text-sky-900" onClick={startOver}>
+                        <RotateCcw className="mr-1 h-3.5 w-3.5" /> Start over
+                    </Button>
+                </div>
+            ) : null}
 
             {body}
 

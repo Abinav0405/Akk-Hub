@@ -243,6 +243,7 @@ export const NAV = {
                     ...(UNIFIED ? [] : [{ id: 'psites', label: 'Sites', icon: MapPin, ...sec(PR_ADMIN, 'sites') }]),
                     { id: 'pexports', label: 'Export queue', icon: Send, ...sec(PR_ADMIN, 'exports') },
                     { id: 'pjsr', label: 'JSR & billing', icon: Receipt, ...sec(PR_ADMIN, 'jsr') },
+                    { id: 'pjsrperm', label: 'Manager JSR access', icon: ShieldCheck, ...sec(PR_ADMIN, 'managers') },
                     { id: 'pclient', label: 'Client portal', labelKey: 'hub.nav.clientPortal', icon: Building2, to: paths.progress.clientLogin },
                 ],
             },

@@ -4,15 +4,42 @@ const TRACKING_CHANNEL_ID = 'akk_vehicle_tracking';
 const TRACKING_NOTIFICATION_ID = 9001;
 
 /**
- * Android/iOS app builds must not run continuous vehicle GPS (Play FGS location policy).
- * Drivers should use the website: https://timesheet-manager.akk.sg
+ * Phone app: live vehicle GPS runs through the BackgroundGeolocation plugin (foreground service with a
+ * "Vehicle tracking" notification, keeps working with the screen off). Only an older app build without
+ * that plugin falls back to "use the website".
  */
+export function isNativeBackgroundGpsAvailable() {
+    return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable('BackgroundGeolocation');
+}
+
 export function isNativeAppVehicleTrackingDisabled() {
-    return Capacitor.isNativePlatform();
+    return Capacitor.isNativePlatform() && !isNativeBackgroundGpsAvailable();
+}
+
+/**
+ * The AKK Hub website address (VITE_PUBLIC_SITE_URL, else this page's own address on the web).
+ * Never the old Timesheet Manager site: that one writes to the old database.
+ */
+export function getDrivingSiteUrl() {
+    const configured = String(import.meta.env.VITE_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
+    if (configured) return configured;
+    if (Capacitor.getPlatform() === 'web' && typeof window !== 'undefined') return window.location.origin;
+    return null;
+}
+
+/** Open the AKK Hub website in the phone's browser (from the app). */
+export function openDrivingSite() {
+    const url = getDrivingSiteUrl();
+    if (!url) return false;
+    window.open(`${url}/`, '_blank', 'noopener');
+    return true;
 }
 
 export function getUseWebsiteForDrivingMessage() {
-    return 'Vehicle location tracking is not available in the mobile app. Please open https://timesheet-manager.akk.sg in Chrome while driving, then scan the vehicle QR there.';
+    const url = getDrivingSiteUrl();
+    return url
+        ? `Live vehicle GPS is not available in the mobile app. Open ${url} in Chrome while driving (same login), then scan the vehicle QR there.`
+        : 'Live vehicle GPS is not available in the mobile app. Open the AKK Hub website in Chrome while driving (same login), then scan the vehicle QR there.';
 }
 
 function isLocationGranted(perm) {
@@ -33,7 +60,7 @@ function isPermissionDeniedError(err) {
 /** User-facing message when GPS permission is missing. */
 export function getLocationDeniedMessage() {
     if (Capacitor.isNativePlatform()) {
-        return 'Allow Location in phone Settings → Apps → AKK Timesheet Manager → Permissions → Location (While using the app), then scan again.';
+        return 'Allow Location in phone Settings → Apps → AKK Hub → Permissions → Location (Allow while using the app, Precise on), then scan again.';
     }
     if (typeof window !== 'undefined' && !window.isSecureContext) {
         return 'Open this site via HTTPS so GPS can work.';
@@ -122,9 +149,9 @@ function closeWebTrackingNotification() {
     webTrackingNotification = null;
 }
 
-/** Website-only tracking notice. Native apps never start continuous vehicle GPS. */
+/** Website tracking notice. In the app the background-GPS service shows its own notification. */
 export async function startVehicleTrackingNotification(vehicleLabel) {
-    if (isNativeAppVehicleTrackingDisabled()) return;
+    if (Capacitor.isNativePlatform()) return;
     if (Capacitor.getPlatform() === 'web') {
         await showWebTrackingNotification(vehicleLabel);
     }
