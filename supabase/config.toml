@@ -7,6 +7,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.att-leave-reminder]
 verify_jwt = false
+[functions.att-expiry-reminder]
+verify_jwt = false
 [functions.mat-register-device-token]
 verify_jwt = false
 [functions.mat-fcm-db-webhook]

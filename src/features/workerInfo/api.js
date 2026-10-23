@@ -16,6 +16,11 @@ const token = () => getRoleSessionToken() || null;
 
 export const workerInfoAdmin = {
     directory: (scope = 'all') => rpc('admin_worker_directory', { p_scope: scope }),
+    /** Employee IDs with safety cert / work permit / ID card past or within 30 days. */
+    expiryAlertIds: async () => {
+        const data = await rpc('admin_expiry_alert_ids');
+        return Array.isArray(data) ? data.map(String) : [];
+    },
     profile: (id) => rpc('admin_worker_profile', { p_employee_id: id }),
     save: (id, values) => rpc('admin_save_worker_info', { p_employee_id: id, p_values: values }),
     /** Passport JPEG data URL (or null to clear). Same `core.worker_photos` path as Timesheet Manager. */

@@ -16,6 +16,7 @@ import { ASKABLE_FIELDS, EXPORT_FIELDS, GROUPS, LABEL, customFieldDefs } from '.
 import { workerInfoAdmin } from './api';
 import { downloadWorkerInfoPdf } from './exportPdf';
 import { downloadWorkerInfoExcel } from './exportExcel';
+import { EXPIRY_NAME_CLASS, hasExpiryAlert, expiryAlertTitle } from './expiryAlert';
 
 const DEFAULT_EXPORT = ['designation', 'in_company', 'date_joined', 'work_permit_no', 'permit_expiry_date', 'hp_number', 'nationality'];
 
@@ -231,7 +232,13 @@ function WorkerChecklist({ workers, picked, setPicked }) {
                                 onChange={() => setPicked((p) => (p.includes(w.employee_id) ? p.filter((x) => x !== w.employee_id) : [...p, w.employee_id]))}
                             />
                             <span className="min-w-0 flex-1 truncate">
-                                {w.name} <span className="text-slate-400">{w.employee_id}</span>
+                                <span
+                                    className={cn(hasExpiryAlert(w) && EXPIRY_NAME_CLASS)}
+                                    title={hasExpiryAlert(w) ? expiryAlertTitle(w) : undefined}
+                                >
+                                    {w.name}
+                                </span>{' '}
+                                <span className="text-slate-400">{w.employee_id}</span>
                             </span>
                             {!w.in_company ? <span className="text-xs text-red-700">left</span> : null}
                         </label>

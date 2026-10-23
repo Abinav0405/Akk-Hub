@@ -15,6 +15,7 @@ import { INFO_FIELDS, labelOf } from './fields';
 import { workerInfoAdmin } from './api';
 import { ExportDialog, ExportWorkerTypeDialog, RequestInfoDialog, SendCheckDialog } from './AdminDialogs';
 import { StatusPill, WorkerInfoAdminHost, openWorkerLookup, openWorkerProfile } from './WorkerProfile';
+import { EXPIRY_NAME_CLASS, hasExpiryAlert, expiryAlertTitle } from './expiryAlert';
 
 const when = (t) => (t ? new Date(t).toLocaleString('en-SG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
@@ -65,6 +66,7 @@ export default function WorkerInfoCenter() {
 
     if (!UNIFIED) return null;
 
+    const byId = Object.fromEntries((directory || []).map((w) => [w.employee_id, w]));
     const attention = [
         ...(activity?.requests || []).filter((r) => r.status === 'review').map((r) => ({ ...r, kind: 'request' })),
         ...(activity?.checks || []).filter((c) => c.status === 'declined').map((c) => ({ ...c, kind: 'check' })),
@@ -182,7 +184,13 @@ export default function WorkerInfoCenter() {
                             <button type="button" onClick={() => openWorkerProfile(r.employee_id)} className="flex w-full flex-wrap items-center gap-2 py-2.5 text-left hover:bg-slate-50">
                                 <span className="min-w-0 flex-1">
                                     <span className="block truncate text-sm font-semibold text-slate-900">
-                                        {r.name || r.employee_id} <span className="font-normal text-slate-400">{r.employee_id}</span>
+                                        <span
+                                            className={cn(hasExpiryAlert(byId[r.employee_id]) && EXPIRY_NAME_CLASS)}
+                                            title={hasExpiryAlert(byId[r.employee_id]) ? expiryAlertTitle(byId[r.employee_id]) : undefined}
+                                        >
+                                            {r.name || r.employee_id}
+                                        </span>{' '}
+                                        <span className="font-normal text-slate-400">{r.employee_id}</span>
                                     </span>
                                     <span className="block truncate text-xs text-slate-500">
                                         {r.kind === 'request'

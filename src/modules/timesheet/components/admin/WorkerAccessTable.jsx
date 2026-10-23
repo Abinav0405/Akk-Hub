@@ -6,6 +6,9 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Loader2, Search } from 'lucide-react';
 import { UNIFIED, supabaseCore } from '@/core/supabase';
+import { workerInfoAdmin } from '@/features/workerInfo/api';
+import { EXPIRY_NAME_CLASS, expiryAlertTitle } from '@/features/workerInfo/expiryAlert';
+import { cn } from '@/ui/utils';
 
 const FILTERS = [
     { id: 'all', label: 'All' },
@@ -41,6 +44,7 @@ export default function WorkerAccessTable() {
     const [filter, setFilter] = useState('all');
     const [busy, setBusy] = useState('');
     const [showLeft, setShowLeft] = useState(false);
+    const [expiryAlertSet, setExpiryAlertSet] = useState(() => new Set());
 
     const load = useCallback(async () => {
         const { data, error: e } = await supabaseCore.rpc('admin_list_workers');
@@ -48,6 +52,12 @@ export default function WorkerAccessTable() {
         else {
             setError('');
             setRows(data || []);
+        }
+        try {
+            const ids = await workerInfoAdmin.expiryAlertIds();
+            setExpiryAlertSet(new Set((ids || []).map(String)));
+        } catch {
+            setExpiryAlertSet(new Set());
         }
     }, []);
     useEffect(() => {
@@ -148,8 +158,16 @@ export default function WorkerAccessTable() {
                                 <tr key={r.employee_id} className={`border-t border-[var(--g-hairline)] ${r.in_company === false ? 'bg-red-50/40 text-slate-500' : ''}`}>
                                     <td className="whitespace-nowrap px-3 py-2 font-medium tabular-nums">{r.employee_id}</td>
                                     <td className="px-3 py-2">
-                                        <span className="block max-w-[14rem] truncate sm:max-w-none">{r.employee_name}</span>
-                                        <span className="text-xs text-slate-400 md:hidden">{r.designation || (r.worker_type === 'local' ? 'Local' : 'Foreign')}</span>
+                                        <span
+                                            className={cn(
+                                                'inline-block max-w-[14rem] truncate sm:max-w-none',
+                                                expiryAlertSet.has(String(r.employee_id)) && EXPIRY_NAME_CLASS,
+                                            )}
+                                            title={expiryAlertSet.has(String(r.employee_id)) ? expiryAlertTitle(null) : undefined}
+                                        >
+                                            {r.employee_name}
+                                        </span>
+                                        <span className="block text-xs text-slate-400 md:hidden">{r.designation || (r.worker_type === 'local' ? 'Local' : 'Foreign')}</span>
                                     </td>
                                     <td className="hidden px-3 py-2 text-slate-600 md:table-cell">
                                         {r.designation || '—'} · {r.worker_type === 'local' ? 'Local' : 'Foreign'}

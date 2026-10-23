@@ -31,7 +31,7 @@ function isAllowedOrigin(origin: string): boolean {
 }
 
 const ALLOW_HEADERS =
-  'authorization, x-client-info, apikey, content-type, x-akk-push-secret, x-akk-fcm-secret, x-akk-role-session, x-akk-leave-reminder-secret';
+  'authorization, x-client-info, apikey, content-type, x-akk-push-secret, x-akk-fcm-secret, x-akk-role-session, x-akk-leave-reminder-secret, x-akk-expiry-reminder-secret';
 
 /** @deprecated Prefer getCorsHeaders(req) so Origin is allowlisted. */
 export const corsHeaders = {

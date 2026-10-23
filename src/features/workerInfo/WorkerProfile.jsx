@@ -19,6 +19,7 @@ import {
 import { workerInfoAdmin } from './api';
 import { openWorkerEdit } from './EditWorkerExtras';
 import { ExportDialog, RequestInfoDialog, SendCheckDialog } from './AdminDialogs';
+import { EXPIRY_NAME_CLASS, hasExpiryAlert, expiryAlertTitle } from './expiryAlert';
 
 /* ---------------- tiny store: which sheet is open ---------------- */
 let state = { profileId: null, lookup: false, lookupMode: 'view', nonce: 0 };
@@ -382,7 +383,15 @@ function WorkerLookup({ open, onClose, directory, loading, mode = 'view' }) {
                                     {String(w.name || '?').split(/\s+/).map((s) => s[0]).slice(0, 2).join('').toUpperCase()}
                                 </span>
                                 <span className="min-w-0 flex-1">
-                                    <span className="block truncate text-sm font-semibold text-slate-900">{w.name}</span>
+                                    <span
+                                        className={cn(
+                                            'block truncate text-sm font-semibold text-slate-900',
+                                            hasExpiryAlert(w) && EXPIRY_NAME_CLASS,
+                                        )}
+                                        title={hasExpiryAlert(w) ? expiryAlertTitle(w) : undefined}
+                                    >
+                                        {w.name}
+                                    </span>
                                     <span className="block truncate text-xs text-slate-500">
                                         {w.employee_id} · {w.designation || (w.worker_type === 'local' ? 'Local' : 'Foreign')}
                                         {w.work_permit_no ? ` · WP ${w.work_permit_no}` : ''}

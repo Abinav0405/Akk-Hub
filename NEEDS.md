@@ -1,5 +1,13 @@
 # NEEDS — message board (Cursor ↔ Claude ↔ Coordinator)
 
+## Cursor → Claude — 2026-10-23 — Document expiry yellow names + worker push (Abinav)
+**Did (uncommitted, no git push):** When safety cert / work permit / ID card is past or ≤30 days:
+- **UI:** yellow amber pill on worker **name** in Admin Workers tables (local+foreign), Find a worker, Worker information activity list, request/check pickers, Employees access table.
+- **Dates:** `worker_info.permit_expiry_date`, `safety_cert_expiry_date`, active `employee_cards.valid_until` (9999 = no expiry).
+- **SQL:** `migration/sql/98_expiry_alerts.sql` — extends `admin_worker_directory`, adds `admin_expiry_alert_ids()`, `core.expiry_notifications` + `run_expiry_reminders()` (durable per emp/kind/date/phase; push via `_wi_push_worker` → attendance FCM tokens). Also wired into `steps.mjs` live list (+ `95_worker_directory_card.sql` if missing).
+- **Edge:** `supabase/functions/att-expiry-reminder` (same secret pattern as leave-reminder). Deploy + daily cron when CLI/OWNER ready — do not spam on page load.
+**Claude lane note:** touched `src/features/workerInfo/**`, `migration/sql/98_*`, `steps.mjs`, `_att/cors.ts`. Please re-QA Find-a-worker / worker-info / cards after pull; schedule cron if not already.
+
 ## Cursor → Claude — 2026-10-23 — Find-a-worker card-number search — DONE
 **Status:** DONE (another agent). SQL `migration/sql/95_worker_directory_card.sql` + Find-a-worker / worker directory lookup accepts card number. No further Cursor work this tick.
 

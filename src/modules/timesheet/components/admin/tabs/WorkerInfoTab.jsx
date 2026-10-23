@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAdminDash } from '../AdminDashContext';
 import { AdminChoiceCard, glassPanel } from '@/ui/PortalShell';
 import { Button } from '@/ui/button';
@@ -10,6 +11,8 @@ import WorkerInfoCenter from '@/features/workerInfo/WorkerInfoCenter';
 import { lazy as lazyCards, Suspense as CardsSuspense } from 'react';
 const CardsAdminPanel = lazyCards(() => import('@/features/cards/CardsAdminPanel'));
 import { openWorkerLookup, openWorkerProfile } from '@/features/workerInfo/WorkerProfile';
+import { workerInfoAdmin } from '@/features/workerInfo/api';
+import { EXPIRY_NAME_CLASS, expiryAlertTitle } from '@/features/workerInfo/expiryAlert';
 
 /**
  * Sticky identity columns — widths/left/z-index live in glass.css (.akk-worker-table).
@@ -46,11 +49,12 @@ function StatusPills({ total, active, left, t }) {
   );
 }
 
-function WorkerMobileCards({ workers, workerIsNotInCompany, formatAmount }) {
+function WorkerMobileCards({ workers, workerIsNotInCompany, formatAmount, expiryAlertSet }) {
   return (
     <div className="space-y-2 md:hidden">
       {workers.map((w) => {
         const notInCompany = workerIsNotInCompany(w);
+        const expiryAlert = expiryAlertSet?.has(String(w.employee_id));
         return (
           <div
             key={w.employee_id}
@@ -59,7 +63,11 @@ function WorkerMobileCards({ workers, workerIsNotInCompany, formatAmount }) {
               notInCompany && 'border-red-200 bg-red-50/80',
             )}
           >
-            <p className="font-semibold text-slate-900">{w.employee_name}</p>
+            <p className="font-semibold text-slate-900">
+              <span className={cn(expiryAlert && EXPIRY_NAME_CLASS)} title={expiryAlert ? expiryAlertTitle(null) : undefined}>
+                {w.employee_name}
+              </span>
+            </p>
             <p className="font-mono text-xs text-slate-500">
               ID {w.employee_id} · {w.nric_fin}
             </p>
@@ -102,6 +110,20 @@ export default function WorkerInfoTab() {
     workerIsNotInCompany,
   } = useAdminDash();
 
+  const { data: expiryAlertIds = [] } = useQuery({
+    queryKey: ['admin-expiry-alert-ids'],
+    queryFn: async () => {
+      try {
+        return await workerInfoAdmin.expiryAlertIds();
+      } catch {
+        return [];
+      }
+    },
+    enabled: UNIFIED && isHubAdmin(),
+    staleTime: 60_000,
+  });
+  const expiryAlertSet = useMemo(() => new Set((expiryAlertIds || []).map(String)), [expiryAlertIds]);
+
   // Local-worker NRIC/bank/pay columns are admin-only — never mount for other roles.
   if (!isHubAdmin()) return null;
 
@@ -111,6 +133,25 @@ export default function WorkerInfoTab() {
   const foreignRows = foreignWorkers
     ? [...foreignWorkersDirectory.active, ...foreignWorkersDirectory.leftCompany]
     : [];
+
+  const nameCell = (w) => {
+    const alert = expiryAlertSet.has(String(w.employee_id));
+    const label = (
+      <span className={cn(alert && EXPIRY_NAME_CLASS)} title={alert ? expiryAlertTitle(null) : undefined}>
+        {w.employee_name}
+      </span>
+    );
+    if (!UNIFIED) return label;
+    return (
+      <button
+        type="button"
+        onClick={() => openWorkerProfile(w.employee_id)}
+        className="text-left font-medium underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline"
+      >
+        {label}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-4" data-tour="admin-worker-info-panel">
@@ -234,6 +275,7 @@ export default function WorkerInfoTab() {
               workers={localRows}
               workerIsNotInCompany={workerIsNotInCompany}
               formatAmount={formatAmount}
+              expiryAlertSet={expiryAlertSet}
             />
             <div className="nested-touch-scroll akk-table-scroll hidden max-h-[min(70vh,560px)] overflow-auto rounded-[var(--g-r-lg,1rem)] border border-[var(--g-hairline)] bg-[var(--g-surface)] md:block">
               <table className="akk-worker-table w-full min-w-[1180px] text-sm">
@@ -297,13 +339,7 @@ export default function WorkerInfoTab() {
                           </td>
                           <td className={TD_NRIC()}>{w.nric_fin}</td>
                           <td className={TD_NAME()} title={w.employee_name}>
-                            {UNIFIED ? (
-                              <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="text-left font-medium text-slate-900 underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline">
-                                {w.employee_name}
-                              </button>
-                            ) : (
-                              w.employee_name
-                            )}
+                            {nameCell(w)}
                           </td>
                           <td className={cn(TD, 'max-w-[140px] break-words')}>{w.designation}</td>
                           <td className={cn(TD, 'whitespace-nowrap')}>{w.date_joined}</td>
@@ -388,6 +424,7 @@ export default function WorkerInfoTab() {
               workers={foreignRows}
               workerIsNotInCompany={workerIsNotInCompany}
               formatAmount={formatAmount}
+              expiryAlertSet={expiryAlertSet}
             />
             <div className="nested-touch-scroll akk-table-scroll hidden max-h-[min(70vh,560px)] overflow-auto rounded-[var(--g-r-lg,1rem)] border border-[var(--g-hairline)] bg-[var(--g-surface)] md:block">
               <table className="akk-worker-table w-full min-w-[1080px] text-sm">
@@ -448,13 +485,7 @@ export default function WorkerInfoTab() {
                           </td>
                           <td className={TD_NRIC()}>{w.nric_fin}</td>
                           <td className={TD_NAME()} title={w.employee_name}>
-                            {UNIFIED ? (
-                              <button type="button" onClick={() => openWorkerProfile(w.employee_id)} className="text-left font-medium text-slate-900 underline-offset-2 hover:text-[var(--g-brand-text)] hover:underline">
-                                {w.employee_name}
-                              </button>
-                            ) : (
-                              w.employee_name
-                            )}
+                            {nameCell(w)}
                           </td>
                           <td className={cn(TD, 'max-w-[140px] break-words')}>{w.designation}</td>
                           <td className={cn(TD, 'whitespace-nowrap')}>{w.date_joined}</td>
