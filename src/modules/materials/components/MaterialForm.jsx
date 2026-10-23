@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/ui/input';
 import { Button } from '@/ui/button';
-import ScanCardButton from '@/features/cards/ScanCardButton';
+import { supabaseCore } from '@/core/supabase';
+import { getRoleSessionToken } from '@/core/auth/timesheetSession';
 import { Textarea } from '@/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
 import { Badge } from '@/ui/badge';
@@ -27,7 +28,8 @@ import {
 import { getWorkerSession } from '@/core/auth/materialsSession';
 import { isNativeApp } from '@/core/platform';
 
-export default function MaterialForm({ type, onBack, onSuccess, editMode = false, existingTransaction = null, onDelete = null }) {
+/** issueTo: { employee_id, name, scan_id } — store staff issuing to a worker whose ID card was just scanned. */
+export default function MaterialForm({ type, onBack, onSuccess, editMode = false, existingTransaction = null, onDelete = null, issueTo = null }) {
     const isReturn = type === 'return';
     const native = isNativeApp();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +43,14 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
             site_id: existingTransaction.site_id || '',
             site_name: existingTransaction.site_name || '',
             notes: existingTransaction.notes || ''
+        } : issueTo ? {
+            worker_name: issueTo.name || '',
+            worker_id: issueTo.employee_id || '',
+            transaction_date: todayIsoDate(),
+            transaction_time: format(new Date(), 'HH:mm'),
+            site_id: '',
+            site_name: '',
+            notes: ''
         } : {
             worker_name: sessionStorage.getItem(storageKey('materials', 'workerName')) || sessionStorage.getItem(storageKey('materials', 'adminName')) || '',
             worker_id: sessionStorage.getItem(storageKey('materials', 'workerId')) || '',
@@ -53,7 +63,7 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
     );
 
     const workerSession = getWorkerSession();
-    const workerFieldsLocked = !!workerSession;
+    const workerFieldsLocked = !!workerSession || !!issueTo;
 
     const [sites, setSites] = useState([]);
     const [loadingSites, setLoadingSites] = useState(true);
@@ -386,6 +396,18 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
                 }
 
                 toast.success('Request updated successfully!');
+            } else if (issueTo) {
+                // Store issue by ID card: identity comes from the server-checked card scan ticket.
+                const { error } = await supabaseCore.rpc('staff_issue_materials', {
+                    p_scan_id: issueTo.scan_id,
+                    p_token: getRoleSessionToken() || null,
+                    p_materials: processedMaterials,
+                    p_notes: formData.notes,
+                    p_site_id: formData.site_id,
+                    p_site_name: formData.site_name,
+                });
+                if (error) throw error;
+                toast.success(`Issued to ${issueTo.name} (${issueTo.employee_id})`);
             } else {
                 if (!workerSession?.token) {
                     toast.error('Session expired. Please log in again.');
@@ -413,7 +435,7 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
             onSuccess();
         } catch (error) {
             console.error('Error submitting request:', error);
-            toast.error(editMode ? 'Failed to update request' : 'Failed to submit request');
+            toast.error(issueTo ? error?.message || 'Could not issue the materials' : editMode ? 'Failed to update request' : 'Failed to submit request');
         } finally {
             setIsSubmitting(false);
         }
@@ -427,16 +449,6 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
     const formBody = (
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* Worker Info */}
-            {!workerFieldsLocked ? (
-                <div className="flex justify-end">
-                    <ScanCardButton
-                        onPick={({ employee_id, name }) => {
-                            handleInputChange('worker_id', employee_id);
-                            handleInputChange('worker_name', name);
-                        }}
-                    />
-                </div>
-            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Worker Name</label>

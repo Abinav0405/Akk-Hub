@@ -238,9 +238,10 @@
   position: relative;
   aspect-ratio: 1.586;
   transform-style: preserve-3d;
-  transition: transform 720ms cubic-bezier(0.2, 0.75, 0.2, 1);
+  will-change: transform; /* rotation is set by FlipCard (tap or drag) */
+  cursor: grab;
 }
-.akc-flip[data-flipped='true'] .akc-flip__inner { transform: rotateY(180deg); }
+.akc-flip__inner:active { cursor: grabbing; }
 .akc-flip__face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
 .akc-flip__face--back { transform: rotateY(180deg); }
 .akc-flip__glare {

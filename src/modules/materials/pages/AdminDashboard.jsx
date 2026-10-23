@@ -148,6 +148,7 @@ const ReturnHistoryDisplay = ({ referenceNumber, totalQuantity, materialName, ap
 };
 
 import MaterialForm from '@/modules/materials/components/MaterialForm';
+import IssueByCard from '@/features/cards/IssueByCard';
 
 /** Long lists render in pages so the screen stays smooth. */
 const LIST_PAGE = 60;
@@ -800,6 +801,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                             {pendingCount > 0 && (
                                 <Badge variant="warning">{pendingCount} Pending</Badge>
                             )}
+                            {!editingTransaction ? <IssueByCard onIssued={() => queryClient.invalidateQueries({ queryKey: ['transactions'] })} /> : null}
                         </div>
                     }
                 />

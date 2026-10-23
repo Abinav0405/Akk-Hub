@@ -24,7 +24,7 @@ const hm = (s) => (s ? String(s).slice(0, 5) : '');
 export function methodLabel(r) {
     if (r.method === 'live') return r.live ? { text: 'Live card on the phone', tone: 'text-emerald-700', Icon: Smartphone } : { text: 'Old code — probably a screenshot', tone: 'text-red-700', Icon: ShieldAlert };
     if (r.method === 'printed') return { text: 'Printed card — compare the photo with the person', tone: 'text-slate-700', Icon: Info };
-    return { text: 'Typed card number — compare the photo with the person', tone: 'text-slate-700', Icon: Info };
+    return { text: 'Card number or barcode — compare the photo with the person', tone: 'text-slate-700', Icon: Info };
 }
 
 export default function VerifyResult({ result, children }) {

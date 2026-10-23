@@ -335,10 +335,12 @@ function WorkerLookup({ open, onClose, directory, loading, mode = 'view' }) {
         if (open) setQ('');
     }, [open]);
     const results = useMemo(() => {
-        const s = q.trim().toLowerCase();
+        // Card / WP numbers are typed with spaces or dashes; match on digits/letters only.
+        const compact = (v) => String(v || '').toLowerCase().replace(/[\s-]/g, '');
+        const s = compact(q.trim());
         return (directory || [])
             .filter((w) => scope === 'all' || (scope === 'employed' ? w.in_company : !w.in_company))
-            .filter((w) => !s || `${w.employee_id} ${w.name} ${w.work_permit_no || ''}`.toLowerCase().includes(s))
+            .filter((w) => !s || compact(`${w.employee_id} ${w.name} ${w.work_permit_no || ''} ${w.card_number || ''}`).includes(s))
             .slice(0, 80);
     }, [directory, q, scope]);
     return (
@@ -346,7 +348,7 @@ function WorkerLookup({ open, onClose, directory, loading, mode = 'view' }) {
             <DialogContent className="max-w-xl">
                 <DialogHeader>
                     <DialogTitle>{mode === 'edit' ? 'Edit a worker' : 'Find a worker'}</DialogTitle>
-                    <DialogDescription>Search by employee ID, name or work permit number.</DialogDescription>
+                    <DialogDescription>Search by employee ID, name, work permit or card number.</DialogDescription>
                 </DialogHeader>
                 <div className="relative">
                     <Search className="pointer-events-none absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" />
@@ -355,7 +357,7 @@ function WorkerLookup({ open, onClose, directory, loading, mode = 'view' }) {
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && results[0] && pick(results[0])}
-                        placeholder="e.g. 1006, Ganesan, 0 38281712"
+                        placeholder="e.g. 1006, Ganesan, 0 38281712, 4821 7390"
                         className="h-12 w-full rounded-2xl border border-[var(--g-hairline)] bg-white pl-11 pr-3 text-base shadow-sm"
                     />
                 </div>

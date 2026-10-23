@@ -7,6 +7,7 @@ import { Button } from '@/ui/button';
 import { cn } from '@/modules/timesheet/lib/utils';
 import { checkCameraPermission, requestCameraPermissionWithFallback } from '@/core/permissions';
 import { Capacitor } from '@capacitor/core';
+import { decodeCardBarcode } from '@/features/cards/barcodeDecode';
 import './live-qr-camera.css';
 
 const FILE_SCAN_CONFIG = {
@@ -129,6 +130,8 @@ export default function LiveQrCamera({
     hint = 'Point the camera at the QR code',
     gpsLabel = null,
     className,
+    /** also read the Code 128 number barcode of an AKK ID card (staff card scanning) */
+    barcode = false,
 }) {
     const ownerIdRef = useRef(`qr-${Math.random().toString(36).slice(2)}`);
     const fileHostIdRef = useRef(`qr-file-${Math.random().toString(36).slice(2)}`);
@@ -180,6 +183,8 @@ export default function LiveQrCamera({
             onDecodedRef.current?.(text);
         };
 
+        let barcodeBusy = false;
+        let frames = 0;
         const tick = () => {
             if (cancelled || lockedRef.current) return;
             const video = videoRef.current;
@@ -195,6 +200,18 @@ export default function LiveQrCamera({
                 if (text) {
                     emit(text);
                     return;
+                }
+                // Number barcode: a few times a second, one frame at a time (it is heavier than the QR read).
+                frames += 1;
+                if (barcode && !barcodeBusy && frames % 3 === 0) {
+                    barcodeBusy = true;
+                    void decodeCardBarcode(canvas)
+                        .then((code) => {
+                            if (code) emit(code);
+                        })
+                        .finally(() => {
+                            barcodeBusy = false;
+                        });
                 }
             }
             timer = window.setTimeout(tick, 70);
@@ -256,7 +273,7 @@ export default function LiveQrCamera({
             if (video) video.srcObject = null;
             if (activeLiveQrOwner === ownerId) activeLiveQrOwner = null;
         };
-    }, [disabled, restartKey]);
+    }, [disabled, restartKey, barcode]);
 
     const toggleTorch = async () => {
         const next = !torchOn;

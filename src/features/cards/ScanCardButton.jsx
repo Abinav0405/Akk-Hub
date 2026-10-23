@@ -30,7 +30,7 @@ export default function ScanCardButton({ onPick, purpose = 'materials', label = 
                 setBad({ card: r.card, why: stale ? 'Old code — ask for the live card in the app.' : r.checks?.[0]?.text || 'This card is not valid.' });
                 return;
             }
-            onPick({ employee_id: r.card.employee_id, name: r.card.name });
+            onPick({ employee_id: r.card.employee_id, name: r.card.name, scan_id: r.scan_id });
             toast.success(`${r.card.name} (${r.card.employee_id})`);
             setOpen(false);
         } catch (e) {

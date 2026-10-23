@@ -1,15 +1,43 @@
 /**
- * 3D card holder: tap / Enter / Space flips it; the card tilts towards the finger or mouse (and the
- * phone's tilt on devices that report it) with a soft glare. Only transform/opacity are animated and
- * the tilt is written straight to CSS variables (no React re-render per frame).
+ * 3D card holder.
+ *   - drag sideways: the card turns with your finger; let go past ~¼ of its width (or flick) and it
+ *     flips over in that direction, otherwise it springs back. Vertical swipes still scroll the page.
+ *   - tap / Enter / Space flips it too
+ *   - the card tilts towards the mouse (and the phone's tilt) with a soft glare
+ * Everything is written straight to style / CSS variables (no React re-render per frame), and only
+ * transform / opacity animate.
  */
 import { useEffect, useRef } from 'react';
 
 const MAX_TILT = 7; // degrees
+const FLIP_MS = 460;
+const reduceMotion = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+const sideOf = (deg) => ((Math.round(deg / 180) % 2) + 2) % 2 === 1; // true = back showing
 
 export default function FlipCard({ front, back, flipped = false, onFlip, tilt = true, className = '', label = 'Identification card' }) {
     const rootRef = useRef(null);
+    const innerRef = useRef(null);
     const frame = useRef(0);
+    const rot = useRef(flipped ? 180 : 0);
+    const drag = useRef(null);
+    const suppressClick = useRef(false);
+
+    const apply = (deg, ms) => {
+        const el = innerRef.current;
+        if (!el) return;
+        el.style.transition = ms && !reduceMotion() ? `transform ${ms}ms cubic-bezier(0.2, 0.8, 0.2, 1)` : 'none';
+        el.style.transform = `rotateY(${deg}deg)`;
+    };
+
+    // Follow the `flipped` prop (taps, keyboard, parent) — turn the short way in the last direction.
+    const lastDir = useRef(1);
+    useEffect(() => {
+        if (sideOf(rot.current) !== flipped) {
+            rot.current += 180 * lastDir.current;
+            apply(rot.current, FLIP_MS + 120);
+        }
+    }, [flipped]);
+    useEffect(() => apply(rot.current, 0), []);
 
     const setVars = (rx, ry, gx, gy, go) => {
         const el = rootRef.current;
@@ -25,11 +53,9 @@ export default function FlipCard({ front, back, flipped = false, onFlip, tilt = 
     };
 
     useEffect(() => {
-        if (!tilt || typeof window === 'undefined') return undefined;
-        if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
-        // Phones: follow the device tilt (Android reports it without a permission prompt).
+        if (!tilt || typeof window === 'undefined' || reduceMotion()) return undefined;
         const onOrient = (e) => {
-            if (e.beta == null || e.gamma == null) return;
+            if (e.beta == null || e.gamma == null || drag.current) return;
             const ry = Math.max(-MAX_TILT, Math.min(MAX_TILT, e.gamma / 4));
             const rx = Math.max(-MAX_TILT, Math.min(MAX_TILT, (e.beta - 45) / -6));
             setVars(rx, ry, 50 + ry * 6, 40 - rx * 6, 0.9);
@@ -45,7 +71,34 @@ export default function FlipCard({ front, back, flipped = false, onFlip, tilt = 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tilt]);
 
-    const onMove = (e) => {
+    /* ---- drag to flip ---- */
+    const onPointerDown = (e) => {
+        if (!onFlip || e.button > 0) return;
+        if (e.target.closest?.('button, a, input, select, textarea')) return; // QR / Show buttons stay buttons
+        drag.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), start: rot.current, active: false, w: rootRef.current?.offsetWidth || 320 };
+    };
+    const onPointerMove = (e) => {
+        const d = drag.current;
+        if (d && d.id === e.pointerId) {
+            const dx = e.clientX - d.x;
+            const dy = e.clientY - d.y;
+            if (!d.active) {
+                if (Math.abs(dx) < 8 || Math.abs(dx) < Math.abs(dy)) {
+                    if (Math.abs(dy) > 12) drag.current = null; // a vertical swipe: let the page scroll
+                    return;
+                }
+                d.active = true;
+                rootRef.current?.setPointerCapture?.(e.pointerId);
+                setVars(0, 0, 30, 20, 0);
+            }
+            d.lastX = e.clientX;
+            d.lastT = performance.now();
+            // ~0.6 of the card width = half a turn; a little resistance past it
+            const turn = (dx / (d.w * 0.6)) * 180;
+            const eased = Math.abs(turn) > 180 ? Math.sign(turn) * (180 + (Math.abs(turn) - 180) * 0.25) : turn;
+            apply(d.start + eased, 0);
+            return;
+        }
         if (!tilt || e.pointerType === 'touch') return;
         const r = rootRef.current?.getBoundingClientRect();
         if (!r) return;
@@ -53,23 +106,60 @@ export default function FlipCard({ front, back, flipped = false, onFlip, tilt = 
         const py = (e.clientY - r.top) / r.height;
         setVars((0.5 - py) * 2 * MAX_TILT, (px - 0.5) * 2 * MAX_TILT, px * 100, py * 100, 1);
     };
-    const onLeave = () => setVars(0, 0, 30, 20, 0);
+    const endDrag = (e) => {
+        const d = drag.current;
+        drag.current = null;
+        if (!d || !d.active || d.id !== e.pointerId) return;
+        suppressClick.current = true;
+        window.setTimeout(() => {
+            suppressClick.current = false;
+        }, 50);
+        const dx = e.clientX - d.x;
+        const dt = Math.max(1, performance.now() - d.t);
+        const fast = Math.abs(dx) / dt > 0.45; // flick
+        if (Math.abs(dx) > d.w * 0.25 || (fast && Math.abs(dx) > 24)) {
+            const dir = dx > 0 ? 1 : -1;
+            lastDir.current = dir;
+            rot.current = d.start + 180 * dir;
+            apply(rot.current, FLIP_MS);
+            navigator.vibrate?.(8);
+            onFlip(sideOf(rot.current));
+        } else {
+            apply(d.start, 260); // spring back
+        }
+    };
+
+    const onLeave = () => {
+        if (!drag.current) setVars(0, 0, 30, 20, 0);
+    };
 
     return (
         <div
             ref={rootRef}
             className={`akc-flip ${className}`}
             data-flipped={flipped ? 'true' : 'false'}
-            onPointerMove={onMove}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={endDrag}
+            onPointerCancel={endDrag}
             onPointerLeave={onLeave}
+            style={onFlip ? { touchAction: 'pan-y' } : undefined}
         >
             <div className="akc-flip__tilt">
                 <div
+                    ref={innerRef}
                     className="akc-flip__inner"
                     role={onFlip ? 'button' : undefined}
                     tabIndex={onFlip ? 0 : undefined}
-                    aria-label={onFlip ? `${label} — ${flipped ? 'showing the back, tap to see the front' : 'tap to see the back'}` : label}
-                    onClick={onFlip ? () => onFlip(!flipped) : undefined}
+                    aria-label={onFlip ? `${label} — ${flipped ? 'showing the back, tap or drag to see the front' : 'tap or drag to see the back'}` : label}
+                    onClick={
+                        onFlip
+                            ? () => {
+                                  if (suppressClick.current) return;
+                                  onFlip(!flipped);
+                              }
+                            : undefined
+                    }
                     onKeyDown={
                         onFlip
                             ? (e) => {

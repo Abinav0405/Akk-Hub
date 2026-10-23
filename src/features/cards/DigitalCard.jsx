@@ -9,7 +9,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
-import { ChevronDown, Copy, ImagePlus, Maximize2, RotateCw, X } from 'lucide-react';
+import { ChevronDown, Copy, ImagePlus, Loader2, Maximize2, RotateCw, ShieldAlert, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { toast } from 'sonner';
 import { UNIFIED, supabaseCore } from '@/core/supabase';
 import { getRoleSessionToken } from '@/core/auth/timesheetSession';
@@ -79,11 +80,14 @@ export default function DigitalCard({ canEditPhoto = false }) {
     const [zoom, setZoom] = useState(false);
     const [cropFile, setCropFile] = useState(null);
     const [saving, setSaving] = useState(false);
+    const [lostOpen, setLostOpen] = useState(false);
+    const [lostBusy, setLostBusy] = useState(false);
     const fileRef = useRef(null);
     const hideTimer = useRef(0);
 
     useEffect(() => {
-        if (UNIFIED) cardsMe.choices().then(setChoices).catch(() => setChoices([]));
+        if (!UNIFIED) return;
+        cardsMe.choices().then(setChoices).catch(() => setChoices([]));
     }, []);
 
     const load = useCallback(() => {
@@ -111,6 +115,21 @@ export default function DigitalCard({ canEditPhoto = false }) {
             if (!v) hideTimer.current = window.setTimeout(() => setShowNumber(false), 10_000);
             return !v;
         });
+    };
+
+    const reportLost = async () => {
+        setLostBusy(true);
+        try {
+            await cardsMe.reportLost(choices.length > 1 ? card?.employee_id : null);
+            setLostOpen(false);
+            setFlipped(false);
+            toast.success('Card cancelled. The office has been told.');
+            load();
+        } catch (e) {
+            toast.error(e.message);
+        } finally {
+            setLostBusy(false);
+        }
     };
 
     const pickPhoto = () => fileRef.current?.click();
@@ -165,6 +184,15 @@ export default function DigitalCard({ canEditPhoto = false }) {
                             {!c.in_company ? <span className="ml-1 text-xs font-normal text-red-600">left</span> : null}
                         </button>
                     ))}
+                </div>
+            ) : null}
+
+            {card.state === 'void' ? (
+                <div className="akc-enter flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-3" role="status">
+                    <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-red-600" />
+                    <span className="text-sm text-red-900">
+                        <b>This card is cancelled.</b> It no longer works anywhere. Ask the office for a new card — they have been told.
+                    </span>
                 </div>
             ) : null}
 
@@ -232,10 +260,43 @@ export default function DigitalCard({ canEditPhoto = false }) {
                                 {card.safety_cert_no || '—'} <span className="text-slate-500">· exp {fmtDate(card.safety_cert_expiry_date)}</span>
                             </Row>
                             <Row label="Date joined">{fmtDate(card.date_joined)}</Row>
+                            <Row label="Physical card">
+                                {card.physical_issued_at ? (
+                                    <>Issued {fmtDate(card.physical_issued_at)}</>
+                                ) : (
+                                    <span className="text-slate-500">Not issued yet — this is your digital card</span>
+                                )}
+                            </Row>
+                            {valid && card.physical_issued_at ? (
+                                <div className="px-4 py-3">
+                                    <button type="button" onClick={() => setLostOpen(true)} className="inline-flex items-center gap-1.5 text-sm font-semibold text-red-700">
+                                        <ShieldAlert className="h-4 w-4" /> Lost your card? Report it
+                                    </button>
+                                </div>
+                            ) : null}
                         </dl>
                     </div>
                 </div>
             </div>
+
+            <Dialog open={lostOpen} onOpenChange={(o) => !lostBusy && setLostOpen(o)}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Report this card lost?</DialogTitle>
+                        <DialogDescription>
+                            It is cancelled straight away — the QR, barcode and any NFC tag stop working. The office is told, and an admin has to issue a new card. This cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="gap-2">
+                        <button type="button" onClick={() => setLostOpen(false)} disabled={lostBusy} className="h-11 rounded-xl border border-slate-200 px-4 text-sm font-semibold">
+                            Keep my card
+                        </button>
+                        <button type="button" onClick={reportLost} disabled={lostBusy} className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-red-600 px-4 text-sm font-semibold text-white disabled:opacity-60">
+                            {lostBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Yes, cancel it
+                        </button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
             {zoom && qr?.src ? (
                 <div className="akc-qrzoom" role="dialog" aria-modal="true" aria-label="Your card QR code" onClick={() => setZoom(false)}>

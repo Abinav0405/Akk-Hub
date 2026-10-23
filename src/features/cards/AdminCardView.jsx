@@ -5,13 +5,14 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import QRCode from 'qrcode';
-import { Ban, History, Link2, Loader2, Printer, RefreshCw, RotateCw, Unlink } from 'lucide-react';
+import { Ban, BadgeCheck, History, Link2, Loader2, Nfc, Printer, RefreshCw, RotateCw, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/ui/button';
 import { cardsAdmin } from './api';
 import { CardBack, CardFront } from './CardFaces';
 import FlipCard from './FlipCard';
 import { downloadPvcCards } from './pvcPrint';
+import { cancelWrite, nfcAvailable, writeCardTag } from './nfc';
 import { STATE_LABEL, fmtDate, qrPayload, themeFor } from './cardModel';
 
 const ROLE_TONE = { admin: 'bg-red-50 text-red-800', manager: 'bg-emerald-50 text-emerald-800', supervisor: 'bg-blue-50 text-blue-800' };
@@ -25,6 +26,11 @@ export default function AdminCardView({ employeeId, actions = true, onChanged })
     const [accounts, setAccounts] = useState(null);
     const [pick, setPick] = useState('');
     const [showHistory, setShowHistory] = useState(false);
+    const [nfcOk, setNfcOk] = useState(false);
+    const [writing, setWriting] = useState(false);
+    useEffect(() => {
+        if (actions) nfcAvailable().then(setNfcOk);
+    }, [actions]);
 
     const load = useCallback(async () => {
         try {
@@ -128,6 +134,70 @@ export default function AdminCardView({ employeeId, actions = true, onChanged })
                             {busy === 'print' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />} Print
                         </Button>
                     </div>
+
+                    <div className="flex items-center gap-3 rounded-xl border border-[var(--g-hairline)] bg-white p-3">
+                        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${card.physical_issued_at ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                            <BadgeCheck className="h-5 w-5" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-semibold text-slate-800">Physical card</span>
+                            <span className="block text-xs text-slate-500">
+                                {card.physical_issued_at
+                                    ? `Issued ${fmtDate(card.physical_issued_at)}${card.physical_issued_by ? ` by ${card.physical_issued_by}` : ''} — the holder can report it lost.`
+                                    : 'Not issued yet — digital card only. Mark it when you hand the printed card over.'}
+                            </span>
+                        </span>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={card.physical_issued_at ? 'ghost' : 'outline'}
+                            disabled={!!busy || !active}
+                            onClick={() => run('phys', () => cardsAdmin.setPhysical([employeeId], !card.physical_issued_at), card.physical_issued_at ? 'Marked as not issued' : 'Marked as issued')}
+                        >
+                            {busy === 'phys' ? <Loader2 className="h-4 w-4 animate-spin" /> : null} {card.physical_issued_at ? 'Undo' : 'Mark issued'}
+                        </Button>
+                    </div>
+
+                    {nfcOk ? (
+                        <div className="rounded-xl border border-[var(--g-hairline)] bg-white p-3">
+                            <div className="flex items-center gap-3">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--g-brand-soft)] text-[var(--g-brand)]">
+                                    <Nfc className="h-5 w-5" />
+                                </span>
+                                <span className="min-w-0 flex-1">
+                                    <span className="block text-sm font-semibold text-slate-800">NFC tag</span>
+                                    <span className="block text-xs text-slate-500">
+                                        {writing ? 'Hold a blank NFC card / sticker to the back of this phone…' : 'Write this card to an NFC chip so staff can just tap it.'}
+                                    </span>
+                                </span>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!active || (!writing && !!busy)}
+                                    onClick={async () => {
+                                        if (writing) {
+                                            await cancelWrite();
+                                            setWriting(false);
+                                            return;
+                                        }
+                                        setWriting(true);
+                                        try {
+                                            await writeCardTag(card.qr_token);
+                                            toast.success(`NFC tag written for ${card.name}. Tap it on a scanner to test.`);
+                                        } catch (e) {
+                                            toast.error(e.message);
+                                        } finally {
+                                            setWriting(false);
+                                        }
+                                    }}
+                                >
+                                    {writing ? 'Cancel' : 'Write tag'}
+                                </Button>
+                            </div>
+                            <p className="mt-2 text-xs text-slate-500">One tag per card. If a card is renewed or cancelled, its old tag stops working — write a new one.</p>
+                        </div>
+                    ) : null}
 
                     <section className="rounded-xl border border-[var(--g-hairline)] bg-white p-3">
                         <h4 className="mb-1 flex items-center gap-1.5 text-sm font-semibold text-slate-800">

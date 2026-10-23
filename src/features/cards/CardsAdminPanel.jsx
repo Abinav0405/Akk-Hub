@@ -3,7 +3,7 @@
  * batch print to PVC (admin only), and the scan log.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { CreditCard, Loader2, Printer, ScanLine, Search } from 'lucide-react';
+import { BadgeCheck, CreditCard, Loader2, Printer, ScanLine, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/ui/button';
 import { cn } from '@/ui/utils';
@@ -18,6 +18,7 @@ const FILTERS = [
     ['active', 'Active'],
     ['expiring', 'Expiring ≤ 60 days'],
     ['nophoto', 'No photo'],
+    ['notissued', 'Physical card not issued'],
     ['problem', 'Expired / cancelled'],
     ['all', 'Everyone'],
 ];
@@ -57,6 +58,7 @@ export default function CardsAdminPanel() {
                     (filter === 'active' && r.state === 'valid') ||
                     (filter === 'expiring' && r.state === 'valid' && d != null && d <= 60) ||
                     (filter === 'nophoto' && r.in_company && !r.has_photo) ||
+                    (filter === 'notissued' && r.state === 'valid' && !r.physical_issued_at) ||
                     (filter === 'problem' && ['expired', 'void', 'replaced', 'none'].includes(r.state) && r.in_company);
                 return ok && (!s || `${r.employee_id} ${r.name} ${r.card_number || ''}`.toLowerCase().includes(s));
             }),
@@ -68,12 +70,26 @@ export default function CardsAdminPanel() {
             active: r.filter((x) => x.state === 'valid').length,
             expiring: r.filter((x) => x.state === 'valid' && (daysLeft(x.valid_until) ?? 999) <= 60).length,
             nophoto: r.filter((x) => x.in_company && !x.has_photo).length,
+            notissued: r.filter((x) => x.state === 'valid' && !x.physical_issued_at).length,
             problem: r.filter((x) => x.in_company && ['expired', 'void', 'replaced', 'none'].includes(x.state)).length,
         };
     }, [rows]);
 
     if (!UNIFIED) return null;
     const printable = shown.filter((r) => r.state === 'valid');
+    const markIssued = async (ids, issued) => {
+        setBusy('phys');
+        try {
+            const n = await cardsAdmin.setPhysical(ids, issued);
+            toast.success(issued ? `${n} card${n === 1 ? '' : 's'} marked as issued` : `${n} card${n === 1 ? '' : 's'} marked as not issued`);
+            setPicked([]);
+            load();
+        } catch (e) {
+            toast.error(e.message);
+        } finally {
+            setBusy('');
+        }
+    };
     const allPicked = printable.length > 0 && printable.every((r) => picked.includes(r.employee_id));
 
     const print = async (ids) => {
@@ -152,6 +168,9 @@ export default function CardsAdminPanel() {
                         <Button type="button" variant="outline" className="h-10" disabled={!printable.length} onClick={() => setPicked(allPicked ? [] : printable.map((r) => r.employee_id))}>
                             {allPicked ? 'Clear' : `Select ${printable.length}`}
                         </Button>
+                        <Button type="button" variant="outline" className="h-10" disabled={!picked.length || !!busy} onClick={() => markIssued(picked, true)} title="Mark the selected cards as handed over">
+                            {busy === 'phys' ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <BadgeCheck className="mr-1.5 h-4 w-4" />} Mark issued
+                        </Button>
                         <Button type="button" className="h-10" disabled={!picked.length || !!busy} onClick={() => print(picked)}>
                             {busy.startsWith('print') ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Printer className="mr-1.5 h-4 w-4" />}
                             {busy.startsWith('print ') ? busy.slice(6) : `Print ${picked.length || ''}`}
@@ -188,6 +207,11 @@ export default function CardsAdminPanel() {
                                             {r.printed_count ? ` · printed ${r.printed_count}×` : ''}
                                         </span>
                                     </button>
+                                    {r.state === 'valid' ? (
+                                        <span className={cn('rounded-full px-2 py-0.5 text-[11px] font-semibold', r.physical_issued_at ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-600')}>
+                                            {r.physical_issued_at ? 'Issued' : 'Digital only'}
+                                        </span>
+                                    ) : null}
                                     {!r.has_photo && r.in_company ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">No photo</span> : null}
                                     {r.state === 'valid' && d != null && d <= 60 ? <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800">{d} days</span> : null}
                                     {['expired', 'void', 'replaced'].includes(r.state) && r.in_company ? <span className="rounded-full bg-red-50 px-2 py-0.5 text-[11px] font-semibold text-red-700">{STATE_LABEL[r.state]}</span> : null}

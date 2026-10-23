@@ -17,6 +17,7 @@ const token = () => getRoleSessionToken() || null;
 export const cardsMe = {
     /** employeeId: which linked ID to show (staff logins linked to several IDs) */
     card: (employeeId = null) => rpc('my_card', { p_token: token(), p_employee_id: employeeId }),
+    reportLost: (employeeId = null) => rpc('my_card_report_lost', { p_token: token(), p_employee_id: employeeId }),
     choices: () => rpc('my_card_choices', { p_token: token() }),
     liveCode: (employeeId = null) => rpc('my_card_live_code', { p_token: token(), p_employee_id: employeeId }),
 };
@@ -36,5 +37,6 @@ export const cardsAdmin = {
     linkable: () => rpc('admin_linkable_accounts'),
     link: (employeeId, login) => rpc('admin_link_account', { p_employee_id: employeeId, p_login: login }),
     unlink: (login, employeeId) => rpc('admin_unlink_account', { p_login: login, p_employee_id: employeeId }),
+    setPhysical: (employeeIds, issued) => rpc('admin_card_set_physical', { p_employee_ids: employeeIds, p_issued: issued }),
     scans: (limit = 200) => rpc('admin_card_scans', { p_limit: limit }),
 };

@@ -4,7 +4,8 @@
  *   Clock in / out: scan a worker's card and record entry / break / exit with the normal shift rules
  */
 import { useEffect, useState } from 'react';
-import { Coffee, Loader2, LogIn, LogOut, ScanLine, ShieldCheck } from 'lucide-react';
+import { Car, Coffee, Loader2, LogIn, LogOut, ScanLine, ShieldCheck } from 'lucide-react';
+import VehicleByCard from './VehicleByCard';
 import { toast } from 'sonner';
 import { HubPage } from '@/ui/PortalShell';
 import { Button } from '@/ui/button';
@@ -50,10 +51,11 @@ export default function ScanCardPage() {
 
     return (
         <HubPage title="Scan ID card" eyebrow="AKK ID" narrow>
-            <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1" role="tablist">
+            <div className="mb-4 grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100 p-1" role="tablist">
                 {[
                     ['verify', 'Check card', ShieldCheck],
                     ['clock', 'Clock in / out', LogIn],
+                    ['vehicle', 'Vehicle', Car],
                 ].map(([k, l, Icon]) => (
                     <button
                         key={k}
@@ -96,6 +98,8 @@ export default function ScanCardPage() {
                         <CardScanner key={nonce} onCode={onVerify} busy={busy} />
                     )}
                 </div>
+            ) : mode === 'vehicle' ? (
+                <VehicleByCard key={nonce} onNext={next} />
             ) : (
                 <ClockByCard key={nonce} onNext={next} />
             )}

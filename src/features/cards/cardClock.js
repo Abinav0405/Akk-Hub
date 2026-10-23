@@ -15,11 +15,18 @@ function stamp() {
 }
 
 export async function openShiftOf(workerId) {
-    const { data, error } = await supabase.from('shifts').select('*, sites(site_name)').eq('worker_id', workerId).eq('has_left', false).maybeSingle();
+    // No PostgREST embed: attendance.shifts.site_id has no FK to sites (text IDs by convention).
+    // Same two-query join as EmployeeHome / ManagerDashboard.
+    const { data, error } = await supabase.from('shifts').select('*').eq('worker_id', workerId).eq('has_left', false).maybeSingle();
     if (error) throw error;
     if (!data) return null;
+    let sites = null;
+    if (data.site_id) {
+        const { data: site } = await supabase.from('sites').select('id, site_name').eq('id', data.site_id).maybeSingle();
+        sites = site || null;
+    }
     const { data: open } = await supabase.from('breaks').select('id').eq('shift_id', data.id).is('break_end', null).maybeSingle();
-    return { ...data, on_break: Boolean(open) };
+    return { ...data, sites, on_break: Boolean(open) };
 }
 
 export async function clockIn(workerId, site) {
