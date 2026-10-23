@@ -18,7 +18,8 @@ import BiometricLoginSettings from '@/ui/biometric/BiometricLoginSettings';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { isNativeApp } from '@/core/platform';
 import { paths } from '@/app/paths';
-import { MyIdCard, MyInfoTasksBanner } from '@/features/workerInfo/MyInfo';
+import { MyInfoTasksBanner } from '@/features/workerInfo/MyInfo';
+import DigitalCard from '@/features/cards/DigitalCard';
 
 function initials(name) {
     const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
@@ -97,12 +98,11 @@ export default function Account() {
 
     return (
         <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow>
-            {isWorker ? (
-                <div className="mb-4 space-y-3">
-                    <MyIdCard />
-                    <MyInfoTasksBanner />
-                </div>
-            ) : null}
+            <div className="mb-4 space-y-3">
+                {/* Own ID card: workers, and staff whose login an admin linked to their employee ID. */}
+                <DigitalCard canEditPhoto={isWorker} />
+                {isWorker ? <MyInfoTasksBanner /> : null}
+            </div>
             <section className="g-card g-card--pad g-rise flex items-center gap-4">
                 <MyPhotoAvatar name={identity?.name} isWorker={isWorker} />
                 <div className="min-w-0">

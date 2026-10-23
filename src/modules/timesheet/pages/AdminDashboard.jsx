@@ -6851,10 +6851,11 @@ ${balanceBlock.html}
             throw new Error(`Local worker with ID ${worker_id} not found`);
         }
 
-        // Get a default site (or first available site)
+        // Get a default active site (inactive sites stay out of new payslip rows)
         const { data: sitesData } = await supabase
             .from('sites')
             .select('id')
+            .eq('is_active', true)
             .limit(1);
         
         const defaultSiteId = sitesData && sitesData.length > 0 ? sitesData[0].id : null;
@@ -12826,7 +12827,9 @@ ${balanceBlock.html}
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="__all__">Company-wide</SelectItem>
-                                            {(allSites || []).map((s) => (
+                                            {(allSites || [])
+                                                .filter((s) => s.is_active !== false)
+                                                .map((s) => (
                                                 <SelectItem key={s.id} value={String(s.id)}>
                                                     {s.name || s.site_name || s.id}
                                                 </SelectItem>

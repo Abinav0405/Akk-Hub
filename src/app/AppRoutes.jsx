@@ -27,6 +27,8 @@ const DeploymentPlanner = lazy(() => import('@/pages/deployment/DeploymentPlanne
 const MyDeployment = lazy(() => import('@/pages/deployment/MyDeployment'));
 const SiteCrew = lazy(() => import('@/pages/deployment/SiteCrew'));
 const MyInfoPage = lazy(() => import('@/features/workerInfo/MyInfo'));
+const ScanCardPage = lazy(() => import('@/features/cards/ScanCardPage'));
+const PublicIdCheck = lazy(() => import('@/features/cards/PublicIdCheck'));
 const Misc = {
     Notifications: lazy(() => import('@/pages/Misc').then((m) => ({ default: m.Notifications }))),
     ConnectPage: lazy(() => import('@/pages/Misc').then((m) => ({ default: m.ConnectPage }))),
@@ -130,6 +132,7 @@ export default function AppRoutes() {
                 <Route path="/login" element={<ViewEnter><LoginPage /></ViewEnter>} />
                 <Route path="/login/quick" element={<ViewEnter><QuickLogin /></ViewEnter>} />
                 <Route path="/verify" element={<PublicScreen><PhotoVerification /></PublicScreen>} />
+                <Route path="/id" element={<PublicScreen><PublicIdCheck /></PublicScreen>} />
                 <Route path="/privacy" element={<PublicScreen><LegalNotice /></PublicScreen>} />
                 <Route path="/legal" element={<Navigate to="/privacy" replace />} />
                 <Route path="/Home" element={<Navigate to="/" replace />} />
@@ -152,6 +155,7 @@ export default function AppRoutes() {
                     <Route path="/manage" element={<RequireHubRole roles={['manager']}><RoleHome /></RequireHubRole>} />
                     <Route path="/admin" element={<RequireHubRole roles={['admin']}><RoleHome /></RequireHubRole>} />
                     <Route path="/deployment" element={<RequireHubRole roles={['manager', 'admin']}><DeploymentPlanner /></RequireHubRole>} />
+                    <Route path="/card/scan" element={<RequireHubRole roles={['supervisor', 'manager', 'admin']}><ScanCardPage /></RequireHubRole>} />
                     <Route path="/me/info" element={<RequireHubRole roles={['worker']}><MyInfoPage /></RequireHubRole>} />
                     <Route path="/me/deployment" element={<RequireHubRole roles={['worker']}><MyDeployment /></RequireHubRole>} />
                     <Route path="/site/crew" element={<RequireHubRole roles={['supervisor']}><SiteCrew /></RequireHubRole>} />

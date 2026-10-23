@@ -626,25 +626,21 @@ export default function ManagerDashboard() {
             : { basicHours: 0, sundayHours: 0, otHours: 0, breakHours: 0 };
 
         try {
-            const { data: localWorker, error: localError } = await supabase
-                .from('local_worker_details')
+            // Managers must not read local_worker_details; locals are out of scope entirely.
+            const localIds = await getLocalWorkerIds();
+            if (localIds.has(String(workerId).trim())) {
+                toast.error('Local workers are not available for manager shifts');
+                setIsCreatingShift(false);
+                return;
+            }
+
+            const { data: foreignWorker, error: foreignError } = await supabase
+                .from('worker_details')
                 .select('employee_id')
                 .eq('employee_id', workerId)
                 .maybeSingle();
 
-            let workerExists = !localError && !!localWorker;
-
-            if (!workerExists) {
-                const { data: foreignWorker, error: foreignError } = await supabase
-                    .from('worker_details')
-                    .select('employee_id')
-                    .eq('employee_id', workerId)
-                    .maybeSingle();
-
-                workerExists = !foreignError && !!foreignWorker;
-            }
-
-            if (!workerExists) {
+            if (foreignError || !foreignWorker) {
                 toast.error('Worker ID not found in worker tables');
                 setIsCreatingShift(false);
                 return;

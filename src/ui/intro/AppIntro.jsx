@@ -6,29 +6,21 @@
  * data loads happen while this plays. The native Android launch screen is the intro's first frame
  * (same deep crimson, no icon), so there's no flash between them.
  *
- *   0 ms     solid crimson (= native launch screen) → the hero gradient and a soft light bloom
- *            fade up
- *   150 ms   logo tile: blur → sharp, small scale-up, then a light sweep across it
- *   550 ms   "AKK Hub" rises in, then "AKK Engineering"
- *   1150 ms  brand moment: the composition breathes very slightly
- *   ≥1500 ms exit as soon as the screen behind is ready (never later than MAX_WAIT_MS)
- *
- * Exit, chosen from what's on screen:
- *   app Home (signed out) — the crimson shrinks into the Home header (identical gradient) while the
- *     logo tile and name glide into their exact places there, then the Home cards rise in.
- *   anything else (signed in) — the crimson lifts away upwards while the logo settles back,
- *     revealing the role home.
- * Reduced motion: a plain 200 ms cross-fade, no movement.
+ * Motion is transform + opacity only (no blur/filter). Film target ≤ ~900 ms; exit separate.
+ * Reduced motion: a plain ~200 ms cross-fade, no movement.
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { hideNativeCapacitorSplash, setNativeSystemBarsSurface } from '@/core/nativeShell';
 import { isLoginCurtainOpen } from '@/core/auth/loginCurtain';
 import './intro.css';
 
-const MIN_MS = 1500; // the film itself
-const SLOW_MS = 2300; // still not ready: show the quiet loading line
+/** Splash-only Hub mark — do not use elsewhere (cards / headers / PDFs keep /Akk-logo.png). */
+const SPLASH_LOGO = '/brand/akk-hub-logo.webp';
+
+const MIN_MS = 900; // the film itself (keep snappy — laggy felt when this was 1.5s+)
+const SLOW_MS = 1800; // still not ready: show the quiet loading line
 const MAX_WAIT_MS = 6000; // never hold the person longer than this
-const EXIT_MS = 620;
+const EXIT_MS = 560;
 const PLAYED_KEY = 'akk.hub.introPlayed';
 
 /** Once per launch: sessionStorage lives as long as the WebView (cleared when the app is killed). */
@@ -74,14 +66,43 @@ function flipText(fromEl, toEl) {
     return flip(rectOf(fromEl), rectOf(toEl), ratio || 1);
 }
 
+function preloadSplashLogo() {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.decoding = 'async';
+        img.onload = () => {
+            if (typeof img.decode === 'function') {
+                img.decode().then(() => resolve(img)).catch(() => resolve(img));
+            } else {
+                resolve(img);
+            }
+        };
+        img.onerror = () => resolve(null);
+        img.src = SPLASH_LOGO;
+    });
+}
+
 export default function AppIntro({ enabled }) {
     const [phase, setPhase] = useState(() => (enabled && !alreadyPlayed() ? 'play' : 'done'));
     const [slow, setSlow] = useState(false);
+    const [logoReady, setLogoReady] = useState(false);
     const rootRef = useRef(null);
     const tileRef = useRef(null);
     const nameRef = useRef(null);
     const subRef = useRef(null);
     const started = useRef(0);
+
+    // Decode splash logo before first paint of the tile (avoids pop-in / decode jank).
+    useEffect(() => {
+        if (phase !== 'play') return undefined;
+        let cancelled = false;
+        preloadSplashLogo().then(() => {
+            if (!cancelled) setLogoReady(true);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [phase]);
 
     // First frame is up → drop the native launch screen (same colour, so nothing visibly changes).
     useLayoutEffect(() => {
@@ -94,6 +115,16 @@ export default function AppIntro({ enabled }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    // Drop will-change after entrance animations so layers don't stay promoted (heat on Android).
+    useEffect(() => {
+        if (phase !== 'play') return undefined;
+        const root = rootRef.current;
+        if (!root) return undefined;
+        const clear = () => root.classList.add('akk-intro--settled');
+        const t = window.setTimeout(clear, 900);
+        return () => window.clearTimeout(t);
+    }, [phase]);
+
     // Wait for: the film's minimum length AND the screen behind being ready (or the safety cap).
     useEffect(() => {
         if (phase !== 'play') return undefined;
@@ -104,7 +135,7 @@ export default function AppIntro({ enabled }) {
             // Dev only: sessionStorage 'akk.hub.introHold' = '1' freezes the intro for frame review.
             if (import.meta.env.DEV && sessionStorage.getItem('akk.hub.introHold') === '1') return;
             const elapsed = performance.now() - started.current;
-            if ((elapsed >= MIN_MS && screenReady()) || elapsed >= MAX_WAIT_MS) {
+            if ((elapsed >= MIN_MS && screenReady() && logoReady) || elapsed >= MAX_WAIT_MS) {
                 window.clearInterval(poll);
                 setPhase('exit');
             }
@@ -113,7 +144,7 @@ export default function AppIntro({ enabled }) {
             window.clearInterval(poll);
             window.clearTimeout(slowTimer);
         };
-    }, [phase]);
+    }, [phase, logoReady]);
 
     // Exit choreography.
     useLayoutEffect(() => {
@@ -167,8 +198,15 @@ export default function AppIntro({ enabled }) {
                     {/* Outer elements glide on exit; inner ones play the entrance (a running CSS
                         animation would override the exit transform). */}
                     <div ref={tileRef} className="akk-intro__tile">
-                        <div className="akk-intro__tile-in">
-                            <img src="/Akk-logo.png" alt="" className="akk-intro__logo" draggable="false" />
+                        <div className={`akk-intro__tile-in${logoReady ? ' is-ready' : ''}`}>
+                            <img
+                                src={SPLASH_LOGO}
+                                alt=""
+                                className="akk-intro__logo"
+                                draggable="false"
+                                decoding="async"
+                                fetchPriority="high"
+                            />
                             <span className="akk-intro__sweep" />
                         </div>
                     </div>

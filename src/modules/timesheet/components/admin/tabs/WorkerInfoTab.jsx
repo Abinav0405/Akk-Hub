@@ -7,6 +7,8 @@ import { cn } from '@/modules/timesheet/lib/utils';
 import { isHubAdmin } from '@/modules/timesheet/lib/workerPrivacy';
 import { UNIFIED } from '@/core/supabase';
 import WorkerInfoCenter from '@/features/workerInfo/WorkerInfoCenter';
+import { lazy as lazyCards, Suspense as CardsSuspense } from 'react';
+const CardsAdminPanel = lazyCards(() => import('@/features/cards/CardsAdminPanel'));
 import { openWorkerLookup, openWorkerProfile } from '@/features/workerInfo/WorkerProfile';
 
 /**
@@ -176,6 +178,11 @@ export default function WorkerInfoTab() {
       </section>
 
       {UNIFIED ? <WorkerInfoCenter /> : null}
+      {UNIFIED ? (
+        <CardsSuspense fallback={null}>
+          <CardsAdminPanel />
+        </CardsSuspense>
+      ) : null}
 
       <section className={cn(glassPanel, 'akk-panel p-4 sm:p-5')}>
         <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

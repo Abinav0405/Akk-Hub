@@ -1,7 +1,7 @@
 /**
  * Employee home screen — "AKK Employee Home" design (iOS liquid glass, AKK colours).
  *
- *   HomeHeader      glass header: greeting, name, ID, notifications bell, initials avatar
+ *   HomeHeader      glass header: greeting, name, ID, notifications bell, photo / initials avatar
  *   FormsBanner     amber "N forms to complete" banner
  *   ShiftCard       not clocked in / on shift / on break / shift done
  *   ActionTiles     2×2 tiles (Timesheets, Leave request, Payslips, Company forms)
@@ -14,6 +14,8 @@
 import { forwardRef, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, ChevronRight, ClipboardList, Coffee, LogOut, MapPin, ScanLine } from 'lucide-react';
+import { UNIFIED, supabaseCore } from '@/core/supabase';
+import { getRoleSessionToken } from '@/core/auth/timesheetSession';
 import { cn } from '@/modules/timesheet/lib/utils';
 import './worker-home.css';
 
@@ -115,7 +117,24 @@ const Pressable = forwardRef(function Pressable({ to, onClick, className, childr
 // Header
 // ---------------------------------------------------------------------------
 
+/** Passport photo from core.worker_photos via my_photo (same as Account / MyPhotoAvatar). */
+function useMyWorkerPhoto() {
+    const [photo, setPhoto] = useState(null);
+    useEffect(() => {
+        if (!UNIFIED || !supabaseCore) return undefined;
+        let live = true;
+        supabaseCore.rpc('my_photo', { p_session_token: getRoleSessionToken() }).then(({ data }) => {
+            if (live) setPhoto(data || null);
+        });
+        return () => {
+            live = false;
+        };
+    }, []);
+    return photo;
+}
+
 export function HomeHeader({ logoSrc, eyebrow, name, employeeId, bellCount, bellLabel, onBell, onAvatar, compact, tour }) {
+    const photo = useMyWorkerPhoto();
     return (
         <header className={cn('wh-header wh-glass', compact && 'is-compact')} data-tour={tour}>
             <div className="wh-header__inner">
@@ -136,7 +155,7 @@ export function HomeHeader({ logoSrc, eyebrow, name, employeeId, bellCount, bell
                         <Badge count={bellCount} />
                     </button>
                     <button type="button" className="wh-avatar" onClick={onAvatar} aria-label="Account">
-                        {initialsOf(name)}
+                        {photo ? <img src={photo} alt="" className="wh-avatar__img" /> : initialsOf(name)}
                     </button>
                 </div>
             </div>

@@ -22,11 +22,16 @@ export default function MyPhotoAvatar({ name, isWorker }) {
     useEffect(() => {
         if (!enabled) return undefined;
         let live = true;
-        supabaseCore.rpc('my_photo', { p_session_token: getRoleSessionToken() }).then(({ data }) => {
-            if (live) setPhoto(data || null);
-        });
+        const load = () =>
+            supabaseCore.rpc('my_photo', { p_session_token: getRoleSessionToken() }).then(({ data }) => {
+                if (live) setPhoto(data || null);
+            });
+        load();
+        // The ID card can add the photo too — keep both in step.
+        window.addEventListener('akk:photo-changed', load);
         return () => {
             live = false;
+            window.removeEventListener('akk:photo-changed', load);
         };
     }, [enabled]);
 
@@ -46,6 +51,7 @@ export default function MyPhotoAvatar({ name, isWorker }) {
             const { error: e } = await supabaseCore.rpc('set_my_photo', { p_session_token: getRoleSessionToken(), p_photo: next });
             if (e) throw e;
             setPhoto(next);
+            window.dispatchEvent(new CustomEvent('akk:photo-changed'));
             setCropFile(null);
         } catch (e) {
             setError(e.message || 'Could not save the photo.');

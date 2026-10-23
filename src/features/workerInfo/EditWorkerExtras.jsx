@@ -11,7 +11,7 @@ import { Camera, IdCard, Loader2, Trash2 } from 'lucide-react';
 import DateInput from '@/ui/DateInput';
 import PhotoCropDialog from '@/ui/PhotoCropDialog';
 import { cn } from '@/ui/utils';
-import EmployeeIdCard from './EmployeeIdCard';
+import AdminCardView from '@/features/cards/AdminCardView';
 import { INFO_FIELDS, customFieldDefs, showField } from './fields';
 import { workerInfoAdmin } from './api';
 
@@ -42,6 +42,7 @@ export function EditDialogIdCard({ id, fallback = null }) {
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState('');
     const [cropFile, setCropFile] = useState(null);
+    const [cardKey, setCardKey] = useState(0);
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -64,6 +65,7 @@ export function EditDialogIdCard({ id, fallback = null }) {
         setCropFile(null);
         try {
             await workerInfoAdmin.setPhoto(id, next);
+            setCardKey((k) => k + 1); // the card reloads with the new photo
         } catch (e) {
             setPhoto(previous);
             setError(e.message || 'Could not save the photo.');
@@ -87,7 +89,7 @@ export function EditDialogIdCard({ id, fallback = null }) {
     return (
         <div className="flex flex-col items-center gap-3">
             <div className="w-full max-w-[440px]">
-                <EmployeeIdCard card={{ ...p, work_permit_no: p.info?.work_permit_no, photo: displayPhoto }} />
+                <AdminCardView key={cardKey} employeeId={id} actions={false} />
             </div>
             <div className="flex flex-wrap items-center justify-center gap-2">
                 <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onPick} />

@@ -287,7 +287,7 @@ export default function WorkerPortal() {
         const steps = [
             {
                 target: '[data-tour="worker-header"]',
-                content: 'Your name and employee ID. The bell shows new payslips, leave updates and announcements; tap your initials for account settings.',
+                content: 'Your name and employee ID. The bell shows new payslips, leave updates and announcements; tap your photo for account settings.',
                 disableBeacon: true,
             },
             {

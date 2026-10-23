@@ -18,6 +18,8 @@ import { listJsrs } from '@/modules/progress/lib/jsr';
 import { useHubSection } from '@/app/useHubSection';
 import { UNIFIED } from '@/core/supabase';
 
+// UNIFIED: Sites → Admin → Sites; worker app access → Admin → Employees.
+// Keep `users` for Site-work staff accounts (managers + admins); technicians stripped in UsersAccessPanel.
 const ADMIN_SECTIONS = UNIFIED
   ? ['packages', 'exports', 'jsr', 'managers', 'analytics', 'users', 'branding']
   : ['packages', 'exports', 'jsr', 'analytics', 'users', 'sites', 'branding'];
@@ -40,7 +42,7 @@ const SECTION_LABELS = {
   exports: 'Export queue',
   jsr: 'JSR & billing',
   analytics: 'Analytics',
-  users: 'Users & access',
+  users: UNIFIED ? 'Staff accounts' : 'Users & access',
   managers: 'Manager JSR access',
   sites: 'Sites',
   branding: 'Branding',
@@ -109,7 +111,7 @@ export default function AdminDashboard() {
       {
         label: 'People & admin',
         items: [
-          { id: 'users', label: 'Users & access', icon: Users },
+          { id: 'users', label: UNIFIED ? 'Staff accounts' : 'Users & access', icon: Users },
           { id: 'branding', label: 'Branding', icon: Palette },
         ],
       },
@@ -176,7 +178,7 @@ export default function AdminDashboard() {
             ...(!UNIFIED
               ? [{ id: 'sites', icon: MapPin, label: 'Sites', active: tab === 'sites', onClick: () => setTab('sites') }]
               : []),
-            { id: 'users', icon: Users, label: 'Users', active: tab === 'users', onClick: () => setTab('users') },
+            { id: 'users', icon: Users, label: UNIFIED ? 'Staff' : 'Users', active: tab === 'users', onClick: () => setTab('users') },
             { id: 'jsr', icon: FileText, label: 'JSR', active: tab === 'jsr', onClick: () => setTab('jsr') },
             { id: 'exports', icon: FileDown, label: 'Exports', active: tab === 'exports', onClick: () => setTab('exports') },
             { id: 'branding', icon: Palette, label: 'Brand', active: tab === 'branding', onClick: () => setTab('branding') },

@@ -35,6 +35,7 @@ import {
     Users,
     CalendarRange,
     IdCard,
+    ScanLine,
     Wallet,
 } from 'lucide-react';
 import { paths } from '@/app/paths';
@@ -45,6 +46,10 @@ import { sectionHref } from '@/app/useHubSection';
 function sec(path, section, sectionDefault = false) {
     return { to: sectionDefault ? path : sectionHref(path, section), path, section, sectionDefault };
 }
+
+/** Staff: scan an AKK ID card (verify, site check, clock in by card). One backend only. */
+const scanCardItem = { id: 'idscan', label: 'Scan ID card', icon: ScanLine, to: paths.cardScan };
+const scanCardItems = UNIFIED ? [scanCardItem] : [];
 
 const verifyItem = {
     id: 'verify',
@@ -141,7 +146,7 @@ export const NAV = {
                     { id: 'shifts', label: 'Site shifts', labelKey: 'hub.nav.siteShifts', icon: ClipboardCheck, to: paths.timesheet.siteShifts },
                 ],
             },
-            { label: 'More', labelKey: 'hub.nav.more', items: [verifyItem, accountItem] },
+            { label: 'More', labelKey: 'hub.nav.more', items: [...scanCardItems, verifyItem, accountItem] },
         ],
     },
 
@@ -191,6 +196,7 @@ export const NAV = {
                 label: 'Settings',
                 items: [
                     { id: 'pbranding', label: 'Branding', icon: Palette, ...sec(PR_REVIEW, 'branding') },
+                    ...scanCardItems,
                     verifyItem,
                     accountItem,
                 ],
@@ -284,6 +290,7 @@ export const NAV = {
                 label: 'Settings',
                 items: [
                     { id: 'pbranding', label: 'Branding', icon: Palette, ...sec(PR_ADMIN, 'branding') },
+                    ...scanCardItems,
                     verifyItem,
                     accountItem,
                 ],

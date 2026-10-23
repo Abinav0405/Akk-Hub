@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input } from '@/ui/input';
 import { Button } from '@/ui/button';
+import ScanCardButton from '@/features/cards/ScanCardButton';
 import { Textarea } from '@/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
 import { Badge } from '@/ui/badge';
@@ -426,6 +427,16 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
     const formBody = (
         <form onSubmit={handleSubmit} className="space-y-6">
             {/* Worker Info */}
+            {!workerFieldsLocked ? (
+                <div className="flex justify-end">
+                    <ScanCardButton
+                        onPick={({ employee_id, name }) => {
+                            handleInputChange('worker_id', employee_id);
+                            handleInputChange('worker_name', name);
+                        }}
+                    />
+                </div>
+            ) : null}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                     <label className="text-sm font-medium text-slate-700">Worker Name</label>

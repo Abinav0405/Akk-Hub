@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '@/ui/button';
 import { Banner } from '@/ui/hub/primitives';
 import { cn } from '@/ui/utils';
-import EmployeeIdCard from './EmployeeIdCard';
+import AdminCardView from '@/features/cards/AdminCardView';
 import {
     BASE_FIELDS, FIELD_BY_KEY, GROUPS, INFO_FIELDS, customFieldDefs, daysUntil, formatValue, labelOf, showField,
 } from './fields';
@@ -116,7 +116,6 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
         }
     };
     const declined = (p?.checks || []).find((c) => c.status === 'declined');
-    const card = p && { ...p, work_permit_no: p.info?.work_permit_no };
 
     return (
         <>
@@ -136,7 +135,7 @@ function WorkerProfileSheet({ id, open, onClose, directory, reloadDirectory }) {
                         {p ? (
                             <>
                                 <div className="grid gap-4 md:grid-cols-[minmax(0,440px)_1fr]">
-                                    <EmployeeIdCard card={card} />
+                                    <AdminCardView employeeId={p.employee_id} onChanged={reloadDirectory} />
                                     <div className="space-y-2">
                                         {p.missing?.length ? (
                                             <Banner tone="warning">

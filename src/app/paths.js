@@ -9,6 +9,8 @@ export const paths = {
     login: '/login',
     quickLogin: '/login/quick',
     verify: '/verify',
+    cardScan: '/card/scan',
+    idCheck: '/id',
     privacy: '/privacy',
     account: '/account',
     notifications: '/notifications',

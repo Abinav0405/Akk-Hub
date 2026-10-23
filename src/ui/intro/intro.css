@@ -1,7 +1,7 @@
 /*
  * AKK Hub app intro (ui/intro/AppIntro.jsx). App only: every rule is scoped to .akk-intro or to
  * the html.akk-intro-* classes the intro sets while it plays, so the website is never affected.
- * Motion = transform / opacity / clip-path (GPU); one short blur on the small logo tile.
+ * Motion = transform / opacity only (GPU). No blur/filter animation (janky on low-end Android).
  */
 
 .akk-intro {
@@ -32,14 +32,13 @@
   inset: 0;
   background: linear-gradient(165deg, #42091a 0%, #760f27 48%, #1f1119 100%);
   opacity: 0;
-  animation: akk-intro-fade 700ms var(--intro-ease) 60ms forwards;
+  animation: akk-intro-fade 480ms var(--intro-ease) 40ms forwards;
 }
 
 .akk-intro__glow {
   position: absolute;
   border-radius: 50%;
   opacity: 0;
-  will-change: transform, opacity;
 }
 .akk-intro__glow--rose {
   width: 120vmax;
@@ -49,8 +48,8 @@
   /* Soft brand wash — not a neon bloom */
   background: radial-gradient(closest-side, rgb(165 15 45 / 0.28), transparent 72%);
   animation:
-    akk-intro-fade 900ms var(--intro-ease) 120ms forwards,
-    akk-intro-drift-a 2600ms var(--intro-ease) 120ms both;
+    akk-intro-fade 600ms var(--intro-ease) 80ms forwards,
+    akk-intro-drift-a 1800ms var(--intro-ease) 80ms both;
 }
 .akk-intro__glow--bronze {
   width: 110vmax;
@@ -59,8 +58,8 @@
   top: -28vmax;
   background: radial-gradient(closest-side, rgb(168 101 30 / 0.22), transparent 72%);
   animation:
-    akk-intro-fade 900ms var(--intro-ease) 220ms forwards,
-    akk-intro-drift-b 2600ms var(--intro-ease) 220ms both;
+    akk-intro-fade 600ms var(--intro-ease) 140ms forwards,
+    akk-intro-drift-b 1800ms var(--intro-ease) 140ms both;
 }
 
 /* Soft light behind the logo that swells for the brand moment. */
@@ -74,8 +73,8 @@
   border-radius: 50%;
   background: radial-gradient(closest-side, rgb(255 220 225 / 0.16), transparent 72%);
   opacity: 0;
-  transform: scale(0.6);
-  animation: akk-intro-bloom 1500ms var(--intro-ease) 300ms forwards;
+  transform: scale(0.72);
+  animation: akk-intro-bloom 900ms var(--intro-ease) 160ms forwards;
 }
 
 /* ---- logo + name ---------------------------------------------------------------------------- */
@@ -99,26 +98,40 @@
 .akk-intro__name,
 .akk-intro__sub {
   transform-origin: 0 0;
-  transition: transform 560ms var(--intro-glide), opacity 420ms var(--intro-ease);
-  will-change: transform;
+  transition: transform 500ms var(--intro-glide), opacity 360ms var(--intro-ease);
 }
 
-/* Same proportions as the Home header tile (44 px · radius 13 · padding 4) at 112 px. */
+/* will-change only while the film plays; cleared via .akk-intro--settled */
+.akk-intro:not(.akk-intro--settled) .akk-intro__tile,
+.akk-intro:not(.akk-intro--settled) .akk-intro__name,
+.akk-intro:not(.akk-intro--settled) .akk-intro__sub,
+.akk-intro:not(.akk-intro--settled) .akk-intro__glow,
+.akk-intro:not(.akk-intro--settled) .akk-intro__bloom,
+.akk-intro:not(.akk-intro--settled) .akk-intro__tile-in,
+.akk-intro:not(.akk-intro--settled) .akk-intro__name-in,
+.akk-intro:not(.akk-intro--settled) .akk-intro__sub-in {
+  will-change: transform, opacity;
+}
+
+/* Same proportions as the Home header tile (44 px · radius 13 · padding 4) at 112 px.
+   White tile frames the Hub mark (logo asset has a white plate). */
 .akk-intro__tile-in {
   position: relative;
   width: 112px;
   height: 112px;
-  padding: 10px;
+  padding: 8px;
   border-radius: 33px;
   background: #fff;
   overflow: hidden;
+  /* Static shadow only — never animated (expensive on Android). */
   box-shadow:
-    0 24px 48px -22px rgb(0 0 0 / 0.75),
-    0 0 0 1px rgb(255 255 255 / 0.6) inset;
+    0 18px 36px -20px rgb(0 0 0 / 0.65),
+    0 0 0 1px rgb(255 255 255 / 0.55) inset;
   opacity: 0;
-  transform: scale(0.86);
-  filter: blur(10px);
-  animation: akk-intro-tile 640ms var(--intro-ease) 150ms forwards;
+  transform: scale(0.9);
+}
+.akk-intro__tile-in.is-ready {
+  animation: akk-intro-tile 420ms var(--intro-ease) 60ms forwards;
 }
 
 .akk-intro__logo {
@@ -129,14 +142,17 @@
   user-select: none;
 }
 
-/* One restrained light sweep across the tile. */
+/* One restrained light sweep across the tile (transform only). */
 .akk-intro__sweep {
   position: absolute;
   inset: -20%;
-  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.85) 50%, transparent 62%);
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.75) 50%, transparent 62%);
   mix-blend-mode: soft-light;
-  transform: translateX(-120%);
-  animation: akk-intro-sweep 760ms cubic-bezier(0.45, 0, 0.25, 1) 720ms forwards;
+  transform: translate3d(-120%, 0, 0);
+  opacity: 0;
+}
+.akk-intro__tile-in.is-ready .akk-intro__sweep {
+  animation: akk-intro-sweep 560ms cubic-bezier(0.45, 0, 0.25, 1) 380ms forwards;
 }
 
 .akk-intro__name {
@@ -165,13 +181,13 @@
 .akk-intro__sub-in {
   display: inline-block;
   opacity: 0;
-  transform: translate3d(0, 12px, 0);
+  transform: translate3d(0, 10px, 0);
 }
 .akk-intro__name-in {
-  animation: akk-intro-rise 560ms var(--intro-ease) 560ms forwards;
+  animation: akk-intro-rise 400ms var(--intro-ease) 280ms forwards;
 }
 .akk-intro__sub-in {
-  animation: akk-intro-rise 520ms var(--intro-ease) 780ms forwards;
+  animation: akk-intro-rise 380ms var(--intro-ease) 400ms forwards;
 }
 
 /* Only when start-up takes longer than the film: a quiet line under the name. */
@@ -184,7 +200,7 @@
   overflow: hidden;
   background: rgb(255 255 255 / 0.14);
   opacity: 0;
-  transition: opacity 400ms var(--intro-ease);
+  transition: opacity 320ms var(--intro-ease);
 }
 .akk-intro__loading::after {
   content: '';
@@ -211,27 +227,27 @@
    transforms from AppIntro), then the overlay dissolves onto the identical real header. */
 .akk-intro[data-exit='home'] .akk-intro__bg {
   clip-path: inset(0 0 var(--intro-clip-bottom) 0);
-  transition: clip-path 560ms var(--intro-glide);
+  transition: clip-path 500ms var(--intro-glide);
 }
 .akk-intro[data-exit='home'] {
-  animation: akk-intro-out 180ms linear 440ms forwards;
+  animation: akk-intro-out 160ms linear 380ms forwards;
 }
 .akk-intro[data-exit='home'] .akk-intro__bloom {
   opacity: 0;
-  transition: opacity 300ms var(--intro-ease);
+  transition: opacity 240ms var(--intro-ease);
 }
 
 /* Signed in: the curtain lifts away upwards, the lockup settles back as it goes. */
 .akk-intro[data-exit='lift'] .akk-intro__bg {
   clip-path: inset(0 0 100% 0);
-  transition: clip-path 600ms var(--intro-glide);
+  transition: clip-path 520ms var(--intro-glide);
 }
 .akk-intro[data-exit='lift'] .akk-intro__lockup {
   opacity: 0;
-  transform: translate3d(0, -28px, 0) scale(0.94);
+  transform: translate3d(0, -24px, 0) scale(0.96);
   transition:
-    transform 520ms var(--intro-glide),
-    opacity 360ms var(--intro-ease);
+    transform 460ms var(--intro-glide),
+    opacity 300ms var(--intro-ease);
 }
 
 .akk-intro[data-exit='fade'] {
@@ -251,22 +267,23 @@ html.akk-intro-on:not(.akk-intro-leaving) .hxa-in {
   to { opacity: 0; }
 }
 @keyframes akk-intro-drift-a {
-  from { transform: translate3d(-4vmax, -3vmax, 0) scale(0.92); }
+  from { transform: translate3d(-3vmax, -2vmax, 0) scale(0.94); }
   to { transform: translate3d(0, 0, 0) scale(1); }
 }
 @keyframes akk-intro-drift-b {
-  from { transform: translate3d(5vmax, 2vmax, 0) scale(0.94); }
+  from { transform: translate3d(4vmax, 1.5vmax, 0) scale(0.96); }
   to { transform: translate3d(0, 0, 0) scale(1); }
 }
 @keyframes akk-intro-bloom {
-  60% { opacity: 1; transform: scale(1); }
-  to { opacity: 0.85; transform: scale(1.04); }
+  55% { opacity: 1; transform: scale(1); }
+  to { opacity: 0.8; transform: scale(1.03); }
 }
 @keyframes akk-intro-tile {
-  to { opacity: 1; transform: scale(1); filter: blur(0); }
+  to { opacity: 1; transform: scale(1); }
 }
 @keyframes akk-intro-sweep {
-  to { transform: translateX(120%); }
+  from { opacity: 1; transform: translate3d(-120%, 0, 0); }
+  to { opacity: 1; transform: translate3d(120%, 0, 0); }
 }
 @keyframes akk-intro-rise {
   to { opacity: 1; transform: translate3d(0, 0, 0); }
@@ -288,5 +305,12 @@ html.akk-intro-on:not(.akk-intro-leaving) .hxa-in {
   .akk-intro__sweep,
   .akk-intro__loading::after {
     display: none;
+  }
+  .akk-intro__tile-in,
+  .akk-intro__name-in,
+  .akk-intro__sub-in,
+  .akk-intro__bg::before {
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
