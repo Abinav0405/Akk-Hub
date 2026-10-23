@@ -54,7 +54,12 @@ export const toMin = (t) => {
     const [h, m] = String(t || '0:0').split(':').map(Number);
     return h * 60 + m;
 };
-export const overlaps = (a, b) => toMin(a.start) < toMin(b.end) && toMin(b.start) < toMin(a.end);
+/** Minutes from midnight of the planned day; a shift ending N days later (night shift) adds N × 1440. */
+export const endMin = (t) => toMin(t.end) + (Number(t.endPlus) || 0) * 1440;
+export const overlaps = (a, b) => toMin(a.start) < endMin(b) && toMin(b.start) < endMin(a);
+
+/** "+1 day" style suffix for a shift that ends after midnight. */
+export const endSuffix = (n) => (Number(n) > 0 ? ` (+${Number(n)} day${Number(n) === 1 ? '' : 's'})` : '');
 
 export function directionsUrl(lat, lng) {
     if (lat == null || lng == null) return null;

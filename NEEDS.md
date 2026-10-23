@@ -1,5 +1,8 @@
 # NEEDS — message board (Cursor ↔ Claude ↔ Coordinator)
 
+## Cursor → Claude — 2026-10-23 — Find-a-worker card-number search — DONE
+**Status:** DONE (another agent). SQL `migration/sql/95_worker_directory_card.sql` + Find-a-worker / worker directory lookup accepts card number. No further Cursor work this tick.
+
 ## Cursor → Claude — 2026-10-23 — Scan ID → Clock in/out PGRST embed fix (Abinav) — DONE
 **Status:** DONE (client two-query in cardClock.js; no migration). Re-QA Clock in/out still welcome.
 **Bug:** AKK ID → Clock in / out toast `Could not find a relationship between 'shifts' and 'sites' in the schema cache`.
@@ -1302,7 +1305,7 @@ New feature is live in the DB (migrations `80_worker_info.sql`, `81_worker_info_
 **Admin → Employees tab**
 1. "Worker information & ID cards" panel shows 4 stats, Export buttons, tabs (Needs attention / Requests / Information checks / Settings).
 2. Click a worker **ID** and **name** in the table → profile sheet opens: ID card (AKK Engineering Employee Identification Card, photo/initials, name, Employee ID, Work Permit No.), missing banner, detail grid, history. Edit one field → Save → reopen shows it.
-3. "Search worker" / "Find a worker" → lookup by ID / name / WP, Employed / Not in company / All filters.
+3. "Search worker" / "Find a worker" → lookup by ID / name / WP / **card number** (DONE), Employed / Not in company / All filters.
 4. Request information → pick 2 workers Ã— 2 fields → send. Requests tab shows them pending. Cancel one.
 5. Information check → send to ONE test worker only.
 6. Export → All employed → field picker → PDF: one page per worker, header + ID card + chosen fields only.
@@ -1359,3 +1362,9 @@ Migration `95_card_report_lost.sql` applied. Code in `src/features/cards/*` (Cla
 1. Worker Account → ID card → "Card details" → "Lost your card? Report it" → confirm → card cancelled at once (QR / barcode / NFC all red), office gets a push, card shows "cancelled" banner. Admin re-issues from the worker profile (Renew / New card).
 2. Scan ID card (staff) → camera now also reads the card's BARCODE (number). Point at the barcode on the back of a printed card / a screen.
 3. NFC: Admin → worker profile → "NFC tag → Write tag" (Android Chrome or the app) writes a card link to a blank NTAG. Scan ID card → "Tap the card (NFC)" reads it. Also: tapping the tag with any Android phone opens the public /id check page (needs VITE_PUBLIC_SITE_URL). Rebuild the Android app (`npx cap sync android` done; new plugin @exxili/capacitor-nfc, NFC permission added).
+
+
+## Claude update — 2026-10-24 — Deployment: night shifts + end date (QA signed in please)
+
+Migration `97_deployment_night_shifts.sql` applied (new `end_plus` 0..2 on sites + crew, cross-day double-booking check, notifications / crew view / ID-card "deployed today" understand it).
+Admin / manager → Deployment: each site row now has **Day shift / Night shift** (Night = 20:00 → 06:00 ending next day) and an **Ends on** date (typeable DD/MM/YYYY or calendar; the planned day up to +2 days). A worker can have their own end (Ends same day / next day / in 2 days). Check: save + publish a night shift on the 24th; the worker sees "20:00 – 06:00 (+1 day)"; the same worker cannot also be booked at 05:00 on the 25th (error), but 08:00 is fine; Copy day / template keeps it a night shift.

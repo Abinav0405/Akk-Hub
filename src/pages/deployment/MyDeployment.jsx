@@ -8,7 +8,7 @@ import { Car, ChevronRight, Clock, MapPin, Navigation, Star, Users } from 'lucid
 import { HubPage } from '@/ui/PortalShell';
 import { Banner, EmptyState, Spinner } from '@/ui/hub/primitives';
 import { UNIFIED } from '@/core/supabase';
-import { dayLabel, deploymentApi, directionsUrl } from '@/core/deployment';
+import { dayLabel, deploymentApi, directionsUrl, endSuffix } from '@/core/deployment';
 import { paths } from '@/app/paths';
 import { cn } from '@/ui/utils';
 
@@ -45,7 +45,7 @@ function DayItems({ day, compact = false }) {
                                 </p>
                                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-700">
                                     <Clock className="h-4 w-4 shrink-0 text-slate-400" aria-hidden />
-                                    {it.start} – {it.end}
+                                    {it.start} – {it.end}{endSuffix(it.end_plus)}
                                 </p>
                             </div>
                             {dir ? (
@@ -144,7 +144,7 @@ export default function MyDeployment() {
                         {past.map((d) => (
                             <li key={d.day} className="flex justify-between gap-3 px-4 py-3 text-sm">
                                 <span className="text-slate-500">{dayLabel(d.day)}</span>
-                                <span className="truncate text-right">{d.items.map((i) => `${i.place} ${i.start}–${i.end}`).join(', ')}</span>
+                                <span className="truncate text-right">{d.items.map((i) => `${i.place} ${i.start}–${i.end}${endSuffix(i.end_plus)}`).join(', ')}</span>
                             </li>
                         ))}
                     </ul>

@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { CheckCircle2, Circle, MapPin } from 'lucide-react';
 import { HubPage } from '@/ui/PortalShell';
 import { Banner, EmptyState, Spinner } from '@/ui/hub/primitives';
-import { addDays, dayLabel, deploymentApi, iso } from '@/core/deployment';
+import { addDays, dayLabel, deploymentApi, endSuffix, iso } from '@/core/deployment';
 import { paths } from '@/app/paths';
 
 export default function SiteCrew() {
@@ -52,7 +52,7 @@ export default function SiteCrew() {
                     <section key={i} className="g-card g-card--pad">
                         <h2 className="font-semibold">{s.place}</h2>
                         <p className="text-sm text-slate-500">
-                            {s.start}–{s.end}
+                            {s.start}–{s.end}{endSuffix(s.end_plus)}
                             {s.lead ? ` · lead ${s.lead}` : ''}
                         </p>
                         {s.notes ? <p className="mt-1 text-sm">{s.notes}</p> : null}
@@ -61,7 +61,7 @@ export default function SiteCrew() {
                                 <li key={c.employee_id} className="flex items-center justify-between gap-2 py-2 text-sm">
                                     <span className="min-w-0 truncate">
                                         {c.name} <span className="text-slate-400">{c.employee_id}</span>
-                                        {c.start !== s.start || c.end !== s.end ? <span className="text-slate-500"> · {c.start}–{c.end}</span> : null}
+                                        {c.start !== s.start || c.end !== s.end || c.end_plus !== s.end_plus ? <span className="text-slate-500"> · {c.start}–{c.end}{endSuffix(c.end_plus)}</span> : null}
                                     </span>
                                     {c.clocked_in ? (
                                         <span className="flex shrink-0 items-center gap-1 text-emerald-700">

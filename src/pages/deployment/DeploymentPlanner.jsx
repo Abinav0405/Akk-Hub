@@ -8,8 +8,8 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-    AlertTriangle, CalendarDays, Car, Check, ChevronLeft, ChevronRight, Copy, Eye, Loader2, MapPin, Plus, Save, Search,
-    Send, Trash2, UserPlus, Users, X,
+    AlertTriangle, CalendarDays, Car, Check, ChevronLeft, ChevronRight, Copy, Eye, Loader2, MapPin, Moon, Plus, Save, Search,
+    Send, Sun, Trash2, UserPlus, Users, X,
 } from 'lucide-react';
 import { HubPage } from '@/ui/PortalShell';
 import { Banner, EmptyState, Spinner } from '@/ui/hub/primitives';
@@ -17,7 +17,9 @@ import { Button } from '@/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { UNIFIED } from '@/core/supabase';
-import { addDays, dayLabel, deploymentApi, iso, mondayOf, overlaps } from '@/core/deployment';
+import { addDays, dayLabel, deploymentApi, endSuffix, iso, mondayOf, overlaps, parseDay } from '@/core/deployment';
+import DateInput from '@/ui/DateInput';
+import { toast } from 'sonner';
 import { useIdentity, homePathFor } from '@/core/auth/identity';
 import { cn } from '@/ui/utils';
 
@@ -28,6 +30,7 @@ const emptySite = (place) => ({
     place_id: place?.id || '',
     start_time: '08:00',
     end_time: '17:00',
+    end_plus: 0,
     team_lead: '',
     vehicle_id: '',
     driver_id: '',
@@ -44,6 +47,7 @@ function fromServerDay(day) {
             place_id: s.place_id,
             start_time: s.start_time,
             end_time: s.end_time,
+            end_plus: Number(s.end_plus) || 0,
             team_lead: s.team_lead || '',
             vehicle_id: s.vehicle_id || '',
             driver_id: s.driver_id || '',
@@ -53,6 +57,7 @@ function fromServerDay(day) {
                 employee_id: c.employee_id,
                 start_time: c.start_time,
                 end_time: c.end_time,
+                end_plus: Number(c.end_plus) || 0,
                 leave_override: c.leave_override,
                 seen_at: c.seen_at,
             })),
@@ -67,6 +72,7 @@ function toPayload(draft) {
             place_id: s.place_id,
             start_time: s.start_time,
             end_time: s.end_time,
+            end_plus: s.end_plus || 0,
             team_lead: s.team_lead,
             vehicle_id: s.vehicle_id,
             driver_id: s.driver_id,
@@ -74,16 +80,20 @@ function toPayload(draft) {
             notes: s.notes,
             crew: s.crew.map((c) => ({
                 employee_id: c.employee_id,
-                start_time: c.start_time !== s.start_time || c.end_time !== s.end_time ? c.start_time : null,
-                end_time: c.start_time !== s.start_time || c.end_time !== s.end_time ? c.end_time : null,
+                start_time: ownTimes(s, c) ? c.start_time : null,
+                end_time: ownTimes(s, c) ? c.end_time : null,
+                end_plus: ownTimes(s, c) ? c.end_plus || 0 : null,
                 leave_override: Boolean(c.leave_override),
             })),
         })),
     };
 }
 
+/** A crew member with times of their own (not the site's). */
+const ownTimes = (s, c) => c.start_time !== s.start_time || c.end_time !== s.end_time || (c.end_plus || 0) !== (s.end_plus || 0);
+
 /** Effective times of a crew member (custom or the site's). */
-const span = (site, c) => ({ start: c.start_time || site.start_time, end: c.end_time || site.end_time });
+const span = (site, c) => ({ start: c.start_time || site.start_time, end: c.end_time || site.end_time, endPlus: c.end_plus ?? site.end_plus ?? 0 });
 
 function statusOf(day) {
     if (!day) return { label: 'Not planned', tone: 'none' };
@@ -179,13 +189,15 @@ export default function DeploymentPlanner() {
             const s = d.sites.find((x) => x.key === key);
             const oldStart = s.start_time;
             const oldEnd = s.end_time;
+            const oldPlus = s.end_plus || 0;
             Object.assign(s, patch);
             // Crew following the site's times move with it.
-            if (patch.start_time || patch.end_time) {
+            if (patch.start_time || patch.end_time || patch.end_plus !== undefined) {
                 s.crew.forEach((c) => {
-                    if (c.start_time === oldStart && c.end_time === oldEnd) {
+                    if (c.start_time === oldStart && c.end_time === oldEnd && (c.end_plus || 0) === oldPlus) {
                         c.start_time = s.start_time;
                         c.end_time = s.end_time;
+                        c.end_plus = s.end_plus || 0;
                     }
                 });
             }
@@ -200,7 +212,7 @@ export default function DeploymentPlanner() {
         draft.sites.forEach((s) => {
             const place = placeById[s.place_id];
             if (!s.place_id) out.push({ level: 'block', text: 'A site row has no site chosen.' });
-            if (s.end_time <= s.start_time) out.push({ level: 'block', text: `${place?.name || 'A site'}: end time must be after start time.` });
+            if (!s.end_plus && s.end_time <= s.start_time) out.push({ level: 'block', text: `${place?.name || 'A site'}: the end is before the start — choose Night shift, or set the end date to the next day.` });
             if (place && !place.has_location) out.push({ level: 'warn', text: `${place.name} has no location set (no Directions for workers).` });
             if (!s.crew.length) out.push({ level: 'warn', text: `${place?.name || 'A site'} has nobody assigned.` });
             s.crew.forEach((c) => {
@@ -437,6 +449,7 @@ export default function DeploymentPlanner() {
                                 vehicles={board.vehicles}
                                 workerName={workerName}
                                 readOnly={pastDay}
+                                day={selected}
                                 onChange={(patch) => updateSite(s.key, patch)}
                                 onRemove={() => update((d) => ({ ...d, sites: d.sites.filter((x) => x.key !== s.key) }))}
                                 onAdd={() => setPicker(s.key)}
@@ -530,7 +543,7 @@ export default function DeploymentPlanner() {
                         const s = d.sites.find((x) => x.key === picker);
                         const have = new Set(s.crew.map((c) => c.employee_id));
                         ids.filter((id) => !have.has(id)).forEach((id) =>
-                            s.crew.push({ employee_id: id, start_time: s.start_time, end_time: s.end_time, leave_override: false }),
+                            s.crew.push({ employee_id: id, start_time: s.start_time, end_time: s.end_time, end_plus: s.end_plus || 0, leave_override: false }),
                         );
                         return d;
                     });
@@ -554,8 +567,23 @@ export default function DeploymentPlanner() {
     );
 }
 
-function SiteCard({ site, places, vehicles, workerName, readOnly, onChange, onRemove, onAdd, onCrew }) {
+function SiteCard({ site, places, vehicles, workerName, readOnly, day, onChange, onRemove, onAdd, onCrew }) {
     const [editing, setEditing] = useState(null);
+    const night = (site.end_plus || 0) > 0;
+    const endDate = addDays(day, site.end_plus || 0);
+    const setShift = (kind) => {
+        if (kind === 'night' && !night) onChange({ start_time: '20:00', end_time: '06:00', end_plus: 1 });
+        if (kind === 'day' && night) onChange({ start_time: '08:00', end_time: '17:00', end_plus: 0 });
+    };
+    const setEndDate = (value) => {
+        if (!value) return;
+        const diff = Math.round((parseDay(value) - parseDay(day)) / 864e5);
+        if (diff < 0 || diff > 2) {
+            toast.error('A shift can end on the planned day, or up to 2 days after it.');
+            return;
+        }
+        onChange({ end_plus: diff });
+    };
     return (
         <section className="rounded-2xl border border-[var(--g-hairline)] bg-white p-3 sm:p-4">
             <div className="flex flex-wrap items-end gap-2">
@@ -585,9 +613,38 @@ function SiteCard({ site, places, vehicles, workerName, readOnly, onChange, onRe
                 ) : null}
             </div>
 
+            <div className="mt-2 flex flex-wrap items-end gap-3">
+                <div role="radiogroup" aria-label="Shift type" className="inline-flex rounded-xl bg-slate-100 p-1">
+                    {[
+                        ['day', 'Day shift', Sun],
+                        ['night', 'Night shift', Moon],
+                    ].map(([k, l, Icon]) => (
+                        <button
+                            key={k}
+                            type="button"
+                            role="radio"
+                            aria-checked={(k === 'night') === night}
+                            disabled={readOnly}
+                            onClick={() => setShift(k)}
+                            className={cn('flex min-h-9 items-center gap-1.5 rounded-lg px-3 text-sm font-semibold', (k === 'night') === night ? 'bg-white text-[var(--g-brand-text)] shadow-sm' : 'text-slate-600')}
+                        >
+                            <Icon className="h-4 w-4" /> {l}
+                        </button>
+                    ))}
+                </div>
+                <label className="w-[11rem]">
+                    <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Ends on</span>
+                    <DateInput value={endDate} onChange={setEndDate} disabled={readOnly} inputClassName="!h-10 !rounded-lg !text-sm" aria-label="Shift end date" />
+                </label>
+                <p className="pb-2 text-xs text-slate-500">
+                    {dayLabel(day)} {site.start_time} → {dayLabel(endDate)} {site.end_time}
+                    {night ? ' · ends after midnight' : ''}
+                </p>
+            </div>
+
             <div className="mt-3 flex flex-wrap gap-1.5">
                 {site.crew.map((c) => {
-                    const custom = c.start_time !== site.start_time || c.end_time !== site.end_time;
+                    const custom = ownTimes(site, c);
                     return (
                         <span
                             key={c.employee_id}
@@ -599,7 +656,7 @@ function SiteCard({ site, places, vehicles, workerName, readOnly, onChange, onRe
                             {c.seen_at ? <Eye className="h-3.5 w-3.5 text-emerald-600" aria-label="Seen" /> : null}
                             <button type="button" className="truncate text-left" disabled={readOnly} onClick={() => setEditing(c.employee_id)}>
                                 {workerName(c.employee_id)}
-                                {custom ? <span className="ml-1 text-xs text-slate-500">{c.start_time}–{c.end_time}</span> : null}
+                                {custom ? <span className="ml-1 text-xs text-slate-500">{c.start_time}–{c.end_time}{(c.end_plus || 0) > 0 ? ` (+${c.end_plus})` : ''}</span> : null}
                                 {c.employee_id === site.team_lead ? <span className="ml-1 text-xs font-semibold text-[var(--g-brand-text)]">lead</span> : null}
                                 {c.employee_id === site.driver_id ? <Car className="ml-1 inline h-3.5 w-3.5" aria-label="driver" /> : null}
                             </button>
@@ -630,7 +687,17 @@ function SiteCard({ site, places, vehicles, workerName, readOnly, onChange, onRe
                             onChange={(e) => onCrew((crew) => crew.map((c) => (c.employee_id === editing ? { ...c, [k]: e.target.value } : c)))}
                         />
                     ))}
-                    <Button type="button" size="sm" variant="outline" onClick={() => onCrew((crew) => crew.map((c) => (c.employee_id === editing ? { ...c, start_time: site.start_time, end_time: site.end_time } : c)))}>
+                    <select
+                        className={cn(field, 'w-[9rem]')}
+                        aria-label="Ends"
+                        value={site.crew.find((c) => c.employee_id === editing)?.end_plus || 0}
+                        onChange={(e) => onCrew((crew) => crew.map((c) => (c.employee_id === editing ? { ...c, end_plus: Number(e.target.value) } : c)))}
+                    >
+                        <option value={0}>Ends same day</option>
+                        <option value={1}>Ends next day</option>
+                        <option value={2}>Ends in 2 days</option>
+                    </select>
+                    <Button type="button" size="sm" variant="outline" onClick={() => onCrew((crew) => crew.map((c) => (c.employee_id === editing ? { ...c, start_time: site.start_time, end_time: site.end_time, end_plus: site.end_plus || 0 } : c)))}>
                         Same as site
                     </Button>
                     <Button type="button" size="sm" onClick={() => setEditing(null)}>
@@ -697,7 +764,7 @@ function CrewPicker({ open, site, sites, places, workers, onLeave, onClose, onDo
         }
     }, [open]);
     if (!site) return null;
-    const mine = { start: site.start_time, end: site.end_time };
+    const mine = { start: site.start_time, end: site.end_time, endPlus: site.end_plus || 0 };
     const elsewhere = (id) =>
         sites
             .filter((s) => s.key !== site.key)
@@ -713,6 +780,7 @@ function CrewPicker({ open, site, sites, places, workers, onLeave, onClose, onDo
                     <DialogTitle>Add workers</DialogTitle>
                     <DialogDescription>
                         {places[site.place_id]?.name || 'Site'} · {site.start_time}–{site.end_time}
+                        {endSuffix(site.end_plus)}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="relative">
@@ -740,7 +808,7 @@ function CrewPicker({ open, site, sites, places, workers, onLeave, onClose, onDo
                                         <span className="block truncate text-xs text-slate-500">
                                             {w.employee_id}
                                             {w.designation ? ` · ${w.designation}` : ''}
-                                            {other.length ? ` · also ${other.map((o) => `${o.place} ${o.t.start}–${o.t.end}`).join(', ')}` : ''}
+                                            {other.length ? ` · also ${other.map((o) => `${o.place} ${o.t.start}–${o.t.end}${endSuffix(o.t.endPlus)}`).join(', ')}` : ''}
                                         </span>
                                     </span>
                                     {leave ? <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">On leave</span> : null}
