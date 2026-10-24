@@ -1,5 +1,5 @@
 import { supabaseTimesheet as supabase } from '@/core/supabase';
-import { getLocalWorkerIds } from '@/core/localWorkers';
+import { getLocalWorkerIdsSafe } from '@/core/localWorkers';
 import { storageKey } from '@/core/storage';
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -136,28 +136,28 @@ export default function SupervisorDashboard() {
 
             log.info(`Total shifts in database for this site (past 35 days): ${totalCount}`);
 
-            // Fetch all local worker IDs to exclude them from supervisor dashboard
-            const localWorkerIds = [...(await getLocalWorkerIds())];
-            log.info(`Excluding ${localWorkerIds.length} local workers from supervisor dashboard`);
+            // Soft-fail: missing role token must not blank the site shift list.
+            const localWorkerIds = await getLocalWorkerIdsSafe();
+            log.info(`Excluding ${localWorkerIds.size} local workers from supervisor dashboard`);
 
-            // Fetch all shifts in batches to overcome Supabase's 1000 row default limit
             const allShifts = [];
             let hasMore = true;
             let offset = 0;
             const batchSize = 1000;
             let batchCount = 0;
-            
+
             while (hasMore) {
                 batchCount++;
                 log.debug(`Supervisor: Fetching batch ${batchCount}: offset ${offset}, batchSize ${batchSize}`);
-                
+
+                // Fresh builder each batch (PostgREST query objects mutate in place).
                 const { data, error } = await supabase
                     .from('shifts')
                     .select('*')
-                    .eq('site_id', supervisorSiteId) // Only fetch shifts for supervisor's site
-                    .is('leave_type', null) // Exclude leave shifts from time tracker
-                    .gte('work_date', dateLimit) // Only past 35 days
-                    .lte('work_date', todayDateStr) // No future dates
+                    .eq('site_id', supervisorSiteId)
+                    .is('leave_type', null)
+                    .gte('work_date', dateLimit)
+                    .lte('work_date', todayDateStr)
                     .order('work_date', { ascending: false })
                     .order('entry_time', { ascending: false })
                     .order('created_at', { ascending: false })
@@ -174,14 +174,14 @@ export default function SupervisorDashboard() {
                     log.debug(`Batch ${batchCount} returned 0 records, stopping pagination`);
                     hasMore = false;
                 } else {
-                    // Filter out local workers
-                    const filteredData = localWorkerIds.length > 0 
-                        ? data.filter(shift => !localWorkerIds.includes(shift.worker_id))
-                        : data;
-                    
+                    const filteredData =
+                        localWorkerIds.size > 0
+                            ? data.filter((shift) => !localWorkerIds.has(String(shift.worker_id ?? '').trim()))
+                            : data;
+
                     allShifts.push(...filteredData);
                     log.debug(`Total shifts collected so far: ${allShifts.length} (after filtering local workers)`);
-                    
+
                     if (data.length < batchSize) {
                         log.debug(`Batch ${batchCount} returned fewer than ${batchSize} records, this is the last batch`);
                         hasMore = false;
@@ -249,8 +249,8 @@ export default function SupervisorDashboard() {
                 // Merge data into shifts
                 const shiftsWithData = allShifts.map(shift => ({
                     ...shift,
-                    workers: workers?.find(w => w.employee_id === shift.worker_id) || null,
-                    sites: sites?.find(s => s.id === shift.site_id) || null,
+                    workers: workers?.find((w) => String(w.employee_id).trim() === String(shift.worker_id ?? '').trim()) || null,
+                    sites: sites?.find((s) => String(s.id) === String(shift.site_id ?? '')) || null,
                     breaks: breaksByShiftId[shift.id] || []
                 }));
 

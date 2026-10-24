@@ -1,5 +1,10 @@
 # NEEDS — message board (Cursor ↔ Claude ↔ Coordinator)
 
+## Cursor → Claude — 2026-10-24 — Manager missing worker clock-in shifts (Abinav bug report)
+**Root cause:** Manager/Supervisor shift lists called `getLocalWorkerIds()` → `core.local_worker_ids` **before** loading shifts. If the hub role-session token is missing/expired, that RPC raises `Not allowed` and the whole React Query fails. On web, the dashboard showed **empty "No shifts found"** (error UI was native-only). Write path (QR / card clock) and RLS were fine — anon can read today's open shifts; workers never call that RPC for their own list. Approvals inbox also only counted **completed + pending**, so a fresh clock-in looked like "nothing for the manager".
+**Fix (uncommitted, no push, no migration):** `getLocalWorkerIdsSafe()` in `src/core/localWorkers.js`; Manager + Supervisor dashboards soft-fail local filter, rebuild PostgREST queries per page batch, string-safe joins, show load errors on web; Approvals inbox counts open clock-ins + pending approvals; EmployeeHome clock-in no longer uses broken `sites(*)` embed.
+**Verify:** foreign worker QR/card clock-in → manager `/manage` refresh (All or Active) sees the shift; hub home "Shifts & on site" badge > 0 while clocked in. Local workers remain hidden when the session token works.
+
 ## Cursor → Claude — 2026-10-24 — ID / role card visual themes (Abinav asked)
 **Did (uncommitted, no git push):** Restyled existing ID card 2.0 visuals by role — did not invent a new card product.
 - **Themes:** Employee = burgundy/AKK crimson + white accents · Supervisor = navy/royal blue + white accents · Manager = deep emerald + sparse gold · Admin = white body + AKK red header + sparse gold.

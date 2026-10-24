@@ -1,5 +1,5 @@
 import { supabaseTimesheet as supabase } from '@/core/supabase';
-import { getLocalWorkerIds } from '@/core/localWorkers';
+import { getLocalWorkerIds, getLocalWorkerIdsSafe } from '@/core/localWorkers';
 import { storageKey } from '@/core/storage';
 import React, { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -220,45 +220,43 @@ export default function ManagerDashboard() {
         queryFn: async () => {
             const todayDateStr = getTodaySingapore();
 
-            let baseQuery = supabase
-                .from('shifts')
-                .select('*')
-                .is('leave_type', null);
+            // Never block the whole list on local_worker_ids (expired/missing token used to
+            // throw → empty "No shifts" on web with no error). Soft-fail keeps foreign shifts visible.
+            const localWorkerIds = await getLocalWorkerIdsSafe();
 
-            if (dateFilter === 'month') {
-                let year;
-                let month;
-                if (selectedMonth) {
-                    [year, month] = selectedMonth.split('-');
-                } else {
-                    year = todayDateStr.slice(0, 4);
-                    month = todayDateStr.slice(5, 7);
+            const applyDateRange = (q) => {
+                if (dateFilter === 'month') {
+                    let year;
+                    let month;
+                    if (selectedMonth) {
+                        [year, month] = selectedMonth.split('-');
+                    } else {
+                        year = todayDateStr.slice(0, 4);
+                        month = todayDateStr.slice(5, 7);
+                    }
+                    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                    const endDate = ymdEndOfMonth(year, month);
+                    return q.gte('work_date', startDate).lte('work_date', endDate);
                 }
-                const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-                const endDate = ymdEndOfMonth(year, month);
-                baseQuery = baseQuery.gte('work_date', startDate).lte('work_date', endDate);
-            } else if (dateFilter === 'year') {
-                const year = selectedYear || todayDateStr.slice(0, 4);
-                baseQuery = baseQuery
-                    .gte('work_date', `${year}-01-01`)
-                    .lte('work_date', `${year}-12-31`);
-            } else {
+                if (dateFilter === 'year') {
+                    const year = selectedYear || todayDateStr.slice(0, 4);
+                    return q.gte('work_date', `${year}-01-01`).lte('work_date', `${year}-12-31`);
+                }
                 const dateLimit = addDaysToYmd(todayDateStr, -35);
-                baseQuery = baseQuery.gte('work_date', dateLimit).lte('work_date', todayDateStr);
-            }
+                return q.gte('work_date', dateLimit).lte('work_date', todayDateStr);
+            };
 
-            // Fetch all local worker IDs to exclude them from manager dashboard
-            const localWorkerIds = [...(await getLocalWorkerIds())];
-            // Fetch all shifts in batches to overcome Supabase's 1000 row default limit
+            // Fresh builder each batch — reusing one PostgREST query mutates shared state.
             const allShifts = [];
             let hasMore = true;
             let offset = 0;
             const batchSize = 1000;
-            let batchCount = 0;
-            
+
             while (hasMore) {
-                batchCount++;
-                const { data, error } = await baseQuery
+                let q = applyDateRange(
+                    supabase.from('shifts').select('*').is('leave_type', null),
+                );
+                const { data, error } = await q
                     .order('work_date', { ascending: false })
                     .order('entry_time', { ascending: false })
                     .order('created_at', { ascending: false })
@@ -272,11 +270,10 @@ export default function ManagerDashboard() {
                 if (!data || data.length === 0) {
                     hasMore = false;
                 } else {
-                    // Filter out local workers
-                    const filteredData = localWorkerIds.length > 0 
-                        ? data.filter(shift => !localWorkerIds.includes(shift.worker_id))
-                        : data;
-                    
+                    const filteredData =
+                        localWorkerIds.size > 0
+                            ? data.filter((shift) => !localWorkerIds.has(String(shift.worker_id ?? '').trim()))
+                            : data;
                     allShifts.push(...filteredData);
                     if (data.length < batchSize) {
                         hasMore = false;
@@ -287,25 +284,25 @@ export default function ManagerDashboard() {
 
             // Fetch related data
             if (allShifts && allShifts.length > 0) {
-                const siteIds = [...new Set(allShifts.map(shift => shift.site_id))];
-                const workerIds = [...new Set(allShifts.map(shift => shift.worker_id))];
-                const shiftIds = allShifts.map(shift => shift.id);
+                const siteIds = [...new Set(allShifts.map((shift) => shift.site_id).filter(Boolean))];
+                const workerIds = [...new Set(allShifts.map((shift) => shift.worker_id).filter(Boolean))];
+                const shiftIds = allShifts.map((shift) => shift.id);
 
-                // Fetch sites
-                const { data: sites } = await supabase
-                    .from('sites')
-                    .select('id, site_name')
-                    .in('id', siteIds);
+                const [{ data: sites }, { data: workers }] = await Promise.all([
+                    siteIds.length
+                        ? supabase.from('sites').select('id, site_name').in('id', siteIds)
+                        : Promise.resolve({ data: [] }),
+                    workerIds.length
+                        ? supabase.from('worker_details').select('employee_id, employee_name').in('employee_id', workerIds)
+                        : Promise.resolve({ data: [] }),
+                ]);
 
-                // Fetch workers
-                const { data: workers } = await supabase
-                    .from('worker_details')
-                    .select('employee_id, employee_name')
-                    .in('employee_id', workerIds);
+                const siteById = new Map((sites || []).map((s) => [String(s.id), s]));
+                const workerById = new Map((workers || []).map((w) => [String(w.employee_id).trim(), w]));
 
                 // Fetch breaks for all shifts (same as AdminDashboard)
                 const allBreaks = [];
-                const fetchBatchSize = 100; // Process 100 shift IDs at a time
+                const fetchBatchSize = 100;
 
                 for (let i = 0; i < shiftIds.length; i += fetchBatchSize) {
                     const batch = shiftIds.slice(i, i + fetchBatchSize);
@@ -317,7 +314,7 @@ export default function ManagerDashboard() {
 
                     if (batchError) {
                         console.error('❌ Breaks batch fetch error:', batchError);
-                        continue; // Continue with next batch even if one fails
+                        continue;
                     }
 
                     if (batchBreaks) {
@@ -325,24 +322,18 @@ export default function ManagerDashboard() {
                     }
                 }
 
-                // Group breaks by shift_id
                 const breaksByShiftId = {};
-                if (allBreaks) {
-                    allBreaks.forEach(breakItem => {
-                        if (!breaksByShiftId[breakItem.shift_id]) breaksByShiftId[breakItem.shift_id] = [];
-                        breaksByShiftId[breakItem.shift_id].push(breakItem);
-                    });
-                }
+                allBreaks.forEach((breakItem) => {
+                    if (!breaksByShiftId[breakItem.shift_id]) breaksByShiftId[breakItem.shift_id] = [];
+                    breaksByShiftId[breakItem.shift_id].push(breakItem);
+                });
 
-                // Merge data into shifts
-                const shiftsWithData = allShifts.map(shift => ({
+                return allShifts.map((shift) => ({
                     ...shift,
-                    workers: workers?.find(w => w.employee_id === shift.worker_id) || null,
-                    sites: sites?.find(s => s.id === shift.site_id) || null,
-                    breaks: breaksByShiftId[shift.id] || []
+                    workers: workerById.get(String(shift.worker_id ?? '').trim()) || null,
+                    sites: shift.site_id != null ? siteById.get(String(shift.site_id)) || null : null,
+                    breaks: breaksByShiftId[shift.id] || [],
                 }));
-
-                return shiftsWithData;
             }
 
             return allShifts || [];
@@ -1718,19 +1709,28 @@ export default function ManagerDashboard() {
                         </div>
                     </div>
 
-                    {NATIVE_APP && isLoading ? (
-                        <NativeListSkeleton rows={3} label="Loading shifts" />
-                    ) : NATIVE_APP && isShiftsError && !shifts.length ? (
-                        <NativeErrorState error={shiftsError} onRetry={() => refetch()} retrying={isRefetchingShifts} className="shadow-none" />
-                    ) : isLoading ? (
-                        <div className="flex items-center justify-center py-16">
-                            <Loader2 className="h-7 w-7 animate-spin text-[var(--g-brand)]" />
-                        </div>
+                    {isLoading ? (
+                        NATIVE_APP ? (
+                            <NativeListSkeleton rows={3} label="Loading shifts" />
+                        ) : (
+                            <div className="flex items-center justify-center py-16">
+                                <Loader2 className="h-7 w-7 animate-spin text-[var(--g-brand)]" />
+                            </div>
+                        )
+                    ) : isShiftsError && !shifts.length ? (
+                        <NativeErrorState
+                            error={shiftsError}
+                            onRetry={() => refetch()}
+                            retrying={isRefetchingShifts}
+                            className="shadow-none"
+                            title="Could not load shifts"
+                            message="Check your connection or sign in again, then refresh."
+                        />
                     ) : filteredShifts.length === 0 ? (
                         <NativeEmptyState
                             icon={Clock}
                             title="No shifts found"
-                            message="Shifts will appear here when workers clock in/out"
+                            message="Shifts will appear here when workers clock in/out. Try All / Active if a filter is hiding them."
                         />
                     ) : (
                         <div className="space-y-2" data-tour="manager-shifts-list">

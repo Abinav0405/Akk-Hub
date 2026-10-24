@@ -44,6 +44,21 @@ export function getLocalWorkerIds() {
     return cache.promise;
 }
 
+/**
+ * Same as getLocalWorkerIds, but never throws. Use on manager/supervisor shift lists so a missing
+ * or expired role-session token cannot blank the entire list (foreign workers still show; locals
+ * may briefly appear until the session is fixed).
+ * @returns {Promise<Set<string>>}
+ */
+export async function getLocalWorkerIdsSafe() {
+    try {
+        return await getLocalWorkerIds();
+    } catch (e) {
+        console.error('[localWorkers] local_worker_ids unavailable; shift lists will not hide locals', e);
+        return new Set();
+    }
+}
+
 export function clearLocalWorkerCache() {
     cache = null;
 }

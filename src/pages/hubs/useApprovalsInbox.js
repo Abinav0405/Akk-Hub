@@ -15,18 +15,32 @@ function sgtDaysAgo(days) {
     return d.toISOString().slice(0, 10);
 }
 
+/**
+ * Shifts a manager/supervisor should notice: completed ones waiting for approval, plus
+ * open clock-ins (workers already see these; staff used to miss them because the inbox
+ * only counted completed+pending).
+ */
 async function countPendingShifts({ siteId }) {
-    let q = supabaseTimesheet
-        .from('shifts')
-        .select('id', { count: 'exact', head: true })
+    const since = sgtDaysAgo(35);
+    const base = () => {
+        let q = supabaseTimesheet
+            .from('shifts')
+            .select('id', { count: 'exact', head: true })
+            .is('leave_type', null)
+            .gte('work_date', since);
+        if (siteId) q = q.eq('site_id', siteId);
+        return q;
+    };
+
+    const pendingDone = base()
         .eq('has_left', true)
-        .is('leave_type', null)
-        .or('approval_status.is.null,approval_status.eq.pending')
-        .gte('work_date', sgtDaysAgo(35));
-    if (siteId) q = q.eq('site_id', siteId);
-    const { count, error } = await q;
-    if (error) throw error;
-    return count || 0;
+        .or('approval_status.is.null,approval_status.eq.pending');
+    const active = base().eq('has_left', false);
+
+    const [a, b] = await Promise.all([pendingDone, active]);
+    if (a.error) throw a.error;
+    if (b.error) throw b.error;
+    return (a.count || 0) + (b.count || 0);
 }
 
 async function countPendingLeave(role) {

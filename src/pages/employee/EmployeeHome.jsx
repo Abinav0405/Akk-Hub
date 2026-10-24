@@ -1015,20 +1015,13 @@ export default function EmployeeHome() {
                     }
                 }
 
-                // Fetch the created shift with site details
-                const { data: shiftWithSite } = await supabase
-                    .from('shifts')
-                    .select('*, sites(*)')
-                    .eq('id', data.id)
-                    .single();
-
+                // No PostgREST embed: attendance.shifts.site_id has no FK to sites (text IDs).
+                const shiftWithSite = { ...data, sites: site };
                 showScanCelebration({
                     title: 'Entry recorded',
                     subtitle: site.site_name ? `At ${site.site_name}` : undefined,
                 });
-                if (shiftWithSite) {
-                    setCurrentShift(shiftWithSite);
-                }
+                setCurrentShift(shiftWithSite);
                 await refetchShift();
 
             } else if (scanAction === 'breaks') {
