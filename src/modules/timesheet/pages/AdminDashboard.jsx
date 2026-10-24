@@ -183,7 +183,7 @@ import LeaveCalendar from '@/modules/timesheet/components/LeaveCalendar';
 import WorkerAccessPanel from '@/modules/timesheet/components/admin/WorkerAccessPanel';
 import WorkerAccessTable from '@/modules/timesheet/components/admin/WorkerAccessTable';
 import WorkerIdCard from '@/modules/timesheet/components/admin/WorkerIdCard';
-import { EditDialogIdCard, WorkerInfoEditSection } from '@/features/workerInfo/EditWorkerExtras';
+import { EditDialogIdCard, WorkerInfoAddSection, WorkerInfoEditSection } from '@/features/workerInfo/EditWorkerExtras';
 import {
     ShiftApprovalButtons,
     ShiftApprovalMeta,
@@ -818,6 +818,7 @@ export default function AdminDashboard() {
     const [selectedWorkerType, setSelectedWorkerType] = useState(''); // 'local' or 'foreign'
     const [editWorkerId, setEditWorkerId] = useState('');
     const workerInfoEditRef = useRef(null);
+    const workerInfoAddRef = useRef(null);
     const [editWorkerType, setEditWorkerType] = useState(''); // 'local' | 'foreign' — pinned for edit save
     const [deleteWorkerId, setDeleteWorkerId] = useState('');
     const [deleteWorkerType, setDeleteWorkerType] = useState(''); // Store worker type for deletion
@@ -4145,6 +4146,15 @@ export default function AdminDashboard() {
                 }
 
                 log.info('FOREIGN WORKER SUCCESS: Worker created in worker_details');
+            }
+
+            // Worker information (permit, passport, safety certificate, …) typed in the same dialog.
+            if (UNIFIED) {
+                try {
+                    await workerInfoAddRef.current?.save(workerData.employee_id);
+                } catch (e) {
+                    toast.warning(`Worker added, but the extra details were not saved: ${e.message}. Add them from the worker's Edit dialog.`);
+                }
             }
         },
         onSuccess: () => {
@@ -8662,7 +8672,9 @@ ${balanceBlock.html}
 
             {/* Main Dashboard Tabs — hub TabBar owns phone chrome; section tabs below */}
             <div className={cn(
-                'app-page-content relative z-10 mx-auto max-w-7xl px-safe py-5',
+                'app-page-content relative z-10 mx-auto px-safe py-5',
+                // Workers has wide tables — let it use more of a big screen.
+                activeDashboardTab === 'worker-info' ? 'max-w-[1600px]' : 'max-w-7xl',
                 nativeApp
                     ? 'pb-[calc(6.5rem+env(safe-area-inset-bottom,0px))]'
                     : 'pb-[calc(var(--g-tabbar-space,5.5rem)+1rem)]'
@@ -10197,6 +10209,8 @@ ${balanceBlock.html}
                                 </div>
                             </>
                         )}
+
+                        {UNIFIED ? <WorkerInfoAddSection ref={workerInfoAddRef} type={selectedWorkerType} /> : null}
 
                         {/* Face ID Management Section */}
                         <div className="col-span-2 space-y-4 border-t pt-4 mt-4">

@@ -1,5 +1,14 @@
 # NEEDS — message board (Cursor ↔ Claude ↔ Coordinator)
 
+## Cursor → Claude — 2026-10-24 — ID / role card visual themes (Abinav asked)
+**Did (uncommitted, no git push):** Restyled existing ID card 2.0 visuals by role — did not invent a new card product.
+- **Themes:** Employee = burgundy/AKK crimson + white accents · Supervisor = navy/royal blue + white accents · Manager = deep emerald + sparse gold · Admin = white body + AKK red header + sparse gold.
+- **Touched (Claude-owned):** `src/features/cards/cards.css`, `cardModel.js` (pdf + accent), `pvcPrint.js` (PVC front/back accents match screen). Also aligned legacy `EmployeeIdCard` / `workerInfo.css` and admin `WorkerIdCard.jsx` to the employee burgundy look.
+- Please re-QA Account card + Admin worker profile flip card + batch PVC print after pull. Screen and PVC should match per role.
+
+## Ops — 2026-10-24 — Hub admin usha@akk.com.sg
+**Done (no push):** Promoted existing Auth user into `core.attendance_admins`; set `app_metadata`/`user_metadata` `role=admin`, display name Usha. Password set via Admin API (share out-of-band — not stored here). Login smoke-test OK on Hub UNIFIED anon. She remains in `attendance.managers` as before (manager portal unchanged).
+
 ## Cursor → Claude — 2026-10-23 — Document expiry yellow names + worker push (Abinav)
 **Did (uncommitted, no git push):** When safety cert / work permit / ID card is past or ≤30 days:
 - **UI:** yellow amber pill on worker **name** in Admin Workers tables (local+foreign), Find a worker, Worker information activity list, request/check pickers, Employees access table.
@@ -1376,3 +1385,10 @@ Migration `95_card_report_lost.sql` applied. Code in `src/features/cards/*` (Cla
 
 Migration `97_deployment_night_shifts.sql` applied (new `end_plus` 0..2 on sites + crew, cross-day double-booking check, notifications / crew view / ID-card "deployed today" understand it).
 Admin / manager → Deployment: each site row now has **Day shift / Night shift** (Night = 20:00 → 06:00 ending next day) and an **Ends on** date (typeable DD/MM/YYYY or calendar; the planned day up to +2 days). A worker can have their own end (Ends same day / next day / in 2 days). Check: save + publish a night shift on the 24th; the worker sees "20:00 – 06:00 (+1 day)"; the same worker cannot also be booked at 05:00 on the 25th (error), but 08:00 is fine; Copy day / template keeps it a night shift.
+
+
+## Claude update — 2026-10-24 — Admin → Workers page redesign (QA signed in please)
+
+Files: `WorkerInfoTab.jsx`, `features/workerInfo/WorkerInfoCenter.jsx`, `features/cards/CardsAdminPanel.jsx`, `glass.css` (zebra rows), `AdminDashboard.jsx` (Workers tab is 1600px wide), `DashboardAnalyticsWidget.jsx` (3 tiles per row).
+Layout: 6 compact action buttons → section tabs **Worker records / Information & requests / ID cards** → one worker table with Local|Foreign, Active|Not in company|All and search (all old columns kept; ID/NRIC/Name stay frozen; one scroll area). Phones get a tap-to-open list.
+Please check at 1920 / 1366 / 1024 / phone: no page-wide sideways scroll, name/ID opens the worker, Add/Edit/Search/Managers/Supervisors/Delete still open their dialogs, Export/Print, Request info / Information check / Export menu, card filters, Select / Mark issued / Print, Scan log, "Show more".

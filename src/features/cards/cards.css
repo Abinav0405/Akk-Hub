@@ -2,17 +2,25 @@
    AKK Employee ID card 2.0 — front / back, role colours, flip, tilt, live security
    Card ratio 85.6 × 54 mm (1.586). All sizes in container units so it scales like a real card.
    Animations only use transform / opacity (smooth on low-end Android).
+
+   Role themes (Abinav):
+     employee  — burgundy / AKK crimson body, white accents
+     supervisor — navy / royal blue body, white accents
+     manager   — deep emerald body, gold accents (sparse)
+     admin     — white body + AKK red header, gold accents (sparse)
    ===================================================================================== */
 .akc {
-  --c-from: #5c0718;
-  --c-to: #9b1030;
+  /* employee default — burgundy → AKK brand crimson, white accents */
+  --c-from: #4a0614;
+  --c-to: #a50f2d;
   --c-band: #3d0410;
   --c-ink: #ffffff;
-  --c-soft: rgb(255 255 255 / 0.68);
+  --c-soft: rgb(255 255 255 / 0.72);
   --c-line: rgb(255 255 255 / 0.16);
+  --c-accent: rgb(255 255 255 / 0.92);
   --c-gold: #d4b062;
   --c-photo-bg: rgb(255 255 255 / 0.14);
-  --c-foot: rgb(0 0 0 / 0.18);
+  --c-foot: rgb(0 0 0 / 0.2);
   position: relative;
   width: 100%;
   aspect-ratio: 1.586;
@@ -27,8 +35,25 @@
   -webkit-font-smoothing: antialiased;
   user-select: none;
 }
-.akc[data-theme='supervisor'] { --c-from: #0a2a5c; --c-to: #1d4ed8; --c-band: #071a40; }
-.akc[data-theme='manager'] { --c-from: #064e33; --c-to: #15803d; --c-band: #03301f; }
+.akc[data-theme='employee'] {
+  --c-from: #4a0614;
+  --c-to: #a50f2d;
+  --c-band: #3d0410;
+  --c-accent: rgb(255 255 255 / 0.92);
+}
+.akc[data-theme='supervisor'] {
+  --c-from: #071a40;
+  --c-to: #1e40af;
+  --c-band: #051434;
+  --c-accent: rgb(255 255 255 / 0.92);
+}
+.akc[data-theme='manager'] {
+  --c-from: #043527;
+  --c-to: #0f6b3c;
+  --c-band: #022819;
+  --c-accent: #d4b062;
+  --c-gold: #d4b062;
+}
 .akc[data-theme='admin'] {
   --c-from: #ffffff;
   --c-to: #faf6f4;
@@ -36,6 +61,7 @@
   --c-ink: #0f172a;
   --c-soft: #8a94a3;
   --c-line: rgb(15 23 42 / 0.08);
+  --c-accent: #b8913a;
   --c-gold: #b8913a;
   --c-photo-bg: linear-gradient(160deg, #eef0f3, #dfe3e8);
   --c-foot: rgb(255 255 255 / 0.75);
@@ -56,6 +82,11 @@
     repeating-radial-gradient(circle at 92% 118%, transparent 0 7px, rgb(140 13 38 / 0.045) 7px 8px),
     repeating-radial-gradient(circle at 0% -30%, transparent 0 9px, rgb(184 145 58 / 0.05) 9px 10px);
 }
+.akc[data-theme='manager'] .akc__pattern {
+  background:
+    repeating-radial-gradient(circle at 96% 120%, transparent 0 7px, rgb(255 255 255 / 0.045) 7px 8px),
+    repeating-radial-gradient(circle at -4% -30%, transparent 0 9px, rgb(212 176 98 / 0.07) 9px 10px);
+}
 
 /* ---- front ---------------------------------------------------------------------- */
 .akc__band {
@@ -66,9 +97,20 @@
   padding: 0 4.4cqw;
   background: linear-gradient(120deg, var(--c-band) 0%, color-mix(in srgb, var(--c-band) 70%, var(--c-to)) 100%);
   color: #fff;
-  border-bottom: 0.45cqw solid var(--c-gold);
+  border-bottom: 0.45cqw solid var(--c-accent);
 }
-.akc[data-theme='admin'] .akc__band { background: linear-gradient(120deg, #3d0817 0%, #8c0d26 62%, #a8173a 100%); }
+.akc[data-theme='admin'] .akc__band {
+  background: linear-gradient(120deg, #3d0817 0%, #8c0d26 55%, #a50f2d 100%);
+}
+.akc[data-theme='employee'] .akc__band {
+  background: linear-gradient(120deg, #2b040c 0%, #5c0718 55%, #7a0b20 100%);
+}
+.akc[data-theme='supervisor'] .akc__band {
+  background: linear-gradient(120deg, #040e24 0%, #0a2a5c 55%, #123a7a 100%);
+}
+.akc[data-theme='manager'] .akc__band {
+  background: linear-gradient(120deg, #021a12 0%, #043527 55%, #065f3a 100%);
+}
 .akc__logo {
   display: grid;
   place-items: center;
@@ -77,6 +119,7 @@
   flex-shrink: 0;
   border-radius: 2.4cqw;
   background: #fff;
+  box-shadow: 0 0 0 0.2cqw var(--c-accent);
 }
 .akc__logo img { width: 78%; height: 78%; object-fit: contain; }
 .akc__org { min-width: 0; flex: 1; line-height: 1.12; }
@@ -90,8 +133,12 @@
   font-weight: 800;
   letter-spacing: 0.12em;
   color: #fff;
-  background: rgb(255 255 255 / 0.16);
-  box-shadow: inset 0 0 0 0.25cqw rgb(255 255 255 / 0.35);
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 0 0 0.25cqw rgb(255 255 255 / 0.4);
+}
+.akc[data-theme='admin'] .akc__role,
+.akc[data-theme='manager'] .akc__role {
+  box-shadow: inset 0 0 0 0.25cqw color-mix(in srgb, var(--c-accent) 85%, #fff);
 }
 
 .akc__body { display: flex; gap: 4.4cqw; height: 63%; padding: 3.4cqw 4.4cqw 0; }
@@ -103,7 +150,10 @@
   overflow: hidden;
   border-radius: 2.6cqw;
   background: var(--c-photo-bg);
-  box-shadow: 0 0 0 0.45cqw rgb(255 255 255 / 0.9), 0 0 0 0.75cqw var(--c-gold);
+  box-shadow: 0 0 0 0.4cqw rgb(255 255 255 / 0.95), 0 0 0 0.7cqw var(--c-accent);
+}
+.akc[data-theme='admin'] .akc__photo {
+  box-shadow: 0 0 0 0.4cqw #fff, 0 0 0 0.7cqw var(--c-accent);
 }
 .akc__photo img { width: 100%; height: 100%; object-fit: cover; }
 .akc__initials { display: grid; place-items: center; width: 100%; height: 100%; font-size: 8cqw; font-weight: 800; color: var(--c-soft); }
@@ -182,11 +232,18 @@
   will-change: transform;
 }
 .akc[data-theme='admin'] .akc__holo { mix-blend-mode: multiply; opacity: 0.35; }
+.akc[data-theme='employee'] .akc__holo,
+.akc[data-theme='supervisor'] .akc__holo {
+  background: linear-gradient(105deg, transparent 38%, rgb(255 255 255 / 0.2) 46%, rgb(255 255 255 / 0.12) 52%, transparent 62%);
+}
 @keyframes akc-holo { 0% { transform: translateX(-30%); } 50% { transform: translateX(30%); } 100% { transform: translateX(-30%); } }
 
 /* ---- back ----------------------------------------------------------------------- */
 .akc__stripe { height: 9%; margin-top: 3.5%; background: linear-gradient(180deg, #111 0%, #2a2a2a 50%, #111 100%); }
 .akc[data-theme='admin'] .akc__stripe { background: linear-gradient(180deg, #2b0610, #5c0718 50%, #2b0610); }
+.akc[data-theme='employee'] .akc__stripe { background: linear-gradient(180deg, #2b040c, #4a0614 50%, #2b040c); }
+.akc[data-theme='supervisor'] .akc__stripe { background: linear-gradient(180deg, #040e24, #0a2a5c 50%, #040e24); }
+.akc[data-theme='manager'] .akc__stripe { background: linear-gradient(180deg, #021a12, #043527 50%, #021a12); }
 .akc__back { display: flex; align-items: flex-start; gap: 3.6cqw; padding: 2.6cqw 4.4cqw 0; }
 .akc__details { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 1.3cqw 2.4cqw; }
 .akc__details .akc__value { font-size: 2.55cqw; }
@@ -215,7 +272,7 @@
   padding: 1.2cqw;
   border-radius: 2.4cqw;
   background: #fff;
-  box-shadow: 0 0 0 0.35cqw var(--c-gold);
+  box-shadow: 0 0 0 0.35cqw var(--c-accent);
   cursor: zoom-in;
 }
 .akc__qr img { width: 100%; height: 100%; image-rendering: pixelated; display: block; }

@@ -12,7 +12,7 @@ import DateInput from '@/ui/DateInput';
 import PhotoCropDialog from '@/ui/PhotoCropDialog';
 import { cn } from '@/ui/utils';
 import AdminCardView from '@/features/cards/AdminCardView';
-import { INFO_FIELDS, customFieldDefs, showField } from './fields';
+import { INFO_FIELDS, appliesTo, customFieldDefs, showField } from './fields';
 import { workerInfoAdmin } from './api';
 
 /** Ask the admin dashboard to open its Edit Worker dialog for this worker. */
@@ -179,6 +179,59 @@ export const WorkerInfoEditSection = forwardRef(function WorkerInfoEditSection({
                                     onChange={(e) => set(e.target.value)}
                                     className="h-10 w-full rounded-xl border border-[var(--g-hairline)] bg-white px-3 text-sm"
                                 />
+                            )}
+                        </div>
+                    );
+                })}
+            </div>
+        </section>
+    );
+});
+
+/** "Add New Worker": the same worker information details, filled in before the worker exists and saved right after creation. */
+export const WorkerInfoAddSection = forwardRef(function WorkerInfoAddSection({ type }, ref) {
+    // Local staff already give their birthday in the main form, so it is not asked twice.
+    const fields = useMemo(() => INFO_FIELDS.filter((f) => appliesTo(f, type) && !(type === 'local' && f.key === 'date_of_birth')), [type]);
+    const [form, setForm] = useState({});
+    useEffect(() => setForm({}), [type]);
+
+    useImperativeHandle(
+        ref,
+        () => ({
+            /** Saves the filled-in details for the new worker; returns false when none were entered. */
+            async save(newId) {
+                const filled = Object.fromEntries(Object.entries(form).filter(([, v]) => String(v || '').trim() !== ''));
+                if (!Object.keys(filled).length) return false;
+                await workerInfoAdmin.save(newId, filled);
+                return true;
+            },
+            clear: () => setForm({}),
+        }),
+        [form],
+    );
+
+    if (!type) return null;
+    return (
+        <section className="col-span-full rounded-xl border border-[var(--g-hairline)] bg-slate-50/60 p-3">
+            <h3 className="mb-0.5 flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                <IdCard className="h-4 w-4 text-[var(--g-brand)]" /> Worker information
+            </h3>
+            <p className="mb-2 text-xs text-slate-500">Optional — anything left blank can be asked from the worker later.</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {fields.map((f) => {
+                    const fid = `wia-${f.key}`;
+                    const set = (v) => setForm((x) => ({ ...x, [f.key]: v }));
+                    return (
+                        <div key={f.key} className={cn(f.kind === 'textarea' && 'sm:col-span-2')}>
+                            <label htmlFor={fid} className="mb-1 block text-sm font-medium">
+                                {f.label}
+                            </label>
+                            {f.kind === 'date' ? (
+                                <DateInput id={fid} value={form[f.key] || ''} onChange={set} inputClassName="h-10 text-sm" />
+                            ) : f.kind === 'textarea' ? (
+                                <textarea id={fid} rows={2} value={form[f.key] || ''} onChange={(e) => set(e.target.value)} className="w-full rounded-xl border border-[var(--g-hairline)] bg-white p-2.5 text-sm" />
+                            ) : (
+                                <input id={fid} type={f.kind === 'tel' ? 'tel' : 'text'} value={form[f.key] || ''} onChange={(e) => set(e.target.value)} className="h-10 w-full rounded-xl border border-[var(--g-hairline)] bg-white px-3 text-sm" />
                             )}
                         </div>
                     );

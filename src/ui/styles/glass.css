@@ -2123,7 +2123,7 @@ button.g-row:hover {
 .admin-dash-ui .akk-worker-table tbody tr:hover td.akk-sticky-id,
 .admin-dash-ui .akk-worker-table tbody tr:hover td.akk-sticky-nric,
 .admin-dash-ui .akk-worker-table tbody tr:hover td.akk-sticky-name {
-  background: #f8fafc;
+  background: #f1f5f9;
 }
 
 .admin-dash-ui .akk-worker-table tbody tr.akk-row-left td.akk-sticky-id,
@@ -2132,6 +2132,18 @@ button.g-row:hover {
 .admin-dash-ui .akk-worker-table tbody tr.akk-row-left:hover td.akk-sticky-id,
 .admin-dash-ui .akk-worker-table tbody tr.akk-row-left:hover td.akk-sticky-nric,
 .admin-dash-ui .akk-worker-table tbody tr.akk-row-left:hover td.akk-sticky-name {
+  background: #fef2f2;
+}
+
+/* Alternate rows (sticky cells included) — easier to follow a wide row across. */
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-alt td {
+  background: #f8fafc;
+}
+.admin-dash-ui .akk-worker-table tbody tr:hover td,
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-alt:hover td {
+  background: #f1f5f9;
+}
+.admin-dash-ui .akk-worker-table tbody tr.akk-row-left td {
   background: #fef2f2;
 }
 

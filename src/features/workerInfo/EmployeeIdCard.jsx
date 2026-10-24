@@ -2,6 +2,7 @@
  * AKK Engineering Employee Identification Card. Pure display: give it a worker's card data
  * ({ employee_id, name, work_permit_no, designation, worker_type, in_company, photo }).
  * Shows no sensitive details (no passport, address, phone).
+ * Visual: burgundy / AKK crimson body + white accents (employee theme).
  */
 import { initialsOf } from '@/ui/photo';
 import './workerInfo.css';
@@ -18,8 +19,9 @@ export default function EmployeeIdCard({ card, className = '', footer }) {
                 </span>
                 <span className="eic__org">
                     <b>AKK ENGINEERING PTE. LTD.</b>
-                    <span>EMPLOYEE IDENTIFICATION CARD</span>
+                    <span>IDENTIFICATION CARD</span>
                 </span>
+                <span className="eic__role">EMPLOYEE</span>
             </header>
             <div className="eic__body">
                 <div className="eic__photo">

@@ -1,12 +1,37 @@
 /**
  * Card look + helpers shared by the digital card, the scanners and the PVC print.
- *   role → theme: employee = red card, supervisor = blue, manager = green, admin = white with a red band
+ *   role → theme (Abinav design):
+ *     employee  = burgundy / AKK red body, white accents
+ *     supervisor = navy / royal blue body, white accents
+ *     manager   = deep emerald body, gold accents
+ *     admin     = white body + AKK red header, gold accents
+ *   `pdf.accent` = thin rules / photo frame / QR ring (gold or white).
  */
 export const ROLE_THEME = {
-    employee: { key: 'employee', label: 'EMPLOYEE', short: 'EMPLOYEE', pdf: { from: [92, 7, 24], to: [155, 16, 48], text: [255, 255, 255], band: [61, 4, 16] } },
-    supervisor: { key: 'supervisor', label: 'SUPERVISOR', short: 'SUPERVISOR', pdf: { from: [10, 42, 92], to: [29, 78, 216], text: [255, 255, 255], band: [7, 26, 64] } },
-    manager: { key: 'manager', label: 'MANAGER', short: 'MANAGER', pdf: { from: [6, 78, 51], to: [21, 128, 61], text: [255, 255, 255], band: [3, 48, 31] } },
-    admin: { key: 'admin', label: 'ADMINISTRATOR', short: 'ADMIN', pdf: { from: [255, 255, 255], to: [250, 247, 245], text: [15, 23, 42], band: [140, 13, 38] } },
+    employee: {
+        key: 'employee',
+        label: 'EMPLOYEE',
+        short: 'EMPLOYEE',
+        pdf: { from: [74, 6, 20], to: [165, 15, 45], text: [255, 255, 255], band: [61, 4, 16], accent: [255, 255, 255] },
+    },
+    supervisor: {
+        key: 'supervisor',
+        label: 'SUPERVISOR',
+        short: 'SUPERVISOR',
+        pdf: { from: [7, 26, 64], to: [30, 64, 175], text: [255, 255, 255], band: [5, 20, 52], accent: [255, 255, 255] },
+    },
+    manager: {
+        key: 'manager',
+        label: 'MANAGER',
+        short: 'MANAGER',
+        pdf: { from: [4, 53, 39], to: [15, 107, 60], text: [255, 255, 255], band: [2, 40, 25], accent: [212, 176, 98] },
+    },
+    admin: {
+        key: 'admin',
+        label: 'ADMINISTRATOR',
+        short: 'ADMIN',
+        pdf: { from: [255, 255, 255], to: [250, 246, 244], text: [15, 23, 42], band: [140, 13, 38], accent: [184, 145, 58] },
+    },
 };
 export const themeFor = (role) => ROLE_THEME[role] || ROLE_THEME.employee;
 
@@ -38,7 +63,10 @@ export function daysLeft(value) {
     return Math.round((new Date(y, m - 1, d) - new Date(new Date().toDateString())) / 86400000);
 }
 
-/** The AKK Hub website (VITE_PUBLIC_SITE_URL, else this page's address on the web; null inside the app). */
+/** The live AKK Hub website — printed QRs and app-made QRs link here when nothing else is known. */
+export const PUBLIC_SITE = 'https://hub.akk.sg';
+
+/** The AKK Hub website: VITE_PUBLIC_SITE_URL, else this page's address on the web, else PUBLIC_SITE. */
 export function siteUrl() {
     const configured = String(import.meta.env.VITE_PUBLIC_SITE_URL || '').trim().replace(/\/+$/, '');
     if (configured) return configured;
@@ -46,7 +74,7 @@ export function siteUrl() {
         // Capacitor serves the app from https://localhost — that is not a public address.
         return window.location.origin;
     }
-    return null;
+    return PUBLIC_SITE;
 }
 
 /** What goes in a QR: a link to the public check page when we know the site address, else the bare code. */

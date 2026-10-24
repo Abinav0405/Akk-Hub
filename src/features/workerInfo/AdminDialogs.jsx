@@ -155,11 +155,11 @@ export function ExportDialog({ open, onClose, target, workers = [] }) {
                     <DialogTitle>Export {target?.title}</DialogTitle>
                     <DialogDescription>
                         Choose any details to include — everything on file is available.{' '}
-                        {format === 'xlsx' ? 'Excel: one row per worker, details only (no ID card).' : 'PDF: one page per worker with their ID card, then these details.'}
+                        {format === 'xlsx' ? 'Excel: one row per worker, details only.' : 'PDF: one page per worker with the chosen details (header + tables).'}
                     </DialogDescription>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-slate-100 p-1" role="radiogroup" aria-label="File format">
-                    {[['pdf', 'PDF · ID cards', FileText], ['xlsx', 'Excel · details only', FileSpreadsheet]].map(([k, l, Icon]) => (
+                    {[['pdf', 'PDF · details', FileText], ['xlsx', 'Excel · details only', FileSpreadsheet]].map(([k, l, Icon]) => (
                         <button
                             key={k}
                             type="button"

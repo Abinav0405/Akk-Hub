@@ -1,19 +1,21 @@
 /* =====================================================================================
    AKK Engineering — Employee Identification Card + worker information screens
+   Employee theme: burgundy / AKK crimson body, white accents (matches cards 2.0)
    ===================================================================================== */
 .eic {
-  --eic-brand: #8c0d26;
-  --eic-brand-deep: #3d0817;
-  --eic-gold: #b8913a;
+  --eic-from: #4a0614;
+  --eic-to: #a50f2d;
+  --eic-band: #3d0410;
+  --eic-accent: rgb(255 255 255 / 0.92);
   position: relative;
   width: 100%;
   max-width: 440px;
   aspect-ratio: 1.586;
   overflow: hidden;
   border-radius: 18px;
-  background: #fff;
-  color: #0f172a;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.08), 0 18px 40px -22px rgb(15 23 42 / 0.55);
+  background: linear-gradient(135deg, var(--eic-from) 0%, var(--eic-to) 100%);
+  color: #fff;
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.1), 0 18px 40px -22px rgb(15 23 42 / 0.55);
   isolation: isolate;
   container-type: inline-size;
   font-family: var(--g-font, Inter, system-ui, sans-serif);
@@ -30,9 +32,8 @@
   inset: 0;
   z-index: -1;
   background:
-    repeating-radial-gradient(circle at 92% 118%, transparent 0 7px, rgb(140 13 38 / 0.045) 7px 8px),
-    repeating-radial-gradient(circle at 0% -30%, transparent 0 9px, rgb(184 145 58 / 0.05) 9px 10px),
-    linear-gradient(180deg, #ffffff 0%, #fbf8f6 100%);
+    repeating-radial-gradient(circle at 96% 120%, transparent 0 7px, rgb(255 255 255 / 0.05) 7px 8px),
+    repeating-radial-gradient(circle at -4% -30%, transparent 0 9px, rgb(255 255 255 / 0.045) 9px 10px);
 }
 /* One soft light sweep when the card appears. */
 .eic::after {
@@ -41,7 +42,7 @@
   inset: -40% auto -40% -60%;
   width: 45%;
   transform: rotate(18deg);
-  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.55), transparent);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 0.35), transparent);
   animation: eic-sheen 1100ms 260ms ease-out both;
   pointer-events: none;
 }
@@ -53,61 +54,77 @@
 .eic__band {
   display: flex;
   align-items: center;
-  gap: 3cqw;
-  height: 23%;
+  gap: 2.8cqw;
+  height: 22%;
   padding: 0 4.5cqw;
-  background: linear-gradient(120deg, var(--eic-brand-deep) 0%, var(--eic-brand) 62%, #a8173a 100%);
+  background: linear-gradient(120deg, #2b040c 0%, #5c0718 55%, #7a0b20 100%);
   color: #fff;
-  border-bottom: 2px solid var(--eic-gold);
+  border-bottom: 0.45cqw solid var(--eic-accent);
 }
 .eic__logo {
   display: grid;
   place-items: center;
-  width: 9.5cqw;
+  width: 9.4cqw;
   aspect-ratio: 1;
   flex-shrink: 0;
   border-radius: 2.4cqw;
   background: #fff;
+  box-shadow: 0 0 0 0.2cqw var(--eic-accent);
 }
 .eic__logo img {
-  width: 76%;
-  height: 76%;
+  width: 78%;
+  height: 78%;
   object-fit: contain;
 }
 .eic__org {
   min-width: 0;
-  line-height: 1.15;
+  flex: 1;
+  line-height: 1.12;
 }
 .eic__org b {
   display: block;
-  font-size: 3.7cqw;
+  font-size: 3.6cqw;
   font-weight: 800;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .eic__org span {
   display: block;
   margin-top: 0.6cqw;
-  font-size: 2.35cqw;
+  font-size: 2.2cqw;
   font-weight: 600;
-  letter-spacing: 0.16em;
-  color: rgb(255 255 255 / 0.82);
+  letter-spacing: 0.15em;
+  color: rgb(255 255 255 / 0.8);
+}
+.eic__role {
+  flex-shrink: 0;
+  padding: 0.9cqw 2cqw;
+  border-radius: 99cqw;
+  font-size: 2.1cqw;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #fff;
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: inset 0 0 0 0.25cqw rgb(255 255 255 / 0.4);
 }
 
 .eic__body {
   display: flex;
-  gap: 4.5cqw;
-  height: 60%;
-  padding: 3.6cqw 4.5cqw 0;
+  gap: 4.4cqw;
+  height: 63%;
+  padding: 3.4cqw 4.5cqw 0;
 }
 .eic__photo {
   position: relative;
-  width: 25cqw;
-  height: 31.5cqw;
+  width: 24cqw;
+  height: 30cqw;
   flex-shrink: 0;
   overflow: hidden;
   border-radius: 2.6cqw;
-  background: linear-gradient(160deg, #eef0f3, #dfe3e8);
-  box-shadow: 0 0 0 0.45cqw #fff, 0 0 0 0.7cqw rgb(184 145 58 / 0.55);
+  background: rgb(255 255 255 / 0.14);
+  box-shadow: 0 0 0 0.4cqw rgb(255 255 255 / 0.95), 0 0 0 0.7cqw var(--eic-accent);
 }
 .eic__photo img {
   width: 100%;
@@ -121,7 +138,7 @@
   height: 100%;
   font-size: 8cqw;
   font-weight: 800;
-  color: #9aa3ae;
+  color: rgb(255 255 255 / 0.68);
   letter-spacing: 0.04em;
 }
 .eic__info {
@@ -130,20 +147,20 @@
 }
 .eic__label {
   display: block;
-  font-size: 2.15cqw;
+  font-size: 2.05cqw;
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #8a94a3;
+  color: rgb(255 255 255 / 0.72);
 }
 .eic__name {
-  margin: 0.4cqw 0 2.4cqw;
-  font-size: 4.6cqw;
+  margin: 0.4cqw 0 2.2cqw;
+  font-size: 4.5cqw;
   font-weight: 800;
   line-height: 1.12;
   letter-spacing: 0.005em;
   text-transform: uppercase;
-  color: #0b1220;
+  color: #fff;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -152,15 +169,15 @@
 .eic__grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 2cqw 3cqw;
+  gap: 1.8cqw 3cqw;
 }
 .eic__value {
   display: block;
   margin-top: 0.3cqw;
-  font-size: 3.15cqw;
+  font-size: 3.05cqw;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  color: #111827;
+  color: #fff;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -170,7 +187,7 @@
   letter-spacing: 0.02em;
 }
 .eic__value--muted {
-  color: #9aa3ae;
+  color: rgb(255 255 255 / 0.55);
   font-weight: 600;
 }
 
@@ -185,16 +202,16 @@
   gap: 2cqw;
   height: 13%;
   padding: 0 4.5cqw;
-  border-top: 1px solid rgb(15 23 42 / 0.07);
-  background: rgb(255 255 255 / 0.7);
+  border-top: 1px solid rgb(255 255 255 / 0.16);
+  background: rgb(0 0 0 / 0.2);
 }
 .eic__status {
   display: inline-flex;
   align-items: center;
   gap: 1.2cqw;
   font-size: 2.5cqw;
-  font-weight: 700;
-  color: #047857;
+  font-weight: 800;
+  color: #6ee7b7;
 }
 .eic__status::before {
   content: '';
@@ -202,20 +219,20 @@
   height: 1.7cqw;
   border-radius: 999px;
   background: currentColor;
-  box-shadow: 0 0 0 0.6cqw rgb(4 120 87 / 0.15);
+  box-shadow: 0 0 0 0.6cqw rgb(110 231 183 / 0.22);
 }
 .eic[data-status='left'] .eic__status {
-  color: #b91c1c;
+  color: #fecaca;
 }
 .eic[data-status='left'] .eic__status::before {
-  box-shadow: 0 0 0 0.6cqw rgb(185 28 28 / 0.15);
+  box-shadow: 0 0 0 0.6cqw rgb(254 202 202 / 0.22);
 }
 .eic__micro {
   font-size: 2cqw;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #a1a9b4;
+  color: rgb(255 255 255 / 0.72);
   white-space: nowrap;
 }
 
