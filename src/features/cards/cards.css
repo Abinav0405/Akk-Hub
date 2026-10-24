@@ -189,10 +189,27 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.akc__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.8cqw 3cqw; }
+/* minmax(0, …): a long value may never widen its column past the card (it shrinks via <Fit> instead) */
+.akc__grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.8cqw 3cqw; }
+.akc__grid > div, .akc__cell { min-width: 0; }
 .akc__value { display: block; margin-top: 0.3cqw; font-size: 3.05cqw; font-weight: 700; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .akc__mono { font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace; letter-spacing: 0.02em; }
 .akc__muted { opacity: 0.6; font-weight: 600; }
+
+/*
+ * Nothing on the card may wrap or spill: Android's system "Font size" enlarges text but not the card.
+ * <Fit> shrinks a value to its box; labels stay on one line; the faces below are flex columns so the
+ * footer / barcode / return line keep their place whatever happens above them.
+ */
+.akc__label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.akc-fit { min-width: 0; max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: clip; }
+.akc-fit2 { min-width: 0; overflow: hidden; }
+
+.akc--front { display: flex; flex-direction: column; }
+.akc--front .akc__band { flex: none; }
+.akc--front .akc__body { flex: 1 1 auto; height: auto; min-height: 0; overflow: hidden; }
+.akc--front .akc__foot { position: relative; inset: auto; flex: none; }
+.akc__foot > .akc-fit { flex: 0 1 auto; }
 
 .akc__foot {
   position: absolute;
@@ -239,13 +256,19 @@
 @keyframes akc-holo { 0% { transform: translateX(-30%); } 50% { transform: translateX(30%); } 100% { transform: translateX(-30%); } }
 
 /* ---- back ----------------------------------------------------------------------- */
-.akc__stripe { height: 9%; margin-top: 3.5%; background: linear-gradient(180deg, #111 0%, #2a2a2a 50%, #111 100%); }
+.akc__stripe { height: 7.5%; margin-top: 3%; background: linear-gradient(180deg, #111 0%, #2a2a2a 50%, #111 100%); }
 .akc[data-theme='admin'] .akc__stripe { background: linear-gradient(180deg, #2b0610, #5c0718 50%, #2b0610); }
 .akc[data-theme='employee'] .akc__stripe { background: linear-gradient(180deg, #2b040c, #4a0614 50%, #2b040c); }
 .akc[data-theme='supervisor'] .akc__stripe { background: linear-gradient(180deg, #040e24, #0a2a5c 50%, #040e24); }
 .akc[data-theme='manager'] .akc__stripe { background: linear-gradient(180deg, #021a12, #043527 50%, #021a12); }
+/* back = column: stripe · details + QR (takes the rest, never pushes) · barcode · return line */
+.akc--back { display: flex; flex-direction: column; }
+.akc--back .akc__stripe { flex: none; }
 .akc__back { display: flex; align-items: flex-start; gap: 3.6cqw; padding: 2.6cqw 4.4cqw 0; }
-.akc__details { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; align-content: start; gap: 1.3cqw 2.4cqw; }
+.akc--back .akc__back { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.akc--back .akc__barcode { flex: none; }
+.akc__details { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-content: start; gap: 1.3cqw 2.4cqw; }
+.akc__exp { margin-top: 0.4cqw; letter-spacing: 0.06em; }
 .akc__details .akc__value { font-size: 2.55cqw; }
 .akc__cardno { grid-column: 1 / -1; }
 .akc__cardno .akc__value { font-size: 3.35cqw; letter-spacing: 0.03em; text-overflow: clip; }
@@ -280,9 +303,19 @@
 .akc__qrring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .akc__qrring circle { fill: none; stroke: #10b981; stroke-width: 1.6; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 .akc__barcode { display: flex; align-items: center; gap: 2.4cqw; margin: 2.2cqw 4.4cqw 0; padding: 1cqw 2cqw; height: 11%; border-radius: 1.6cqw; background: #fff; color: #0b1220; }
-.akc__barcode svg { flex: 1; height: 100%; }
-.akc__barcode span { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 2.3cqw; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
-.akc__return { margin: 1.3cqw 4.4cqw 0; font-size: 1.75cqw; line-height: 1.3; color: var(--c-soft); }
+.akc__barcode svg { flex: 1; min-width: 0; height: 100%; }
+.akc__barnum { flex: 0 1 auto; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 2.3cqw; font-weight: 700; letter-spacing: 0.06em; white-space: nowrap; }
+.akc__return {
+  flex: none;
+  margin: 1.3cqw 4.4cqw 1.8cqw;
+  font-size: 1.75cqw;
+  line-height: 1.3;
+  color: var(--c-soft);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 
 /* ---- flip + tilt ---------------------------------------------------------------- */
 .akc-flip { position: relative; width: 100%; max-width: 440px; margin: 0 auto; perspective: 1400px; -webkit-tap-highlight-color: transparent; }
