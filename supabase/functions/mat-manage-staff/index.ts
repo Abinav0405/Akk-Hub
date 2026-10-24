@@ -20,12 +20,15 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
     const admin = createClient(url, serviceKey, { db: { schema: 'materials' } });
-    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    const jwt = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
     if (!jwt) return reply(401, { error: 'Missing authenticated session' });
+    // Pass JWT explicitly (same pattern as att-/prg-register-device-token). Relying only on
+    // global Authorization headers makes getUser() fail with "Invalid session" for some clients.
     const userClient = createClient(url, anonKey, {
       global: { headers: { Authorization: `Bearer ${jwt}` } },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
-    const { data: userData, error: userError } = await userClient.auth.getUser();
+    const { data: userData, error: userError } = await userClient.auth.getUser(jwt);
     if (userError || !userData.user) return reply(401, { error: 'Invalid session' });
 
     const { data: caller } = await admin
@@ -73,11 +76,13 @@ Deno.serve(async (req) => {
         targetId = existingProfile.user_id;
         before = existingProfile;
         const roles = [...new Set([...(existingProfile.roles || [existingProfile.role]), 'manager'])];
-        if (password) {
-          if (password.length < 8) return reply(400, { error: 'Password must be at least 8 characters' });
-          const { error } = await admin.auth.admin.updateUserById(targetId, { password });
-          if (error) throw error;
-        }
+        if (password && password.length < 8) return reply(400, { error: 'Password must be at least 8 characters' });
+        // Re-adding a removed manager: "delete" banned the sign-in, so lift the ban as well.
+        const { error: authError } = await admin.auth.admin.updateUserById(targetId, {
+          ban_duration: 'none',
+          ...(password ? { password } : {}),
+        });
+        if (authError) throw authError;
         const { data, error } = await admin
           .from('staff_profiles')
           .update({ display_name: displayName, roles, is_active: true, updated_at: new Date().toISOString() })

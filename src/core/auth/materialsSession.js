@@ -75,7 +75,11 @@ export function clearAdminFlags() {
 /** True when a Supabase Auth session for the Materials project is stored (native restore). */
 export function hasStoredStaffSession() {
     try {
-        return !!localStorage.getItem('akk.materials.sb-auth');
+        // UNIFIED uses akk.hub.materials.sb-auth; pre-UNIFIED used akk.materials.sb-auth.
+        return !!(
+            localStorage.getItem('akk.hub.materials.sb-auth') ||
+            localStorage.getItem('akk.materials.sb-auth')
+        );
     } catch {
         return false;
     }

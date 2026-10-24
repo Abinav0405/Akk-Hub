@@ -105,6 +105,16 @@ export async function createManager({ loginId, displayName, password, jsrPermiss
   }
 }
 
+/** Rename / re-email a Site work manager (login ID = their email). */
+export async function updateManager(managerId, { loginId, displayName }) {
+  const { error } = await supabaseProgress.rpc('admin_update_manager', {
+    p_manager_id: managerId,
+    p_login_id: loginId,
+    p_display_name: displayName,
+  });
+  if (error) throw error;
+}
+
 export async function setManagerJsrPermissions(managerId, jsrPermissions) {
   const { error } = await supabaseProgress.rpc('admin_set_manager_jsr_permissions', {
     p_manager_id: managerId,

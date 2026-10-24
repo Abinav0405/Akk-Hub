@@ -17,7 +17,10 @@ import {
 import { friendlyDbError } from '@/modules/progress/lib/networkError';
 import { JSR_PERM_DEFAULTS, JSR_PERM_MIGRATION_HINT, normalizeJsrPerms } from '@/modules/progress/lib/jsrPermissions';
 import JsrPermissionGrid from '@/modules/progress/components/JsrPermissionGrid';
-import { supabaseProgress } from '@/core/supabase'
+import { UNIFIED, supabaseProgress } from '@/core/supabase'
+import { Link } from 'react-router-dom';
+import { paths } from '@/app/paths';
+import { sectionHref } from '@/app/useHubSection';
 import { RevealCredentialsDialog } from '@/modules/progress/components/WorkerAccountsPanel';
 
 /** Admin-only — Manager never sees this (this whole panel only renders in AdminDashboard). */
@@ -90,15 +93,27 @@ export function ManagerAccountsSection() {
         <Card className="p-5">
             <div className="mb-4 flex items-center justify-between">
                 <div>
-                    <h3 className="text-base font-semibold text-slate-900">Manager Logins</h3>
-                    <p className="text-xs text-muted-foreground">Password set directly — no Supabase dashboard step. Use the sliders icon to set what each manager can do (JSR module, deleting package photos).</p>
+                    <h3 className="text-base font-semibold text-slate-900">Manager permissions</h3>
+                    <p className="text-xs text-muted-foreground">
+                        Use the sliders icon to set what each manager can do (JSR module, deleting package photos); the power icon switches Site work on/off for them.
+                        {UNIFIED ? (
+                            <>
+                                {' '}Add managers and reset passwords on{' '}
+                                <Link to={sectionHref(paths.materials.admin, 'managers')} className="font-semibold text-[var(--g-brand-text)] hover:underline">Managers</Link> — one login for every area.
+                            </>
+                        ) : (
+                            ' Password set directly — no Supabase dashboard step.'
+                        )}
+                    </p>
                     {Array.isArray(managers) && managers.some((m) => !m || typeof m.jsr_permissions !== 'object') ? (
                         <p className="mt-2 text-xs text-amber-800">{JSR_PERM_MIGRATION_HINT}</p>
                     ) : null}
                 </div>
-                <Button size="sm" onClick={() => setShowAdd(true)}>
-                    <Plus className="mr-1.5 h-4 w-4" /> Add Manager
-                </Button>
+                {!UNIFIED ? (
+                    <Button size="sm" onClick={() => setShowAdd(true)}>
+                        <Plus className="mr-1.5 h-4 w-4" /> Add Manager
+                    </Button>
+                ) : null}
             </div>
 
             {managers === null ? (
@@ -133,13 +148,15 @@ export function ManagerAccountsSection() {
                                             <Button size="sm" variant="outline" aria-label="Manager permissions" onClick={() => setPermTarget(m)}>
                                                 <SlidersHorizontal className="h-3.5 w-3.5" />
                                             </Button>
-                                            <Button size="sm" variant="outline" aria-label="Reset password" onClick={() => setResetTarget(m)}>
-                                                <KeyRound className="h-3.5 w-3.5" />
-                                            </Button>
+                                            {!UNIFIED ? (
+                                                <Button size="sm" variant="outline" aria-label="Reset password" onClick={() => setResetTarget(m)}>
+                                                    <KeyRound className="h-3.5 w-3.5" />
+                                                </Button>
+                                            ) : null}
                                             <Button size="sm" variant="outline" disabled={busy} aria-label={m.is_active ? 'Disable manager' : 'Enable manager'} onClick={() => handleToggleActive(m)}>
                                                 <Power className="h-3.5 w-3.5" />
                                             </Button>
-                                            <Button
+                                            {!UNIFIED ? (<Button
                                                 size="sm"
                                                 variant="outline"
                                                 disabled={busy}
@@ -148,7 +165,7 @@ export function ManagerAccountsSection() {
                                                 onClick={() => handleDelete(m)}
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
-                                            </Button>
+                                            </Button>) : null}
                                         </div>
                                     </TableCell>
                                 </TableRow>

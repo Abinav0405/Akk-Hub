@@ -2,7 +2,12 @@ import { UNIFIED, supabaseTimesheet as supabase } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { Capacitor } from '@capacitor/core';
 import { registerPushForAdmin } from '@/modules/timesheet/lib/pushRegistration';
-import { adminSetWorkerPassword, verifyAdminSession } from '@/core/auth/timesheetSession';
+import {
+    adminSetWorkerPassword,
+    adminSetManagerPassword,
+    adminSetSupervisorPassword,
+    verifyAdminSession,
+} from '@/core/auth/timesheetSession';
 import { fetchAdminTimesheetHeadTs, useUpdatedAtHeartbeat } from '@/modules/timesheet/lib/smartPolling';
 import { getEditableWorkerPassword, isStoredPasswordHash, normalizeWorkerPasswordForSave, hasWorkerPasswordSet } from '@/modules/timesheet/lib/passwordUtils';
 import React, { useState, useEffect, useRef, useMemo, useCallback, Suspense, lazy } from 'react';
@@ -181,7 +186,6 @@ import {
 import { exportLeaveReportExcel } from '@/modules/timesheet/lib/leaveExport';
 import LeaveCalendar from '@/modules/timesheet/components/LeaveCalendar';
 import WorkerAccessPanel from '@/modules/timesheet/components/admin/WorkerAccessPanel';
-import WorkerAccessTable from '@/modules/timesheet/components/admin/WorkerAccessTable';
 import WorkerIdCard from '@/modules/timesheet/components/admin/WorkerIdCard';
 import { EditDialogIdCard, WorkerInfoAddSection, WorkerInfoEditSection } from '@/features/workerInfo/EditWorkerExtras';
 import {
@@ -3895,45 +3899,68 @@ export default function AdminDashboard() {
         setManagerFormData({
             email: '',
             password_hash: '',
-            name: ''
+            name: '',
+            password_is_set: false,
         });
     };
 
     const handleEditManager = (manager) => {
         setEditingManager(manager);
+        // Never put bcrypt into the password field — typing appends to the hash and breaks login.
         setManagerFormData({
             email: manager.email,
-            password_hash: manager.password_hash,
-            name: manager.name
+            password_hash: '',
+            name: manager.name,
+            password_is_set: hasWorkerPasswordSet(manager.password_hash || ''),
         });
     };
 
     const handleSaveManager = async () => {
         try {
+            const email = String(managerFormData.email || '').trim();
+            const name = String(managerFormData.name || '').trim();
+            const plainPassword = normalizeWorkerPasswordForSave(managerFormData.password_hash);
+
+            if (!email || !name) {
+                toast.error('Name and email are required');
+                return;
+            }
+
             if (editingManager) {
-                // Update existing manager
                 const { error } = await supabase
                     .from('managers')
                     .update({
-                        email: managerFormData.email,
-                        password_hash: managerFormData.password_hash,
-                        name: managerFormData.name,
-                        updated_at: new Date().toISOString()
+                        email,
+                        name,
+                        updated_at: new Date().toISOString(),
                     })
                     .eq('id', editingManager.id);
 
                 if (error) throw error;
-                toast.success('Manager updated successfully!');
+
+                if (plainPassword) {
+                    await adminSetManagerPassword({
+                        managerId: editingManager.id,
+                        newPassword: plainPassword,
+                        email,
+                    });
+                }
+
+                toast.success(plainPassword ? 'Manager updated (password reset).' : 'Manager updated successfully!');
             } else {
-                // Add new manager
+                if (!plainPassword || plainPassword.length < 4) {
+                    toast.error('Enter a password (at least 4 characters) for the new manager');
+                    return;
+                }
+                // Trigger hashes plaintext on insert; never write a bcrypt string from the form.
                 const { error } = await supabase
                     .from('managers')
                     .insert([{
-                        email: managerFormData.email,
-                        password_hash: managerFormData.password_hash,
-                        name: managerFormData.name,
+                        email,
+                        password_hash: plainPassword,
+                        name,
                         created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
+                        updated_at: new Date().toISOString(),
                     }]);
 
                 if (error) throw error;
@@ -3945,7 +3972,7 @@ export default function AdminDashboard() {
             setEditingManager(null);
         } catch (error) {
             console.error('Error saving manager:', error);
-            toast.error('Failed to save manager');
+            toast.error(error?.message || 'Failed to save manager');
         }
     };
 
@@ -3976,54 +4003,76 @@ export default function AdminDashboard() {
             name: '',
             site_id: '',
             email: '',
-            phone: ''
+            phone: '',
+            password_is_set: false,
         });
     };
 
     const handleEditSupervisor = (supervisor) => {
         setEditingSupervisor(supervisor);
+        // Never put bcrypt into the password field — typing appends to the hash and breaks login.
         setSupervisorFormData({
             supervisor_id: supervisor.supervisor_id,
-            password_hash: supervisor.password_hash,
+            password_hash: '',
             name: supervisor.name,
             site_id: supervisor.site_id,
             email: supervisor.email || '',
-            phone: supervisor.phone || ''
+            phone: supervisor.phone || '',
+            password_is_set: hasWorkerPasswordSet(supervisor.password_hash || ''),
         });
     };
 
     const handleSaveSupervisor = async () => {
         try {
+            const supervisorId = String(supervisorFormData.supervisor_id || '').trim();
+            const name = String(supervisorFormData.name || '').trim();
+            const plainPassword = normalizeWorkerPasswordForSave(supervisorFormData.password_hash);
+
+            if (!supervisorId || !name) {
+                toast.error('Supervisor ID and name are required');
+                return;
+            }
+
             if (editingSupervisor) {
-                // Update existing supervisor
                 const { error } = await supabase
                     .from('supervisors')
                     .update({
-                        supervisor_id: supervisorFormData.supervisor_id,
-                        password_hash: supervisorFormData.password_hash,
-                        name: supervisorFormData.name,
+                        supervisor_id: supervisorId,
+                        name,
                         site_id: supervisorFormData.site_id,
                         email: supervisorFormData.email,
                         phone: supervisorFormData.phone,
-                        updated_at: new Date().toISOString()
+                        updated_at: new Date().toISOString(),
                     })
                     .eq('id', editingSupervisor.id);
 
                 if (error) throw error;
-                toast.success('Supervisor updated successfully!');
+
+                if (plainPassword) {
+                    await adminSetSupervisorPassword({
+                        supervisorRowId: editingSupervisor.id,
+                        newPassword: plainPassword,
+                        supervisorId,
+                    });
+                }
+
+                toast.success(plainPassword ? 'Supervisor updated (password reset).' : 'Supervisor updated successfully!');
             } else {
-                // Add new supervisor
+                if (!plainPassword || plainPassword.length < 4) {
+                    toast.error('Enter a password (at least 4 characters) for the new supervisor');
+                    return;
+                }
                 const { error } = await supabase
                     .from('supervisors')
                     .insert([{
-                        supervisor_id: supervisorFormData.supervisor_id,
-                        password_hash: supervisorFormData.password_hash,
-                        name: supervisorFormData.name,
+                        supervisor_id: supervisorId,
+                        password_hash: plainPassword,
+                        name,
                         site_id: supervisorFormData.site_id,
                         email: supervisorFormData.email,
                         phone: supervisorFormData.phone,
                         created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString()
+                        updated_at: new Date().toISOString(),
                     }]);
 
                 if (error) throw error;
@@ -4035,7 +4084,7 @@ export default function AdminDashboard() {
             setEditingSupervisor(null);
         } catch (error) {
             console.error('Error saving supervisor:', error);
-            toast.error('Failed to save supervisor');
+            toast.error(error?.message || 'Failed to save supervisor');
         }
     };
 
@@ -12966,13 +13015,21 @@ ${balanceBlock.html}
                                 />
                             </div>
                             <div>
-                                <label className="text-sm font-medium">Password</label>
+                                <label className="text-sm font-medium">
+                                    {editingManager ? 'New password' : 'Password'}
+                                </label>
                                 <Input
                                     type="password"
+                                    autoComplete="new-password"
                                     value={managerFormData.password_hash}
                                     onChange={(e) => setManagerFormData({...managerFormData, password_hash: e.target.value})}
-                                    placeholder="Enter password"
+                                    placeholder={editingManager ? 'Leave blank to keep current' : 'Enter password'}
                                 />
+                                {editingManager && managerFormData.password_is_set && !managerFormData.password_hash && (
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        Password is hashed and cannot be shown. Enter a new password only if resetting.
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div className="flex gap-2 mt-4">
@@ -13067,13 +13124,21 @@ ${balanceBlock.html}
                                 />
                             </div>
                             <div>
-                                <label className="text-sm font-medium">Password</label>
+                                <label className="text-sm font-medium">
+                                    {editingSupervisor ? 'New password' : 'Password'}
+                                </label>
                                 <Input
                                     type="password"
+                                    autoComplete="new-password"
                                     value={supervisorFormData.password_hash}
                                     onChange={(e) => setSupervisorFormData({...supervisorFormData, password_hash: e.target.value})}
-                                    placeholder="Enter password"
+                                    placeholder={editingSupervisor ? 'Leave blank to keep current' : 'Enter password'}
                                 />
+                                {editingSupervisor && supervisorFormData.password_is_set && !supervisorFormData.password_hash && (
+                                    <p className="text-xs text-slate-500 mt-1">
+                                        Password is hashed and cannot be shown. Enter a new password only if resetting.
+                                    </p>
+                                )}
                             </div>
                             <div>
                                 <label className="text-sm font-medium">Site</label>

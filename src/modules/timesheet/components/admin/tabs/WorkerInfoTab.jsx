@@ -1,5 +1,8 @@
 import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { paths } from '@/app/paths';
+import { sectionHref } from '@/app/useHubSection';
 import { useAdminDash } from '../AdminDashContext';
 import { glassPanel } from '@/ui/PortalShell';
 import { Button } from '@/ui/button';
@@ -13,6 +16,7 @@ import WorkerInfoCenter from '@/features/workerInfo/WorkerInfoCenter';
 import { WorkerInfoAdminHost, openWorkerLookup, openWorkerProfile } from '@/features/workerInfo/WorkerProfile';
 import { workerInfoAdmin } from '@/features/workerInfo/api';
 import { EXPIRY_NAME_CLASS, expiryAlertTitle } from '@/features/workerInfo/expiryAlert';
+import WorkerAccessTable from '@/modules/timesheet/components/admin/WorkerAccessTable';
 
 const CardsAdminPanel = lazy(() => import('@/features/cards/CardsAdminPanel'));
 
@@ -112,6 +116,7 @@ export default function WorkerInfoTab() {
     workerIsNotInCompany,
   } = useAdminDash();
 
+  const navigate = useNavigate();
   const [view, setViewState] = useState(readView);
   const [seen, setSeen] = useState(() => new Set([readView()]));
   const setView = (v) => {
@@ -180,7 +185,8 @@ export default function WorkerInfoTab() {
     { icon: UserPlus, title: t('ui.addWorker'), hint: 'New local or foreign worker', onClick: handleAddWorkerClick, tour: 'admin-worker-add', primary: true },
     { icon: Edit2, title: t('ui.editWorker'), hint: 'Details, rates, balances', onClick: UNIFIED ? () => openWorkerLookup('edit') : handleEditWorkerClick },
     { icon: Search, title: t('ui.searchWorker'), hint: 'Profile, timesheets, payslips', onClick: UNIFIED ? openWorkerLookup : handleWorkerSearchClick },
-    { icon: Users, title: t('ui.managers'), hint: 'Accounts & permissions', onClick: () => setShowManagerDialog(true) },
+    // One Managers page for hub, Materials and Site work logins (the old Attendance-only dialog is retired).
+    { icon: Users, title: t('ui.managers'), hint: 'Logins for every area', onClick: () => (UNIFIED ? navigate(sectionHref(paths.materials.admin, 'managers')) : setShowManagerDialog(true)) },
     { icon: UserCheck, title: t('ui.supervisors'), hint: 'Supervisor accounts', onClick: () => setShowSupervisorDialog(true) },
     { icon: Trash2, title: t('ui.deleteWorker'), hint: 'Remove a record', onClick: handleDeleteWorkerClick, danger: true },
   ];
@@ -254,6 +260,9 @@ export default function WorkerInfoTab() {
           ))}
         </div>
       ) : null}
+
+      {/* Bulk Materials / Site photos switches — UNIFIED only (component no-ops otherwise). */}
+      {UNIFIED && view === 'records' ? <WorkerAccessTable /> : null}
 
       {/* Worker records */}
       <section

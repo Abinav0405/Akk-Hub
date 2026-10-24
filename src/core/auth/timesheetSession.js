@@ -548,6 +548,54 @@ export async function adminSetWorkerPassword({ employeeId, workerType, newPasswo
     return true;
 }
 
+export async function adminSetManagerPassword({ managerId, newPassword, email }) {
+    const ok = await verifyAdminSession();
+    if (!ok) throw new Error('Admin session required to reset manager passwords.');
+    const plain = normalizeWorkerPasswordForSave(newPassword);
+    if (!plain || plain.length < 4) {
+        throw new Error('Enter a new plain-text password (at least 4 characters).');
+    }
+    const { data, error } = await supabase.rpc('admin_set_manager_password', {
+        p_manager_id: managerId,
+        p_new_password: plain,
+    });
+    if (error) throw error;
+    if (!data) throw new Error('Manager not found — could not update password.');
+    const unlockId = String(email || '').trim().toLowerCase();
+    if (unlockId) {
+        try {
+            await supabase.rpc('record_login_success', { p_identifier: unlockId, p_role: 'manager' });
+        } catch {
+            /* best effort */
+        }
+    }
+    return true;
+}
+
+export async function adminSetSupervisorPassword({ supervisorRowId, newPassword, supervisorId }) {
+    const ok = await verifyAdminSession();
+    if (!ok) throw new Error('Admin session required to reset supervisor passwords.');
+    const plain = normalizeWorkerPasswordForSave(newPassword);
+    if (!plain || plain.length < 4) {
+        throw new Error('Enter a new plain-text password (at least 4 characters).');
+    }
+    const { data, error } = await supabase.rpc('admin_set_supervisor_password', {
+        p_supervisor_row_id: supervisorRowId,
+        p_new_password: plain,
+    });
+    if (error) throw error;
+    if (!data) throw new Error('Supervisor not found — could not update password.');
+    const unlockId = String(supervisorId || '').trim();
+    if (unlockId) {
+        try {
+            await supabase.rpc('record_login_success', { p_identifier: unlockId, p_role: 'supervisor' });
+        } catch {
+            /* best effort */
+        }
+    }
+    return true;
+}
+
 /* ---- One-tap Face ID on a remembered phone ---- */
 
 export async function registerLoginDevice(sessionToken, label = '') {

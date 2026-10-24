@@ -1397,3 +1397,13 @@ Admin / manager → Deployment: each site row now has **Day shift / Night shift*
 Files: `WorkerInfoTab.jsx`, `features/workerInfo/WorkerInfoCenter.jsx`, `features/cards/CardsAdminPanel.jsx`, `glass.css` (zebra rows), `AdminDashboard.jsx` (Workers tab is 1600px wide), `DashboardAnalyticsWidget.jsx` (3 tiles per row).
 Layout: 6 compact action buttons → section tabs **Worker records / Information & requests / ID cards** → one worker table with Local|Foreign, Active|Not in company|All and search (all old columns kept; ID/NRIC/Name stay frozen; one scroll area). Phones get a tap-to-open list.
 Please check at 1920 / 1366 / 1024 / phone: no page-wide sideways scroll, name/ID opens the worker, Add/Edit/Search/Managers/Supervisors/Delete still open their dialogs, Export/Print, Request info / Information check / Export menu, card filters, Select / Mark issued / Print, Scan log, "Show more".
+
+
+## Claude update — 2026-10-24 — ONE Managers page (hub login + Materials + Site work)
+
+- Sidebar **Managers** (`modules/materials/components/ManagersManager.jsx`) now lists each manager once by email with chips Hub login / Materials / Site work. Add, edit (name/email), reset password and remove act on all three via `src/features/managers/managerAccounts.js`; a password also sets up any missing area. Min 8 chars.
+- Employees → Managers now opens that page. Manager JSR access keeps only permissions + Site work on/off.
+- DB `99_manager_update.sql` (applied): `progress.admin_update_manager` (rename / re-email) and `core.admin_staff_unban` (re-adding a removed Materials manager lifted only the profile, not the auth ban).
+- `supabase/functions/mat-manage-staff/index.ts` source fixed the same way (unban on re-add) — **needs redeploy**; the page works without it.
+- Tested (rolled back): hub + Site work add / sign-in / reset / rename / remove / non-admin refused — 24/24. Materials goes through the existing function (not testable without a signed-in admin).
+- Only arumugamabinav22@gmail.com is admin in all three areas; other hub admins will see "Site work / Materials failed: Admin access required".
