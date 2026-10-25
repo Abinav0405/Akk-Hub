@@ -33,8 +33,13 @@ export default function CardScanner({ onCode, busy = false, allowTyping = true, 
         startNfcRead(
             (text) => {
                 if (!alive) return;
+                const code = extractCode(text);
+                if (!code) {
+                    setNfcMsg("That tag isn't an AKK ID card — try the card again.");
+                    return; // keep listening
+                }
                 setNfcOn(false);
-                onCode(extractCode(text));
+                onCode(code);
             },
             (m) => alive && setNfcMsg(m),
         ).then((s) => {
@@ -63,7 +68,14 @@ export default function CardScanner({ onCode, busy = false, allowTyping = true, 
                     </button>
                 </div>
             ) : !typing ? (
-                <LiveQrCamera onDecoded={(text) => onCode(extractCode(text))} busy={busy} hint={allowTyping ? `${hint} or its barcode` : hint} barcode={allowTyping} />
+                <LiveQrCamera
+                    onDecoded={(text) => onCode(extractCode(text))}
+                    accept={(text) => Boolean(extractCode(text))}
+                    rejectHint="That's not an AKK ID card — keep the card's QR or barcode in view."
+                    busy={busy}
+                    hint={allowTyping ? `${hint} or its barcode` : hint}
+                    barcode={allowTyping}
+                />
             ) : (
                 <form
                     className="space-y-2 rounded-2xl border border-[var(--g-hairline)] bg-white p-4"

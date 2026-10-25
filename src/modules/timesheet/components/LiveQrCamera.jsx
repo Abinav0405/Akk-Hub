@@ -132,12 +132,21 @@ export default function LiveQrCamera({
     className,
     /** also read the Code 128 number barcode of an AKK ID card (staff card scanning) */
     barcode = false,
+    /**
+     * Optional (text) => boolean. A code it rejects (a restaurant QR, another sticker, a misread) is skipped:
+     * the camera keeps scanning and shows `rejectHint` briefly instead of handing the code on.
+     */
+    accept = null,
+    rejectHint = 'That code is not the one we need — keep pointing at the right one.',
 }) {
     const ownerIdRef = useRef(`qr-${Math.random().toString(36).slice(2)}`);
     const fileHostIdRef = useRef(`qr-file-${Math.random().toString(36).slice(2)}`);
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     const onDecodedRef = useRef(onDecoded);
+    const acceptRef = useRef(accept);
+    const [rejected, setRejected] = useState(false);
+    const rejectTimerRef = useRef(null);
     const lockedRef = useRef(false);
     const streamRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -149,6 +158,15 @@ export default function LiveQrCamera({
     const [restartKey, setRestartKey] = useState(0);
 
     onDecodedRef.current = onDecoded;
+    acceptRef.current = accept;
+
+    /** A skipped code: say so for a moment, keep scanning. */
+    const flagRejected = () => {
+        setRejected(true);
+        window.clearTimeout(rejectTimerRef.current);
+        rejectTimerRef.current = window.setTimeout(() => setRejected(false), 2200);
+    };
+    useEffect(() => () => window.clearTimeout(rejectTimerRef.current), []);
 
     const retry = () => {
         lockedRef.current = false;
@@ -173,18 +191,26 @@ export default function LiveQrCamera({
             });
         };
 
+        /** true when the code was handed on (camera stops), false when it was skipped. */
         const emit = (text) => {
-            if (cancelled || lockedRef.current || !text) return;
+            if (cancelled || lockedRef.current || !text) return false;
+            if (acceptRef.current && !acceptRef.current(text)) {
+                flagRejected();
+                return false;
+            }
             lockedRef.current = true;
             if (timer) window.clearTimeout(timer);
             stopTracks(streamRef.current);
             streamRef.current = null;
             if (activeLiveQrOwner === ownerId) activeLiveQrOwner = null;
             onDecodedRef.current?.(text);
+            return true;
         };
 
         let barcodeBusy = false;
         let frames = 0;
+        // A barcode counts only when the same number is read twice within 2 s (one smudged read can't slip through).
+        let lastBarcode = { code: null, at: 0 };
         const tick = () => {
             if (cancelled || lockedRef.current) return;
             const video = videoRef.current;
@@ -197,17 +223,17 @@ export default function LiveQrCamera({
                 const ctx = canvas.getContext('2d', { willReadFrequently: true });
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const text = decodeCanvas(canvas);
-                if (text) {
-                    emit(text);
-                    return;
-                }
+                if (text && emit(text)) return;
                 // Number barcode: a few times a second, one frame at a time (it is heavier than the QR read).
                 frames += 1;
                 if (barcode && !barcodeBusy && frames % 3 === 0) {
                     barcodeBusy = true;
                     void decodeCardBarcode(canvas)
                         .then((code) => {
-                            if (code) emit(code);
+                            if (!code) return;
+                            const now = Date.now();
+                            if (lastBarcode.code === code && now - lastBarcode.at < 2000) emit(code);
+                            else lastBarcode = { code, at: now };
                         })
                         .finally(() => {
                             barcodeBusy = false;
@@ -307,6 +333,10 @@ export default function LiveQrCamera({
                 toast.error('No QR code found in that image. Try a clearer photo.');
                 return;
             }
+            if (acceptRef.current && !acceptRef.current(text)) {
+                toast.error(rejectHint);
+                return;
+            }
             lockedRef.current = true;
             streamRef.current?.getTracks?.().forEach((track) => {
                 try { track.stop(); } catch { /* ignore */ }
@@ -384,12 +414,12 @@ export default function LiveQrCamera({
                 ) : null}
             </div>
 
-            <p className="px-0.5 text-xs text-slate-500">
+            <p className={`px-0.5 text-xs ${rejected && !busyLabel ? 'font-semibold text-amber-700' : 'text-slate-500'}`} aria-live="polite">
                 {busyLabel
                     || (
                         <>
                             <ScanLine className="mr-1 inline h-3.5 w-3.5 align-text-bottom text-[#dc6b2f]" aria-hidden />
-                            {hint}
+                            {rejected ? rejectHint : hint}
                         </>
                     )}
                 {gpsLabel && !busyLabel ? ` · ${gpsLabel}` : ''}

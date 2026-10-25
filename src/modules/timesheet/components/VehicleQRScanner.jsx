@@ -143,6 +143,8 @@ const VehicleQRScanner = ({
             disabled={disabled}
             busy={isValidating}
             hint="Point the camera at the vehicle QR"
+            accept={(text) => /_VEHICLE_/.test(String(text || ''))}
+            rejectHint="That's not an AKK vehicle QR — point at the sticker in the vehicle."
             gpsLabel={gpsLabel}
         />
     );

@@ -82,23 +82,30 @@ export function qrPayload(code, base = siteUrl()) {
     return base ? `${base}/id?c=${encodeURIComponent(code)}` : code;
 }
 
-/** Pull a card code out of whatever a scanner read (URL, bare code, or 16 digits). */
+/** Exactly the shapes the server accepts (core._card_resolve): live phone code and printed-card code. */
+const LIVE_CODE = /^AKK1L\.[0-9a-f]{32}\.[0-9a-z]{1,12}\.[0-9a-f]{20}$/;
+const PRINTED_CODE = /^AKK1P\.[A-Za-z0-9_-]{24}$/;
+export const isCardCode = (s) => LIVE_CODE.test(s) || PRINTED_CODE.test(s);
+
+/**
+ * Pull an AKK card code out of whatever a scanner read: a link to the check page (?c=…), a bare code,
+ * or the 16-digit card number (check digit must be right). Anything else — a restaurant QR, a vehicle
+ * sticker, a misread — gives null, so live scanners can ignore it and keep looking.
+ */
 export function extractCode(text) {
     const s = String(text || '').trim();
     if (!s) return null;
     try {
         if (/^https?:\/\//i.test(s)) {
-            const u = new URL(s);
-            const c = u.searchParams.get('c');
-            if (c) return c;
+            const c = (new URL(s).searchParams.get('c') || '').trim();
+            return isCardCode(c) ? c : null;
         }
     } catch {
-        /* not a URL */
+        return null;
     }
-    if (/^AKK1[LP]\./.test(s)) return s;
+    if (isCardCode(s)) return s;
     const digits = s.replace(/[\s-]/g, '');
-    if (/^\d{16}$/.test(digits)) return digits;
-    return s; // let the server decide (it answers "not a valid AKK card code")
+    return /^\d{16}$/.test(digits) && luhnOk(digits) ? digits : null;
 }
 
 /** Luhn check (same as the server) — catches typos before a lookup. */

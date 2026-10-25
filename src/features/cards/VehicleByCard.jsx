@@ -59,7 +59,14 @@ export default function VehicleByCard({ onNext }) {
         return (
             <div className="space-y-2">
                 <p className="text-center text-sm font-semibold text-slate-700">Step 1 of 2 — scan the vehicle QR</p>
-                <LiveQrCamera key={nonce} onDecoded={onVehicle} busy={busy} hint="Point the camera at the vehicle QR sticker" />
+                <LiveQrCamera
+                    key={nonce}
+                    onDecoded={onVehicle}
+                    accept={(text) => /_VEHICLE_/.test(String(text || ''))}
+                    rejectHint="That's not an AKK vehicle QR — point at the sticker in the vehicle."
+                    busy={busy}
+                    hint="Point the camera at the vehicle QR sticker"
+                />
             </div>
         );
     }
