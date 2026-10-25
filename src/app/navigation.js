@@ -259,6 +259,7 @@ export const NAV = {
                     { id: 'people', label: 'Employees', icon: Users, ...sec(TS_ADMIN, 'worker-info') },
                     ...(UNIFIED ? [] : [{ id: 'mrequesters', label: 'Material requesters', icon: UserRound, ...sec(MAT_ADMIN, 'requesters') }]),
                     { id: 'mmanagers', label: 'Managers', icon: UserCog, ...sec(MAT_ADMIN, 'managers') },
+                    ...(UNIFIED ? [{ id: 'madmins', label: 'Admins', icon: ShieldCheck, ...sec(MAT_ADMIN, 'admins') }] : []),
                     ...(UNIFIED ? [] : [{ id: 'paccess', label: 'App access', icon: ShieldCheck, ...sec(PR_ADMIN, 'users') }]),
                     ...(UNIFIED
                         ? [{ id: 'sites', label: 'Sites', icon: MapPin, to: paths.adminSites }]

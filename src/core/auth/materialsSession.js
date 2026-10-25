@@ -9,7 +9,7 @@
  *   seenRequestIdsKey(workerId) → localStorage key for "already seen" request ids
  * Keys are namespaced `akk.materials.*`.
  */
-import { supabaseMaterials as supabase } from '@/core/supabase';
+import { AUTH_STORAGE_KEY, UNIFIED, supabaseMaterials as supabase, signOutThisDevice } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { cachedVerify, forgetVerified } from '@/core/auth/verifyCache';
 
@@ -76,10 +76,7 @@ export function clearAdminFlags() {
 export function hasStoredStaffSession() {
     try {
         // UNIFIED uses akk.hub.materials.sb-auth; pre-UNIFIED used akk.materials.sb-auth.
-        return !!(
-            localStorage.getItem('akk.hub.materials.sb-auth') ||
-            localStorage.getItem('akk.materials.sb-auth')
-        );
+        return !!(UNIFIED ? localStorage.getItem(AUTH_STORAGE_KEY) : localStorage.getItem('akk.materials.sb-auth'));
     } catch {
         return false;
     }
@@ -166,11 +163,17 @@ export async function getAdminSession() {
 /** Staff (admin / manager) sign-in to the Materials project with Supabase Auth. */
 export async function signInStaff({ email, password, role }) {
     forgetVerified('mt:staff');
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-    if (error) return { ok: false, error: 'Invalid email or password', cause: error };
+    // One backend: already signed in as this person (the hub sign-in) → just check their Materials role.
+    const current = UNIFIED ? (await supabase.auth.getSession()).data?.session : null;
+    const same = current?.user?.email && current.user.email.toLowerCase() === email.trim().toLowerCase();
+    if (!same) {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) return { ok: false, error: 'Invalid email or password', cause: error };
+    }
     const session = await getStaffSession();
     if (!session || (role && !session.roles?.includes(role))) {
-        await supabase.auth.signOut();
+        // One backend: the sign-in is shared with the hub — never end it because one area said no.
+        if (!UNIFIED) await signOutThisDevice(supabase);
         return { ok: false, error: `This account has no Material Tracker ${role || 'staff'} access.` };
     }
     persistStaffFlags(session, role);
@@ -211,7 +214,8 @@ export async function requireAdminSession(navigate) {
 
 export async function signOutStaff() {
     try {
-        await supabase.auth.signOut();
+        // One backend: the hub's Sign out ends the shared session; leaving Materials only clears its markers.
+        if (!UNIFIED) await signOutThisDevice(supabase);
     } catch {
         /* still clear local flags */
     }

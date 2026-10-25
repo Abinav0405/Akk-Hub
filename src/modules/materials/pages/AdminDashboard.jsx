@@ -20,7 +20,7 @@ import {
     Search, Package, RotateCcw,
     Calendar, Clock, User, FileSpreadsheet, Loader2, Trash2, Printer,
     CheckCircle, XCircle, AlertCircle, Edit2, ChevronDown, ChevronUp, MapPin,
-    ClipboardList, Users, BarChart3, UserCog, MoreHorizontal, Inbox
+    ClipboardList, Users, BarChart3, UserCog, MoreHorizontal, Inbox, ShieldCheck
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useHubSection } from '@/app/useHubSection';
@@ -34,9 +34,10 @@ const RequestersManager = lazy(() => import('@/modules/materials/components/Requ
 const SitesManager = lazy(() => import('@/modules/materials/components/SitesManager'));
 const MaterialsManager = lazy(() => import('@/modules/materials/components/MaterialsManager'));
 const ManagersManager = lazy(() => import('@/modules/materials/components/ManagersManager'));
+const AdminsManager = lazy(() => import('@/features/managers/AdminsManager'));
 
 const MATERIALS_ADMIN_SECTIONS = UNIFIED
-    ? ['transactions', 'materials', 'analytics', 'managers']
+    ? ['transactions', 'materials', 'analytics', 'managers', 'admins']
     : ['transactions', 'materials', 'sites', 'requesters', 'analytics', 'managers'];
 
 const ManagerTabFallback = (
@@ -160,6 +161,7 @@ const NATIVE_TAB_COPY = {
     requesters: { title: 'People', subtitle: 'Workers who can request materials' },
     analytics: { title: 'Analytics', subtitle: 'Trends across all requests' },
     managers: { title: 'Managers', subtitle: 'Staff with manager access' },
+    admins: { title: 'Admins', subtitle: 'Full control of every area' },
 };
 
 const TYPE_OPTIONS = [
@@ -819,7 +821,8 @@ export default function AdminDashboard({ role = 'admin' }) {
                         {isAdmin && <TabsTrigger value="analytics" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Stats</span><span className="hidden sm:inline">Analytics</span></TabsTrigger>}
                         {!UNIFIED ? <TabsTrigger value="sites" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Sites</TabsTrigger> : null}
                         <TabsTrigger value="materials" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Stock</span><span className="hidden sm:inline">Materials</span></TabsTrigger>
-                        {isAdmin && <TabsTrigger value="managers" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Admins</span><span className="hidden sm:inline">Managers</span></TabsTrigger>}
+                        {isAdmin && <TabsTrigger value="managers" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Managers</TabsTrigger>}
+                        {isAdmin && UNIFIED ? <TabsTrigger value="admins" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Admins</TabsTrigger> : null}
                     </TabsList>
                 </Tabs>
                 )}
@@ -933,6 +936,10 @@ export default function AdminDashboard({ role = 'admin' }) {
                     ) : activeTab === 'managers' && isAdmin ? (
                         <Suspense fallback={ManagerTabFallback}>
                             <ManagersManager />
+                        </Suspense>
+                    ) : activeTab === 'admins' && isAdmin && UNIFIED ? (
+                        <Suspense fallback={ManagerTabFallback}>
+                            <AdminsManager />
                         </Suspense>
                     ) : activeTab === 'materials' ? (
                         <Suspense fallback={ManagerTabFallback}>
@@ -1492,6 +1499,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                     ...(isAdmin ? [
                         { id: 'analytics', icon: BarChart3, label: 'Stats', active: activeTab === 'analytics', onClick: () => setActiveTab('analytics') },
                         { id: 'managers', icon: UserCog, label: 'Managers', active: activeTab === 'managers', onClick: () => setActiveTab('managers') },
+                        ...(UNIFIED ? [{ id: 'admins', icon: ShieldCheck, label: 'Admins', active: activeTab === 'admins', onClick: () => setActiveTab('admins') }] : []),
                     ] : []),
                 ]}
             />

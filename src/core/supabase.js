@@ -1,14 +1,13 @@
 /**
- * Interim backend: one Supabase client per source project.
+ * Backend clients.
  *
- *   supabaseTimesheet — Timesheet Manager project (also the hub sign-in)
- *   supabaseMaterials — Material Tracker project
- *   supabaseProgress  — Site Progress Tracker project (shared with AKK Camera)
+ *   supabaseTimesheet — Attendance (also the hub sign-in)
+ *   supabaseMaterials — Materials
+ *   supabaseProgress  — Site work (shared with AKK Camera)
  *
- * Each client gets its own auth storage key, so three Supabase Auth sessions (e.g. an
- * admin signed in to all three projects) never overwrite each other.
- * When the single AKK Hub project exists, all three point at it and this file is the only
- * place that changes.
+ * One AKK Hub backend (UNIFIED): ONE client and ONE sign-in; Materials / Site work are views of it
+ * that talk to their own schema. Old three-project setup: one client per project, each with its own
+ * sign-in storage.
  *
  * Always uses the real @supabase/supabase-js client and live project URLs/keys from env.
  * No mock / fake fetch layer.
@@ -116,23 +115,69 @@ function makeClient(name, url, anonKey) {
     });
 }
 
+/**
+ * One backend = ONE sign-in. Materials and Site work used to keep their own copies of the same person's
+ * session; a copy could go stale or belong to someone else, and any area's sign-out ended them all. Now
+ * they share the hub's session (storage key below). Once per device, a session that only one of the old
+ * area keys held moves into the shared key so nobody is signed out by the update.
+ * Must run before createClient below.
+ */
+export const AUTH_STORAGE_KEY = UNIFIED ? 'akk.hub.timesheet.sb-auth' : null;
+(function shareOneSignIn() {
+    if (!UNIFIED) return;
+    try {
+        const flag = 'akk.hub.authShared';
+        if (localStorage.getItem(flag) === 'v1') return;
+        const old = ['akk.hub.materials.sb-auth', 'akk.hub.progress.sb-auth'];
+        if (!localStorage.getItem(AUTH_STORAGE_KEY)) {
+            const keep = old.map((k) => localStorage.getItem(k)).find(Boolean);
+            if (keep) localStorage.setItem(AUTH_STORAGE_KEY, keep);
+        }
+        old.forEach((k) => {
+            localStorage.removeItem(k);
+            sessionStorage.removeItem(k);
+        });
+        localStorage.setItem(flag, 'v1');
+    } catch {
+        /* storage blocked — the area asks to sign in again */
+    }
+})();
+
+/**
+ * An area's view of the shared hub client: same sign-in, storage, functions and realtime; table and
+ * function calls go to the area's own schema.
+ */
+function areaClient(hub, area) {
+    const schema = DB_SCHEMA[area];
+    return new Proxy(hub, {
+        get(target, prop) {
+            if (prop === 'from') return (relation) => target.schema(schema).from(relation);
+            if (prop === 'rpc') return (fn, args, options) => target.schema(schema).rpc(fn, args, options);
+            const value = Reflect.get(target, prop, target);
+            return typeof value === 'function' ? value.bind(target) : value;
+        },
+    });
+}
+
 export const supabaseTimesheet = makeClient(
     'timesheet',
     env.VITE_TIMESHEET_SUPABASE_URL,
     env.VITE_TIMESHEET_SUPABASE_ANON_KEY,
 );
 
-export const supabaseMaterials = makeClient(
-    'materials',
-    env.VITE_MATERIALS_SUPABASE_URL,
-    env.VITE_MATERIALS_SUPABASE_ANON_KEY,
-);
+export const supabaseMaterials = UNIFIED
+    ? areaClient(supabaseTimesheet, 'materials')
+    : makeClient('materials', env.VITE_MATERIALS_SUPABASE_URL, env.VITE_MATERIALS_SUPABASE_ANON_KEY);
 
-export const supabaseProgress = makeClient(
-    'progress',
-    env.VITE_PROGRESS_SUPABASE_URL,
-    env.VITE_PROGRESS_SUPABASE_ANON_KEY,
-);
+export const supabaseProgress = UNIFIED
+    ? areaClient(supabaseTimesheet, 'progress')
+    : makeClient('progress', env.VITE_PROGRESS_SUPABASE_URL, env.VITE_PROGRESS_SUPABASE_ANON_KEY);
+
+/**
+ * Sign out of the shared session on THIS device only. supabase-js defaults to scope "global", which
+ * ends every session of the account on every device — one area's sign-out logged the admin out everywhere.
+ */
+export const signOutThisDevice = (client) => client.auth.signOut({ scope: 'local' });
 
 /**
  * Hub-wide functions (worker access, places, admin worker details). Uses the Attendance

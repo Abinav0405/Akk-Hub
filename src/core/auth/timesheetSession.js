@@ -6,7 +6,7 @@
  * whose `localStorage.getItem('workerId')` calls were rewritten to
  * `storageKey('timesheet', 'workerId')`, read exactly what this file writes.
  */
-import { supabaseTimesheet as supabase, supabaseCore, UNIFIED } from '@/core/supabase';
+import { supabaseTimesheet as supabase, supabaseCore, UNIFIED, signOutThisDevice } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { normalizeWorkerPasswordForSave } from '@/core/auth/passwordUtils';
 import { cachedVerify, forgetVerified, peekVerified, primeVerified } from '@/core/auth/verifyCache';
@@ -90,6 +90,24 @@ export function isAuthorizedAdmin(user) {
     return true;
 }
 
+/**
+ * One backend: the DATABASE decides who is an admin (core.is_hub_admin — the admin lists the hub keeps
+ * in step). Never the user's own profile metadata (anyone can edit that) and never "any account".
+ * Resolves true / false, or 'offline' when the check could not be made. Cached briefly per account.
+ */
+let adminCheck = { uid: null, ok: false, at: 0 };
+async function serverSaysAdmin(user) {
+    if (!user) return false;
+    if (adminCheck.uid === user.id && Date.now() - adminCheck.at < 5 * 60_000) return adminCheck.ok;
+    const { data, error } = await supabaseCore.rpc('is_hub_admin');
+    if (error) return 'offline';
+    adminCheck = { uid: user.id, ok: data === true, at: Date.now() };
+    return adminCheck.ok;
+}
+async function adminAllowed(user) {
+    return UNIFIED ? serverSaysAdmin(user) : isAuthorizedAdmin(user);
+}
+
 /* ------------------------------------------------------------------ */
 /* Admin (Supabase Auth)                                               */
 /* ------------------------------------------------------------------ */
@@ -111,9 +129,14 @@ export function persistAdminSession({ email, name }) {
 export async function signInAdmin({ email, password }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
     if (error) return { ok: false, error: 'Invalid email or password', cause: error };
-    if (!isAuthorizedAdmin(data.user)) {
-        await supabase.auth.signOut();
-        return { ok: false, error: 'This account is not authorized for admin access' };
+    adminCheck = { uid: null, ok: false, at: 0 };
+    const allowed = await adminAllowed(data.user);
+    if (allowed !== true) {
+        await signOutThisDevice(supabase);
+        return {
+            ok: false,
+            error: allowed === 'offline' ? 'Could not confirm admin access — check the connection and try again.' : 'This account is not authorized for admin access',
+        };
     }
     const name = data.user.user_metadata?.name || data.user.email.split('@')[0];
     persistAdminSession({ email: data.user.email, name });
@@ -121,8 +144,9 @@ export async function signInAdmin({ email, password }) {
 }
 
 export async function signOutAdmin() {
+    adminCheck = { uid: null, ok: false, at: 0 };
     try {
-        await supabase.auth.signOut();
+        await signOutThisDevice(supabase);
     } catch {
         /* ignore */
     }
@@ -148,7 +172,9 @@ export async function verifyAdminSession() {
             if (isAdminAuthenticated()) clearAdminSession();
             return false;
         }
-        if (!isAuthorizedAdmin(user)) {
+        const allowed = await adminAllowed(user);
+        if (allowed === 'offline') return isAdminAuthenticated() ? 'offline' : false;
+        if (allowed !== true) {
             await signOutAdmin();
             return false;
         }

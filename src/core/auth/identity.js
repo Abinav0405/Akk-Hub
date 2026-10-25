@@ -9,6 +9,7 @@
  */
 import { useSyncExternalStore } from 'react';
 import { local, clearModuleStorage } from '@/core/storage';
+import { UNIFIED, signOutThisDevice, supabaseTimesheet } from '@/core/supabase';
 import {
     getAdminProfile,
     getStoredRoleSession,
@@ -168,6 +169,8 @@ export async function signOutEverywhere() {
         import('@/core/auth/bridges').then((m) => m.disconnectAllModules()).catch(() => {}),
     );
     await Promise.allSettled(tasks);
+    // One backend: the areas share one sign-in (a manager's Materials login too) — end it here, this device only.
+    if (UNIFIED) await signOutThisDevice(supabaseTimesheet).catch(() => {});
 
     // Keep convenience prefs (last worker id/type, biometric prefs, language) — clear the rest.
     clearModuleStorage('timesheet', { keep: ['lastWorkerId', 'lastWorkerType'] });

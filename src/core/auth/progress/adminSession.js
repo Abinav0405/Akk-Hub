@@ -1,4 +1,4 @@
-import { supabaseProgress as supabase, waitForInitialAuthSession } from '@/core/supabase';
+import { UNIFIED, supabaseProgress as supabase, signOutThisDevice, waitForInitialAuthSession } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
 import { isTransportError } from '@/modules/progress/lib/networkError';
 import { cachedVerify, forgetVerified } from '@/core/auth/verifyCache';
@@ -107,9 +107,17 @@ async function fetchAdminSession() {
 
 export async function signInAdmin({ email, password }) {
   forgetVerified('pr:admin');
-  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
-  if (error) {
-    return { ok: false, error: error.message };
+  // One backend: already signed in as this person (the hub sign-in) → just check their Site work profile.
+  const current = UNIFIED ? (await supabase.auth.getSession()).data?.session : null;
+  let data;
+  if (current?.user?.email && current.user.email.toLowerCase() === email.trim().toLowerCase()) {
+    data = { user: current.user };
+  } else {
+    const res = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (res.error) {
+      return { ok: false, error: res.error.message };
+    }
+    data = res.data;
   }
 
   const { data: profile, error: profileError } = await supabase
@@ -119,7 +127,8 @@ export async function signInAdmin({ email, password }) {
     .maybeSingle();
 
   if (profileError || !profile?.is_active) {
-    await supabase.auth.signOut();
+    // One backend: the sign-in is shared with the hub — never end it because one area said no.
+    if (!UNIFIED) await signOutThisDevice(supabase);
     return { ok: false, error: 'This account does not have admin access.' };
   }
 
@@ -158,7 +167,8 @@ export async function signOutAdmin() {
     /* ignore */
   }
   try {
-    await supabase.auth.signOut();
+    // One backend: the hub's Sign out ends the shared session; leaving Site work only clears its markers.
+    if (!UNIFIED) await signOutThisDevice(supabase);
   } catch {
     /* ignore */
   }

@@ -1407,3 +1407,30 @@ Please check at 1920 / 1366 / 1024 / phone: no page-wide sideways scroll, name/I
 - `supabase/functions/mat-manage-staff/index.ts` source fixed the same way (unban on re-add) — **needs redeploy**; the page works without it.
 - Tested (rolled back): hub + Site work add / sign-in / reset / rename / remove / non-admin refused — 24/24. Materials goes through the existing function (not testable without a signed-in admin).
 - Only arumugamabinav22@gmail.com is admin in all three areas; other hub admins will see "Site work / Materials failed: Admin access required".
+
+
+## Claude update — 2026-10-25 — Admin / manager sign-in: ONE shared session (please QA signed in)
+
+Root cause of "Could not read Site work — Admin access required", "Materials failed: Invalid session" and
+"Hub login failed: row-level security": on the one backend the three areas kept SEPARATE copies of the same
+person's Supabase session, and every area called `auth.signOut()` (default scope = GLOBAL → ends every session
+of that account on every device). A failed background area check or one area's disconnect killed the hub admin.
+- `core/supabase.js`: UNIFIED → ONE client/sign-in; `supabaseMaterials` / `supabaseProgress` are schema views of it
+  (`from`/`rpc` → own schema; auth/storage/functions/realtime shared). One-time move of an old area session into
+  the shared key. `signOutThisDevice()` = scope 'local'. No `auth.signOut()` without scope remains.
+- materials `signInStaff` / progress `signInAdmin`: already signed in as that email → no new sign-in, just role check;
+  never sign out on a failed area check; area sign-out only clears markers. Full Sign out (identity.signOutEverywhere)
+  ends the shared session once, this device only.
+- Hub admin sign-in: UNIFIED asks `core.is_hub_admin()` (was: user-editable user_metadata.role, and with no
+  VITE_ADMIN_EMAIL_ALLOWLIST "allow ANY auth user").
+QA: sign out + in as admin → Managers page shows all three areas with no red banner; Add manager (all 3 saved);
+reset password; give / take away an area; sign in as that manager on another browser (hub, Materials, Site work);
+sign out on phone must NOT sign the desktop out; a Materials-only manager account must NOT get into /admin.
+
+
+## Claude update — 2026-10-25 — Admins page
+
+Sidebar **Admins** (materials admin section `admins`, `src/features/managers/AdminsManager.jsx`): list hub admins,
+Add admin (new email → sign-in created via mat-manage-staff then made admin-only; existing account → made admin,
+optional new password), Reset password (also their hub / Site work manager logins; other devices signed out),
+Remove admin (not yourself, not the last one; manager access kept). DB `102_admins.sql` applied — 17/17 rolled-back checks.
