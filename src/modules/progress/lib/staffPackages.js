@@ -147,13 +147,12 @@ const uniqueIds = (list) => [...new Set((list || []).filter(Boolean).map(String)
  * exporterIds: the Export Only accounts (clients) that may see them; empty / null = every account.
  * exporterNames: only used for the activity note.
  */
-export async function sendPackagesToExport(packageIds, exporterIds = null, exporterNames = null) {
+export async function sendPackagesToExport(packageIds, exporterIds = null, exporterNames = null, { asManager = false } = {}) {
   const ids = uniqueIds(packageIds);
   const to = uniqueIds(exporterIds);
-  const { data, error } = await supabaseProgress.rpc('admin_send_packages_to_export', {
-    p_package_ids: ids,
-    p_exporter_ids: to.length ? to : null,
-  });
+  const { data, error } = asManager
+    ? await supabaseProgress.rpc('staff_send_packages_to_export', { p_manager_token: managerToken(), p_package_ids: ids, p_exporter_ids: to.length ? to : null })
+    : await supabaseProgress.rpc('admin_send_packages_to_export', { p_package_ids: ids, p_exporter_ids: to.length ? to : null });
   if (error) throw error;
   const who = to.length && exporterNames?.length ? `Sent to ${exporterNames.join(', ')}` : 'Sent to Export Only';
   ids.forEach((id) => {
@@ -168,13 +167,12 @@ export async function sendPackagesToExport(packageIds, exporterIds = null, expor
 }
 
 /** Admin only — change which Export Only accounts see packages that are already sent (empty = everyone). */
-export async function setPackageExporters(packageIds, exporterIds = null, exporterNames = null) {
+export async function setPackageExporters(packageIds, exporterIds = null, exporterNames = null, { asManager = false } = {}) {
   const ids = uniqueIds(packageIds);
   const to = uniqueIds(exporterIds);
-  const { data, error } = await supabaseProgress.rpc('admin_set_package_exporters', {
-    p_package_ids: ids,
-    p_exporter_ids: to.length ? to : null,
-  });
+  const { data, error } = asManager
+    ? await supabaseProgress.rpc('staff_set_package_exporters', { p_manager_token: managerToken(), p_package_ids: ids, p_exporter_ids: to.length ? to : null })
+    : await supabaseProgress.rpc('admin_set_package_exporters', { p_package_ids: ids, p_exporter_ids: to.length ? to : null });
   if (error) throw error;
   const who = to.length && exporterNames?.length ? `Now visible to ${exporterNames.join(', ')}` : 'Now visible to every Export Only account';
   ids.forEach((id) => {
@@ -188,11 +186,15 @@ export async function setPackageExporters(packageIds, exporterIds = null, export
  * → Map(packageId → [{ id, name, active }]); packages missing from the map go to every account;
  *   a package in the map with an empty list is restricted to accounts that no longer exist (nobody sees it).
  */
-export async function listPackageRecipients() {
-  const [rows, restricted] = await Promise.all([
-    supabaseProgress.rpc('admin_list_package_recipients'),
-    supabaseProgress.rpc('admin_list_restricted_packages'),
-  ]);
+export async function listPackageRecipients({ asManager = false } = {}) {
+  const [rows, restricted] = await Promise.all(
+    asManager
+      ? [
+          supabaseProgress.rpc('staff_list_package_recipients', { p_manager_token: managerToken() }),
+          supabaseProgress.rpc('staff_list_restricted_packages', { p_manager_token: managerToken() }),
+        ]
+      : [supabaseProgress.rpc('admin_list_package_recipients'), supabaseProgress.rpc('admin_list_restricted_packages')]
+  );
   if (rows.error) throw rows.error;
   if (restricted.error) throw restricted.error;
   const map = new Map();
@@ -213,12 +215,12 @@ export function recipientsLabel(entry) {
   return live.map((e) => e.name).join(', ');
 }
 
-/** Admin only — pull currently-sent package ids back out of the Export Only queue. */
-export async function unsendPackagesFromExport(packageIds) {
+/** Admin (or a manager allowed to send packages) — pull sent package ids back out of the Export Only queue. */
+export async function unsendPackagesFromExport(packageIds, { asManager = false } = {}) {
   const ids = uniqueIds(packageIds);
-  const { data, error } = await supabaseProgress.rpc('admin_unsend_packages_from_export', {
-    p_package_ids: ids,
-  });
+  const { data, error } = asManager
+    ? await supabaseProgress.rpc('staff_unsend_packages_from_export', { p_manager_token: managerToken(), p_package_ids: ids })
+    : await supabaseProgress.rpc('admin_unsend_packages_from_export', { p_package_ids: ids });
   if (error) throw error;
   ids.forEach((id) => {
     recordDocumentEventSafe({

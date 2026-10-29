@@ -18,7 +18,7 @@ import { reviewAttribution } from '@/modules/progress/lib/reviewLabel';
 import { listAllSites } from '@/modules/progress/lib/sites';
 import { listAllPackages, getPackagesHeadTimestamp, approvePackage, deletePackage, reuseUnchangedPackages, sendPackagesToExport, unsendPackagesFromExport, setPackageExporters, listPackageRecipients, recipientsLabel } from '@/modules/progress/lib/staffPackages';
 import SendToClientsDialog from '@/modules/progress/components/SendToClientsDialog';
-import { managerCanDeletePackagePhotos } from '@/core/auth/progress/managerSession';
+import { managerCanDeletePackagePhotos, managerCanSendPackages } from '@/core/auth/progress/managerSession';
 import { listApprovedPackages, getExporterPackagesHeadTimestamp } from '@/modules/progress/lib/exporterPackages';
 import { useHeartbeat } from '@/modules/progress/hooks/useHeartbeat';
 import { friendlyDbError } from '@/modules/progress/lib/networkError';
@@ -95,6 +95,7 @@ function siteKey(p) {
 const PackageCard = memo(function PackageCard({
     pkg,
     recipients,
+    canSend,
     isAdmin,
     isExporter,
     native,
@@ -135,7 +136,7 @@ const PackageCard = memo(function PackageCard({
         >
             <div className="flex items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
-                    {isAdmin && pkg.approval_status === 'approved' && (
+                    {canSend && pkg.approval_status === 'approved' && (
                         <input
                             type="checkbox"
                             className={cn('h-4 w-4 shrink-0 accent-slate-900', native && 'h-5 w-5')}
@@ -167,12 +168,12 @@ const PackageCard = memo(function PackageCard({
                 ) : alreadySent ? (
                     <span
                         className="flex min-w-0 shrink-0 flex-col items-end"
-                        title={isAdmin ? `Clients who can see it: ${recipientsLabel(recipients)}` : undefined}
+                        title={canSend ? `Clients who can see it: ${recipientsLabel(recipients)}` : undefined}
                     >
                         <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800">
                             Sent to export
                         </span>
-                        {isAdmin ? (
+                        {canSend ? (
                             <span className="mt-0.5 flex max-w-[11rem] items-center gap-1 text-[10px] text-muted-foreground">
                                 <Users className="h-3 w-3 shrink-0" aria-hidden />
                                 <span className="truncate">{recipientsLabel(recipients)}</span>
@@ -385,6 +386,7 @@ const STAGE_SHORT = [['before', 'B', 'Before'], ['during', 'D', 'During'], ['aft
 const PackageRow = memo(function PackageRow({
     pkg,
     recipients,
+    canSend,
     isAdmin,
     isExporter,
     approving,
@@ -405,7 +407,7 @@ const PackageRow = memo(function PackageRow({
     const workerName = pkg.worker?.display_name || 'Deleted employee/technician';
     const status = pkg.approval_status || 'pending';
     const exported = Boolean(pkg.exported_by_name);
-    const selectable = isAdmin && status === 'approved';
+    const selectable = canSend && status === 'approved';
     // Export column: Admin/Manager (sent_to_export) and Export Only (file export history).
     const showExport = true;
     const reviewedBy = pkg.reviewed_by_name
@@ -418,7 +420,7 @@ const PackageRow = memo(function PackageRow({
     }[status] || 'bg-slate-50 text-slate-600 ring-slate-200';
     return (
         <tr className={cn('border-b border-border align-top transition-colors hover:bg-slate-50/70', selected && 'bg-brand-muted/30')}>
-            {isAdmin ? (
+            {canSend ? (
                 <td className="w-10 py-3 pl-4 pr-2">
                     {selectable ? (
                         <input
@@ -532,7 +534,7 @@ const PackageRow = memo(function PackageRow({
                             <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-semibold', pkg.sent_to_export ? 'bg-slate-100 text-slate-800' : 'bg-amber-50 text-amber-800')}>
                                 {pkg.sent_to_export ? 'Sent to export' : 'Not sent'}
                             </span>
-                            {isAdmin && pkg.sent_to_export ? (
+                            {canSend && pkg.sent_to_export ? (
                                 <p className="mt-1 flex items-center gap-1 text-[11px] leading-tight text-muted-foreground" title="Clients who can see this package">
                                     <Users className="h-3 w-3 shrink-0" aria-hidden />
                                     <span className="line-clamp-2">{recipientsLabel(recipients)}</span>
@@ -570,6 +572,9 @@ const PackageRow = memo(function PackageRow({
 export default function PackageReviewBoard({ role }) {
     const isAdmin = role === 'admin';
     const isExporter = role === 'exporter';
+    const asManager = role === 'manager';
+    // Admin always; a manager only when Admin ticked "Send photo packages to clients" for them (the database checks too).
+    const canSend = isAdmin || (asManager && managerCanSendPackages());
     const native = isNativeApp();
     const navigate = useNavigate();
     const fromPage = isExporter ? 'ExporterDashboard' : isAdmin ? 'AdminDashboard' : 'ManagerDashboard';
@@ -615,8 +620,8 @@ export default function PackageReviewBoard({ role }) {
                 setPackages([]);
             });
         // Admin only: which clients each sent package is limited to. Not fatal if it fails.
-        if (isAdmin) listPackageRecipients().then(setRecipients).catch(() => setRecipients(new Map()));
-    }, [isExporter, isAdmin]);
+        if (canSend) listPackageRecipients({ asManager }).then(setRecipients).catch(() => setRecipients(new Map()));
+    }, [isExporter, canSend, asManager]);
 
     useEffect(() => {
         refresh();
@@ -819,22 +824,22 @@ export default function PackageReviewBoard({ role }) {
     const searchActive = Boolean(search.trim()) || siteFilter !== 'all' || monthFilter !== 'all' || workerFilter !== 'all';
 
     const sendableVisible = useMemo(
-        () => (isAdmin ? filtered.filter(isSendableToExport) : []),
-        [filtered, isAdmin]
+        () => (canSend ? filtered.filter(isSendableToExport) : []),
+        [filtered, canSend]
     );
 
     const unsendableVisible = useMemo(
-        () => (isAdmin ? filtered.filter(isUnsendableFromExport) : []),
-        [filtered, isAdmin]
+        () => (canSend ? filtered.filter(isUnsendableFromExport) : []),
+        [filtered, canSend]
     );
 
     const selectableVisible = useMemo(
-        () => (isAdmin ? filtered.filter((p) => p.approval_status === 'approved') : []),
-        [filtered, isAdmin]
+        () => (canSend ? filtered.filter((p) => p.approval_status === 'approved') : []),
+        [filtered, canSend]
     );
 
     useEffect(() => {
-        if (!isAdmin) return;
+        if (!canSend) return;
         const allow = new Set(selectableVisible.map((p) => p.id));
         setSelectedIds((prev) => {
             let changed = false;
@@ -846,7 +851,7 @@ export default function PackageReviewBoard({ role }) {
             if (!changed && next.size === prev.size) return prev;
             return next;
         });
-    }, [isAdmin, selectableVisible]);
+    }, [canSend, selectableVisible]);
 
     const toggleSelect = useCallback((id) => {
         setSelectedIds((prev) => {
@@ -905,8 +910,8 @@ export default function PackageReviewBoard({ role }) {
         setSending(true);
         try {
             const count = changing
-                ? await setPackageExporters(ids, exporterIds, exporterNames)
-                : await sendPackagesToExport(ids, exporterIds, exporterNames);
+                ? await setPackageExporters(ids, exporterIds, exporterNames, { asManager })
+                : await sendPackagesToExport(ids, exporterIds, exporterNames, { asManager });
             const to = exporterIds.length ? (exporterNames.length === 1 ? exporterNames[0] : `${exporterNames.length} accounts`) : 'every Export Only account';
             toast.success(
                 changing
@@ -934,7 +939,7 @@ export default function PackageReviewBoard({ role }) {
         }
         setUnsending(true);
         try {
-            const count = await unsendPackagesFromExport(ids);
+            const count = await unsendPackagesFromExport(ids, { asManager });
             toast.success(count === 1 ? 'Unsent 1 package from export' : `Unsent ${count} packages from export`);
             setSelectedIds(new Set());
             refresh();
@@ -960,7 +965,7 @@ export default function PackageReviewBoard({ role }) {
             hint: (counts.pending || 0) ? 'needs action' : 'all clear',
             tone: (counts.pending || 0) ? 'text-amber-700' : '',
         },
-        ...(isAdmin
+        ...(canSend
             ? [{
                 id: 'not_sent',
                 label: 'Not sent to export',
@@ -1012,7 +1017,7 @@ export default function PackageReviewBoard({ role }) {
                                     Summary report
                                 </Button>
                             </div>
-                            {isAdmin ? (
+                            {canSend ? (
                                 <Button
                                     type="button"
                                     size="sm"
@@ -1195,7 +1200,7 @@ export default function PackageReviewBoard({ role }) {
             </div>
             </div>
 
-            {isAdmin && (
+            {canSend && (
                 <div className="flex flex-col gap-2 rounded-xl border border-border bg-white px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                         <p className="text-sm font-medium text-slate-900">
@@ -1286,7 +1291,7 @@ export default function PackageReviewBoard({ role }) {
                         <table className="w-full min-w-[56rem] text-left">
                             <thead>
                                 <tr className="border-b border-border text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                    {isAdmin ? (
+                                    {canSend ? (
                                         <th className="w-10 py-2.5 pl-4 pr-2">
                                             <input
                                                 type="checkbox"
@@ -1312,6 +1317,7 @@ export default function PackageReviewBoard({ role }) {
                                         key={p.id}
                                         pkg={p}
                                         recipients={recipients.get(String(p.id))}
+                                        canSend={canSend}
                                         isAdmin={isAdmin}
                                         isExporter={isExporter}
                                         approving={approvingId === p.id}
@@ -1338,6 +1344,7 @@ export default function PackageReviewBoard({ role }) {
                             key={p.id}
                             pkg={p}
                             recipients={recipients.get(String(p.id))}
+                            canSend={canSend}
                             isAdmin={isAdmin}
                             isExporter={isExporter}
                             native={native}
@@ -1364,8 +1371,9 @@ export default function PackageReviewBoard({ role }) {
                 </>
             )}
 
-            {isAdmin ? (
+            {canSend ? (
                 <SendToClientsDialog
+                    asManager={asManager}
                     open={clientDialog !== null}
                     mode={clientDialog === 'change' ? 'change' : 'send'}
                     count={clientDialog === 'change' ? selectedUnsendableIds.length : selectedSendableIds.length}

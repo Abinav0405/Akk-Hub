@@ -56,6 +56,7 @@ export const JSR_PERM_GROUPS = [
     label: 'Photo packages',
     keys: [
       { key: 'delete_package_photos', label: 'Delete individual photos in packages (never once approved; off unless granted)' },
+      { key: 'send_packages', label: 'Send photo packages to clients — choose which clients, change them, or unsend (off unless granted)' },
     ],
   },
 ];

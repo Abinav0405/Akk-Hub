@@ -93,6 +93,11 @@ export function managerCanDeletePackagePhotos() {
   return normalizeJsrPerms(getStoredManagerJsrPerms()).delete_package_photos === true;
 }
 
+/** Admin ticked "Send photo packages to clients" for this manager. Enforced again by the database. */
+export function managerCanSendPackages() {
+  return normalizeJsrPerms(getStoredManagerJsrPerms()).send_packages === true;
+}
+
 export function setStoredManagerName(name) {
   try {
     localStorage.setItem(K('managerName'), name || '');

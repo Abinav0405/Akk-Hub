@@ -10,9 +10,10 @@ import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { Button } from '@/ui/button';
 import { listExporters } from '@/modules/progress/lib/accounts';
+import { listStaffExporters } from '@/modules/progress/lib/jsr';
 import { cn } from '@/modules/progress/lib/utils';
 
-export default function SendToClientsDialog({ open, mode = 'send', count = 0, initialIds = [], busy = false, onConfirm, onClose }) {
+export default function SendToClientsDialog({ open, mode = 'send', count = 0, initialIds = [], busy = false, asManager = false, onConfirm, onClose }) {
     const [accounts, setAccounts] = useState(null);
     const [everyone, setEveryone] = useState(false);
     const [picked, setPicked] = useState([]);
@@ -23,7 +24,7 @@ export default function SendToClientsDialog({ open, mode = 'send', count = 0, in
         setEveryone(false);
         setQ('');
         setPicked((initialIds || []).map(String));
-        listExporters()
+        (asManager ? listStaffExporters() : listExporters())
             .then((rows) => setAccounts((rows || []).filter((r) => r.is_active !== false)))
             .catch((e) => {
                 toast.error(e.message || 'Could not load the client accounts');
