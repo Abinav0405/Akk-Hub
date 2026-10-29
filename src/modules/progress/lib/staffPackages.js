@@ -140,27 +140,82 @@ export async function approvePackage(id) {
   recordDocumentEventSafe({ kind: 'package', documentId: id, action: 'approved', summary: 'Package approved' });
 }
 
-/** Admin only — send the given approved package ids to the Export Only portal. */
-export async function sendPackagesToExport(packageIds) {
-  const ids = [...new Set((packageIds || []).filter(Boolean))];
+const uniqueIds = (list) => [...new Set((list || []).filter(Boolean).map(String))];
+
+/**
+ * Admin only — send the given approved package ids to the Export Only portal.
+ * exporterIds: the Export Only accounts (clients) that may see them; empty / null = every account.
+ * exporterNames: only used for the activity note.
+ */
+export async function sendPackagesToExport(packageIds, exporterIds = null, exporterNames = null) {
+  const ids = uniqueIds(packageIds);
+  const to = uniqueIds(exporterIds);
   const { data, error } = await supabaseProgress.rpc('admin_send_packages_to_export', {
     p_package_ids: ids,
+    p_exporter_ids: to.length ? to : null,
   });
   if (error) throw error;
+  const who = to.length && exporterNames?.length ? `Sent to ${exporterNames.join(', ')}` : 'Sent to Export Only';
   ids.forEach((id) => {
     recordDocumentEventSafe({
       kind: 'package',
       documentId: id,
       action: 'sent_to_export',
-      summary: 'Sent to Export Only',
+      summary: who,
     });
   });
   return Number(data || 0);
 }
 
+/** Admin only — change which Export Only accounts see packages that are already sent (empty = everyone). */
+export async function setPackageExporters(packageIds, exporterIds = null, exporterNames = null) {
+  const ids = uniqueIds(packageIds);
+  const to = uniqueIds(exporterIds);
+  const { data, error } = await supabaseProgress.rpc('admin_set_package_exporters', {
+    p_package_ids: ids,
+    p_exporter_ids: to.length ? to : null,
+  });
+  if (error) throw error;
+  const who = to.length && exporterNames?.length ? `Now visible to ${exporterNames.join(', ')}` : 'Now visible to every Export Only account';
+  ids.forEach((id) => {
+    recordDocumentEventSafe({ kind: 'package', documentId: id, action: 'export_recipients_changed', summary: who });
+  });
+  return Number(data || 0);
+}
+
+/**
+ * Admin only — who each SENT package is limited to.
+ * → Map(packageId → [{ id, name, active }]); packages missing from the map go to every account;
+ *   a package in the map with an empty list is restricted to accounts that no longer exist (nobody sees it).
+ */
+export async function listPackageRecipients() {
+  const [rows, restricted] = await Promise.all([
+    supabaseProgress.rpc('admin_list_package_recipients'),
+    supabaseProgress.rpc('admin_list_restricted_packages'),
+  ]);
+  if (rows.error) throw rows.error;
+  if (restricted.error) throw restricted.error;
+  const map = new Map();
+  (restricted.data || []).forEach((r) => map.set(String(r.package_id), []));
+  (rows.data || []).forEach((r) => {
+    const key = String(r.package_id);
+    if (!map.has(key)) map.set(key, []);
+    map.get(key).push({ id: String(r.exporter_id), name: r.display_name, active: r.is_active !== false });
+  });
+  return map;
+}
+
+/** "LeeLC, Leila" · "Everyone" · "No active account" for a package's recipients entry (undefined = everyone). */
+export function recipientsLabel(entry) {
+  if (!entry) return 'Everyone';
+  const live = entry.filter((e) => e.active);
+  if (!live.length) return 'No active account';
+  return live.map((e) => e.name).join(', ');
+}
+
 /** Admin only — pull currently-sent package ids back out of the Export Only queue. */
 export async function unsendPackagesFromExport(packageIds) {
-  const ids = [...new Set((packageIds || []).filter(Boolean))];
+  const ids = uniqueIds(packageIds);
   const { data, error } = await supabaseProgress.rpc('admin_unsend_packages_from_export', {
     p_package_ids: ids,
   });

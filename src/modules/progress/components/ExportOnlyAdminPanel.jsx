@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Plus, Power, KeyRound, Trash2, FileDown, Undo2 } from 'lucide-react';
+import { Loader2, Plus, Power, KeyRound, Trash2, FileDown, Undo2, Users } from 'lucide-react';
 import { Card } from '@/ui/card';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
@@ -16,7 +16,8 @@ import {
 import { friendlyDbError } from '@/modules/progress/lib/networkError';
 import { formatDate, formatDateTime } from '@/modules/progress/lib/dates';
 import { packageHeading } from '@/modules/progress/lib/sectionLabel';
-import { sendPackagesToExport, unsendPackagesFromExport } from '@/modules/progress/lib/staffPackages';
+import { sendPackagesToExport, unsendPackagesFromExport, setPackageExporters, listPackageRecipients, recipientsLabel } from '@/modules/progress/lib/staffPackages';
+import SendToClientsDialog from '@/modules/progress/components/SendToClientsDialog';
 import SearchField, { matchesQuery } from '@/modules/progress/components/SearchField';
 import { RevealCredentialsDialog } from '@/modules/progress/components/WorkerAccountsPanel';
 import StaffPanelIntro from '@/modules/progress/components/StaffPanelIntro';
@@ -276,6 +277,8 @@ function ExportStatusSection() {
     const [selectedIds, setSelectedIds] = useState(() => new Set());
     const [sending, setSending] = useState(false);
     const [unsending, setUnsending] = useState(false);
+    const [dialog, setDialog] = useState(null); // 'send' | 'change'
+    const [recipients, setRecipients] = useState(() => new Map());
     const queueBusy = sending || unsending;
 
     const refresh = () => {
@@ -285,6 +288,8 @@ function ExportStatusSection() {
                 toast.error('Could not load export status');
                 setRows([]);
             });
+        // Who each sent package is limited to (a missing entry = every account). Not fatal if it fails.
+        listPackageRecipients().then(setRecipients).catch(() => setRecipients(new Map()));
     };
 
     useEffect(refresh, []);
@@ -368,16 +373,44 @@ function ExportStatusSection() {
         setSelectedIds(new Set(selectableVisible.map((r) => r.package_id)));
     };
 
-    const handleSendSelected = async () => {
-        const ids = selectedSendableIds;
-        if (!ids.length) {
+    const handleSendSelected = () => {
+        if (!selectedSendableIds.length) {
             toast.error('Select at least one approved package that has not been sent');
             return;
         }
+        setDialog('send');
+    };
+
+    const handleChangeSelected = () => {
+        if (!selectedUnsendableIds.length) {
+            toast.error('Select at least one package that has already been sent');
+            return;
+        }
+        setDialog('change');
+    };
+
+    // If every selected sent package has the same chosen clients, start the dialog from them.
+    const changeInitialIds = useMemo(() => {
+        const sets = selectedUnsendableIds.map((id) => (recipients.get(String(id)) || []).filter((e) => e.active).map((e) => e.id).sort().join(','));
+        if (!sets.length || sets.some((x) => x !== sets[0]) || !sets[0]) return [];
+        return sets[0].split(',');
+    }, [selectedUnsendableIds, recipients]);
+
+    const confirmDialog = async (exporterIds, exporterNames) => {
+        const changing = dialog === 'change';
+        const ids = changing ? selectedUnsendableIds : selectedSendableIds;
         setSending(true);
         try {
-            const count = await sendPackagesToExport(ids);
-            toast.success(count === 1 ? 'Sent 1 package to export' : `Sent ${count} packages to export`);
+            const count = changing
+                ? await setPackageExporters(ids, exporterIds, exporterNames)
+                : await sendPackagesToExport(ids, exporterIds, exporterNames);
+            const to = exporterIds.length ? (exporterNames.length === 1 ? exporterNames[0] : `${exporterNames.length} accounts`) : 'every Export Only account';
+            toast.success(
+                changing
+                    ? `Updated ${count} package${count === 1 ? '' : 's'} — now visible to ${to}`
+                    : `Sent ${count} package${count === 1 ? '' : 's'} to ${to}`
+            );
+            setDialog(null);
             setSelectedIds(new Set());
             refresh();
         } catch (e) {
@@ -477,7 +510,18 @@ function ExportStatusSection() {
                         ) : (
                             <FileDown className="mr-1.5 h-4 w-4" />
                         )}
-                        Send selected to export
+                        Send selected to…
+                    </Button>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        className={cn('w-full sm:w-auto', native && 'min-h-11')}
+                        disabled={queueBusy || selectedUnsendableIds.length === 0}
+                        onClick={handleChangeSelected}
+                        title="Change which clients can see the selected, already-sent packages"
+                    >
+                        <Users className="mr-1.5 h-4 w-4" />
+                        Change clients
                     </Button>
                     <Button
                         type="button"
@@ -552,9 +596,15 @@ function ExportStatusSection() {
                                         <TableCell>{formatDate(r.package_date)}</TableCell>
                                         <TableCell>
                                             {sent ? (
-                                                <span className="text-sky-800">
-                                                    {r.sent_to_export_at ? formatDateTime(r.sent_to_export_at, { seconds: false }) : 'Sent'}
-                                                </span>
+                                                <>
+                                                    <span className="text-sky-800">
+                                                        {r.sent_to_export_at ? formatDateTime(r.sent_to_export_at, { seconds: false }) : 'Sent'}
+                                                    </span>
+                                                    <span className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground" title="Clients who can see this package">
+                                                        <Users className="h-3 w-3 shrink-0" aria-hidden />
+                                                        <span className="line-clamp-2">{recipientsLabel(recipients.get(String(r.package_id)))}</span>
+                                                    </span>
+                                                </>
                                             ) : (
                                                 <span className="text-slate-400">Not sent</span>
                                             )}
@@ -570,6 +620,15 @@ function ExportStatusSection() {
                     </Table>
                 </div>
             )}
+            <SendToClientsDialog
+                open={dialog !== null}
+                mode={dialog === 'change' ? 'change' : 'send'}
+                count={dialog === 'change' ? selectedUnsendableIds.length : selectedSendableIds.length}
+                initialIds={dialog === 'change' ? changeInitialIds : []}
+                busy={sending}
+                onConfirm={confirmDialog}
+                onClose={() => setDialog(null)}
+            />
         </Card>
     );
 }

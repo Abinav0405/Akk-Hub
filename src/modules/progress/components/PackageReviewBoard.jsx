@@ -1,7 +1,7 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Loader2, Printer, Images, Check, ThumbsDown, Trash2, Sheet, Files, ShieldCheck, FileDown, Undo2, FileText, CalendarDays, MapPin, UserRound, BadgeCheck, XCircle, LayoutGrid, List as ListIcon } from 'lucide-react';
+import { Loader2, Printer, Images, Check, ThumbsDown, Trash2, Sheet, Files, ShieldCheck, FileDown, Undo2, FileText, CalendarDays, MapPin, UserRound, BadgeCheck, XCircle, LayoutGrid, List as ListIcon, Users } from 'lucide-react';
 import { Card } from '@/ui/card';
 import { Button } from '@/ui/button';
 import PackageDetailDialog from '@/modules/progress/components/PackageDetailDialog';
@@ -16,7 +16,8 @@ import { formatDate, formatDateTime } from '@/modules/progress/lib/dates';
 import { formatSectionRef, packageHeading, packageTitle } from '@/modules/progress/lib/sectionLabel';
 import { reviewAttribution } from '@/modules/progress/lib/reviewLabel';
 import { listAllSites } from '@/modules/progress/lib/sites';
-import { listAllPackages, getPackagesHeadTimestamp, approvePackage, deletePackage, reuseUnchangedPackages, sendPackagesToExport, unsendPackagesFromExport } from '@/modules/progress/lib/staffPackages';
+import { listAllPackages, getPackagesHeadTimestamp, approvePackage, deletePackage, reuseUnchangedPackages, sendPackagesToExport, unsendPackagesFromExport, setPackageExporters, listPackageRecipients, recipientsLabel } from '@/modules/progress/lib/staffPackages';
+import SendToClientsDialog from '@/modules/progress/components/SendToClientsDialog';
 import { managerCanDeletePackagePhotos } from '@/core/auth/progress/managerSession';
 import { listApprovedPackages, getExporterPackagesHeadTimestamp } from '@/modules/progress/lib/exporterPackages';
 import { useHeartbeat } from '@/modules/progress/hooks/useHeartbeat';
@@ -93,6 +94,7 @@ function siteKey(p) {
 
 const PackageCard = memo(function PackageCard({
     pkg,
+    recipients,
     isAdmin,
     isExporter,
     native,
@@ -163,8 +165,19 @@ const PackageCard = memo(function PackageCard({
                         {exported ? 'Exported' : 'Not exported'}
                     </span>
                 ) : alreadySent ? (
-                    <span className="shrink-0 rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800">
-                        Sent to export
+                    <span
+                        className="flex min-w-0 shrink-0 flex-col items-end"
+                        title={isAdmin ? `Clients who can see it: ${recipientsLabel(recipients)}` : undefined}
+                    >
+                        <span className="rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-800">
+                            Sent to export
+                        </span>
+                        {isAdmin ? (
+                            <span className="mt-0.5 flex max-w-[11rem] items-center gap-1 text-[10px] text-muted-foreground">
+                                <Users className="h-3 w-3 shrink-0" aria-hidden />
+                                <span className="truncate">{recipientsLabel(recipients)}</span>
+                            </span>
+                        ) : null}
                     </span>
                 ) : (
                     <span className={cn('shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold capitalize', STATUS_BADGE[pkg.approval_status])}>
@@ -371,6 +384,7 @@ const STAGE_SHORT = [['before', 'B', 'Before'], ['during', 'D', 'During'], ['aft
 /** One package as a table row (list view). Same actions as the card. */
 const PackageRow = memo(function PackageRow({
     pkg,
+    recipients,
     isAdmin,
     isExporter,
     approving,
@@ -514,9 +528,17 @@ const PackageRow = memo(function PackageRow({
                     ) : status !== 'approved' ? (
                         <span className="text-xs text-muted-foreground">—</span>
                     ) : (
-                        <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-semibold', pkg.sent_to_export ? 'bg-slate-100 text-slate-800' : 'bg-amber-50 text-amber-800')}>
-                            {pkg.sent_to_export ? 'Sent to export' : 'Not sent'}
-                        </span>
+                        <>
+                            <span className={cn('inline-block rounded-full px-2 py-0.5 text-xs font-semibold', pkg.sent_to_export ? 'bg-slate-100 text-slate-800' : 'bg-amber-50 text-amber-800')}>
+                                {pkg.sent_to_export ? 'Sent to export' : 'Not sent'}
+                            </span>
+                            {isAdmin && pkg.sent_to_export ? (
+                                <p className="mt-1 flex items-center gap-1 text-[11px] leading-tight text-muted-foreground" title="Clients who can see this package">
+                                    <Users className="h-3 w-3 shrink-0" aria-hidden />
+                                    <span className="line-clamp-2">{recipientsLabel(recipients)}</span>
+                                </p>
+                            ) : null}
+                        </>
                     )}
                 </td>
             ) : null}
@@ -577,6 +599,8 @@ export default function PackageReviewBoard({ role }) {
     const [deletingId, setDeletingId] = useState(null);
     const [sending, setSending] = useState(false);
     const [unsending, setUnsending] = useState(false);
+    const [clientDialog, setClientDialog] = useState(null); // 'send' | 'change'
+    const [recipients, setRecipients] = useState(() => new Map()); // packageId → chosen clients (missing = everyone)
     const queueBusy = sending || unsending;
 
     const refresh = useCallback(() => {
@@ -590,7 +614,9 @@ export default function PackageReviewBoard({ role }) {
                 toast.error(friendlyDbError(e, 'Could not load packages'));
                 setPackages([]);
             });
-    }, [isExporter]);
+        // Admin only: which clients each sent package is limited to. Not fatal if it fails.
+        if (isAdmin) listPackageRecipients().then(setRecipients).catch(() => setRecipients(new Map()));
+    }, [isExporter, isAdmin]);
 
     useEffect(() => {
         refresh();
@@ -850,16 +876,44 @@ export default function PackageReviewBoard({ role }) {
         setSelectedIds(new Set(selectableVisible.map((p) => p.id)));
     };
 
-    const handleSendSelected = async () => {
-        const ids = selectedSendableIds;
-        if (!ids.length) {
+    const handleSendSelected = () => {
+        if (!selectedSendableIds.length) {
             toast.error('Select at least one approved package that has not been sent');
             return;
         }
+        setClientDialog('send');
+    };
+
+    const handleChangeSelected = () => {
+        if (!selectedUnsendableIds.length) {
+            toast.error('Select at least one package that has already been sent');
+            return;
+        }
+        setClientDialog('change');
+    };
+
+    // If every selected sent package has the same chosen clients, start the dialog from them.
+    const changeInitialIds = useMemo(() => {
+        const sets = selectedUnsendableIds.map((id) => (recipients.get(String(id)) || []).filter((e) => e.active).map((e) => e.id).sort().join(','));
+        if (!sets.length || sets.some((x) => x !== sets[0]) || !sets[0]) return [];
+        return sets[0].split(',');
+    }, [selectedUnsendableIds, recipients]);
+
+    const confirmClientDialog = async (exporterIds, exporterNames) => {
+        const changing = clientDialog === 'change';
+        const ids = changing ? selectedUnsendableIds : selectedSendableIds;
         setSending(true);
         try {
-            const count = await sendPackagesToExport(ids);
-            toast.success(count === 1 ? 'Sent 1 package to export' : `Sent ${count} packages to export`);
+            const count = changing
+                ? await setPackageExporters(ids, exporterIds, exporterNames)
+                : await sendPackagesToExport(ids, exporterIds, exporterNames);
+            const to = exporterIds.length ? (exporterNames.length === 1 ? exporterNames[0] : `${exporterNames.length} accounts`) : 'every Export Only account';
+            toast.success(
+                changing
+                    ? `Updated ${count} package${count === 1 ? '' : 's'} — now visible to ${to}`
+                    : `Sent ${count} package${count === 1 ? '' : 's'} to ${to}`
+            );
+            setClientDialog(null);
             setSelectedIds(new Set());
             refresh();
         } catch (e) {
@@ -967,7 +1021,7 @@ export default function PackageReviewBoard({ role }) {
                                     onClick={handleSendSelected}
                                 >
                                     {sending ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <FileDown className="mr-1.5 h-4 w-4" />}
-                                    Export packages
+                                    Send to clients…
                                 </Button>
                             ) : null}
                         </>
@@ -1176,7 +1230,18 @@ export default function PackageReviewBoard({ role }) {
                             ) : (
                                 <FileDown className="mr-1.5 h-4 w-4" />
                             )}
-                            Send selected to export
+                            Send selected to…
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className={cn('w-full sm:w-auto', native && 'min-h-11')}
+                            disabled={queueBusy || selectedUnsendableIds.length === 0}
+                            onClick={handleChangeSelected}
+                            title="Change which clients can see the selected, already-sent packages"
+                        >
+                            <Users className="mr-1.5 h-4 w-4" />
+                            Change clients
                         </Button>
                         <Button
                             type="button"
@@ -1246,6 +1311,7 @@ export default function PackageReviewBoard({ role }) {
                                     <PackageRow
                                         key={p.id}
                                         pkg={p}
+                                        recipients={recipients.get(String(p.id))}
                                         isAdmin={isAdmin}
                                         isExporter={isExporter}
                                         approving={approvingId === p.id}
@@ -1271,6 +1337,7 @@ export default function PackageReviewBoard({ role }) {
                         <PackageCard
                             key={p.id}
                             pkg={p}
+                            recipients={recipients.get(String(p.id))}
                             isAdmin={isAdmin}
                             isExporter={isExporter}
                             native={native}
@@ -1296,6 +1363,18 @@ export default function PackageReviewBoard({ role }) {
                 ) : null}
                 </>
             )}
+
+            {isAdmin ? (
+                <SendToClientsDialog
+                    open={clientDialog !== null}
+                    mode={clientDialog === 'change' ? 'change' : 'send'}
+                    count={clientDialog === 'change' ? selectedUnsendableIds.length : selectedSendableIds.length}
+                    initialIds={clientDialog === 'change' ? changeInitialIds : []}
+                    busy={sending}
+                    onConfirm={confirmClientDialog}
+                    onClose={() => setClientDialog(null)}
+                />
+            ) : null}
 
             {selected && (
                 <PackageDetailDialog
