@@ -1434,3 +1434,10 @@ Sidebar **Admins** (materials admin section `admins`, `src/features/managers/Adm
 Add admin (new email → sign-in created via mat-manage-staff then made admin-only; existing account → made admin,
 optional new password), Reset password (also their hub / Site work manager logins; other devices signed out),
 Remove admin (not yourself, not the last one; manager access kept). DB `102_admins.sql` applied — 17/17 rolled-back checks.
+
+
+## Claude update — 2026-10-29 — Choose which clients a photo package is sent to
+
+DB `103_package_clients.sql` (applied; 25/25 rolled-back checks). `packages.export_everyone` (default true = all 543 already-sent packages unchanged) + `package_exporters`. `admin_send_packages_to_export(p_package_ids, p_exporter_ids default null)`, `admin_set_package_exporters`, `admin_list_package_recipients`, `admin_list_restricted_packages`. Client-side RPCs (`exporter_list_approved_packages`, `_get_package_images`, `_record_export`, `_packages_head_timestamp`, `_document_can_read`) filter by it.
+UI: `SendToClientsDialog.jsx`; "Send selected to…" and "Change clients" on Site packages and Export queue; sent packages show who can see them.
+QA signed in: send 1 package to one client, log in as another Export Only account → must not see it; "Change clients"; unsend then resend. Only admins send (managers cannot today). `android/app/build.gradle` versionCode 14 is uncommitted (not mine).
