@@ -40,6 +40,22 @@ export function homePathFor(role) {
     return HOME_PATHS[role] || '/';
 }
 
+/** "worker:1018" — per-account keys for device-only state (e.g. unread badges). */
+export function accountKey(identity) {
+    if (!identity?.role) return null;
+    return `${identity.role}:${String(identity.id || identity.email || identity.name || '').trim().toLowerCase()}`;
+}
+
+/*
+ * Saved-account switching was removed (2026-10-30): one person per phone, sign out to change.
+ * Drop any sessions a test build saved on this device so no other person's sign-in lingers.
+ */
+try {
+    localStorage.removeItem('akk.hub.accounts');
+} catch {
+    /* storage blocked */
+}
+
 /* ------------------------------------------------------------------ */
 /* Store                                                               */
 /* ------------------------------------------------------------------ */
@@ -177,7 +193,5 @@ export async function signOutEverywhere() {
     local.remove('hub', 'role');
     local.remove('hub', 'id');
     local.remove('hub', 'lastAdminId');
-    // Other saved accounts stay on this device (switch / sign-in screen); this one is forgotten.
-    await import('@/core/auth/accounts').then((m) => m.forgetAccount(m.accountKey(current))).catch(() => {});
     notifyIdentity();
 }

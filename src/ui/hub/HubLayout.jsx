@@ -11,7 +11,6 @@ import { isNavItemActive, navFor } from '@/app/navigation';
 import { prefetchRoleScreens } from '@/app/prefetch';
 import { useIdentity, ROLE_LABELS } from '@/core/auth/identity';
 import { useWorkerAccess } from '@/core/auth/bridges';
-import { rememberAccount } from '@/core/auth/accounts';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { useLanguage } from '@/core/i18n';
 import { setNavDirection, useTabSwipe } from '@/ui/hub/tabMotion';
@@ -233,11 +232,6 @@ export default function HubLayout() {
     useEffect(() => {
         return prefetchRoleScreens(identity?.role);
     }, [identity?.role]);
-
-    // Keep this account in the device's saved accounts (account switcher).
-    useEffect(() => {
-        if (identity?.role) rememberAccount(identity);
-    }, [identity]);
 
     // One backend: refresh which areas this worker may open (admins can change it any time).
     useEffect(() => {

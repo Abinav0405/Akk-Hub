@@ -10,7 +10,6 @@ import { prefetchPortalHome } from '@/app/prefetch';
 import EmployeeLogin from '@/pages/login/EmployeeLogin';
 import ManagementLogin from '@/pages/login/ManagementLogin';
 import AdminLogin from '@/pages/login/AdminLogin';
-import { SavedAccountsDock } from '@/ui/hub/AccountSwitcher';
 
 const TAB_FOR_ROLE = { worker: 'employee', supervisor: 'management', manager: 'management', admin: 'admin' };
 
@@ -32,12 +31,7 @@ export default function LoginPage() {
     // that looped /admin ↔ /login with a blank outlet when admin markers outlived the JWT.
     const deniedBounce = Boolean(location.state?.from);
     if (wasSignedIn && identity && !deniedBounce) return <Navigate to={homePathFor(identity.role)} replace />;
-    const Portal = role === 'admin' ? AdminLogin : role === 'management' ? ManagementLogin : EmployeeLogin;
-    return (
-        <>
-            <Portal />
-            {/* Adding an account (or signed out with saved ones): go back without signing in. */}
-            {identity ? null : <SavedAccountsDock />}
-        </>
-    );
+    if (role === 'admin') return <AdminLogin />;
+    if (role === 'management') return <ManagementLogin />;
+    return <EmployeeLogin />;
 }

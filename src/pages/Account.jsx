@@ -2,7 +2,7 @@
  * Account — one page for every role (employee, supervisor, manager, admin); the sections adapt to
  * the signed-in identity:
  *
- *   profile header · digital ID card (live QR) · account details · accounts on this device ·
+ *   profile header · digital ID card (live QR) · account details ·
  *   role shortcuts (from the role's own menu) · preferences · linked modules ·
  *   security & privacy · about & support · sign out
  *
@@ -25,7 +25,6 @@ import { MyInfoTasksBanner } from '@/features/workerInfo/MyInfo';
 import DigitalCard from '@/features/cards/DigitalCard';
 import { cardStatus } from '@/features/cards/CardFaces';
 import { cardsMe } from '@/features/cards/api';
-import { AccountSwitchChip, AccountsList } from '@/ui/hub/AccountSwitcher';
 import {
     AccountDetails,
     AccountProfileHeader,
@@ -70,7 +69,7 @@ export default function Account() {
           : getUnsupportedMessage(bioSupport?.reason);
 
     return (
-        <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow trailing={<AccountSwitchChip />} className="g-acct-page">
+        <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow className="g-acct-page">
             <div className="g-acct-stagger" style={{ '--i': 0 }}>
                 <AccountProfileHeader identity={identity} card={card} status={status} />
             </div>
@@ -80,11 +79,6 @@ export default function Account() {
                 <DigitalCard canEditPhoto={isWorker} />
                 {isWorker ? <MyInfoTasksBanner /> : null}
                 <AccountDetails identity={identity} card={card} />
-            </div>
-
-            <div className="g-acct-stagger" style={{ '--i': 2 }}>
-                <SectionLabel>Accounts on this device</SectionLabel>
-                <AccountsList />
             </div>
 
             <div className="g-acct-stagger mt-5" style={{ '--i': 3 }}>
@@ -129,7 +123,7 @@ export default function Account() {
                     {isWorker ? <ListRow to={`${paths.hubs.worker}?open=tutorial`} icon={GraduationCap} title="App tutorial" hint="A quick tour of the home screen" /> : null}
                 </List>
 
-                <SignOutButton identity={identity} />
+                <SignOutButton />
                 <p className="g-company-foot">{t('hub.account.foot')}</p>
             </div>
 

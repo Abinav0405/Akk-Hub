@@ -9,15 +9,9 @@ import { isAppUI } from '@/core/platform';
 import { homePathFor, useIdentity } from '@/core/auth/identity';
 import WebHome from '@/pages/home/WebHome';
 import AppHome from '@/pages/home/AppHome';
-import { SavedAccountsDock } from '@/ui/hub/AccountSwitcher';
 
 export default function Home() {
     const identity = useIdentity();
     if (identity) return <Navigate to={homePathFor(identity.role)} replace />;
-    return (
-        <>
-            {isAppUI() ? <AppHome /> : <WebHome />}
-            <SavedAccountsDock />
-        </>
-    );
+    return isAppUI() ? <AppHome /> : <WebHome />;
 }

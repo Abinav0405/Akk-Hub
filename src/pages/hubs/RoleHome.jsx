@@ -1,7 +1,7 @@
 /**
  * Role home for Supervisor / Manager / Admin (employees use pages/employee/EmployeeHome.jsx).
  *
- *   greeting top bar        bell (admin, manager) · account switcher
+ *   greeting top bar        bell (admin, manager)
  *   Needs your attention    live counts across attendance, materials and site work
  *   Finish setting up       only when a one-time module sign-in is still missing
  *   Categories              one card per work area (from app/navigation.js): its first four
@@ -26,7 +26,6 @@ import { getSingaporeGreeting } from '@/ui/native/NativeChrome';
 import TopBar from '@/ui/hub/TopBar';
 import { List, ListRow, SectionLabel } from '@/ui/hub/primitives';
 import CategoryGrid from '@/ui/hub/CategoryGrid';
-import { AccountSwitchChip } from '@/ui/hub/AccountSwitcher';
 import { ROLE_LABELS, useIdentity } from '@/core/auth/identity';
 import { MODULE_LABELS, useModuleConnection } from '@/core/auth/bridges';
 import { useLanguage } from '@/core/i18n';
@@ -153,7 +152,6 @@ export default function RoleHome() {
                                 {bellCount > 0 ? <span className="g-icon-btn__dot">{bellCount > 9 ? '9+' : bellCount}</span> : null}
                             </Link>
                         ) : null}
-                        <AccountSwitchChip />
                     </>
                 }
             />

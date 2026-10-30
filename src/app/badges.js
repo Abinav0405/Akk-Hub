@@ -13,8 +13,7 @@
  */
 import { useEffect, useSyncExternalStore } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useIdentity } from '@/core/auth/identity';
-import { accountKey } from '@/core/auth/accounts';
+import { accountKey, useIdentity } from '@/core/auth/identity';
 import { paths } from '@/app/paths';
 import { useApprovalsInbox } from '@/pages/hubs/useApprovalsInbox';
 

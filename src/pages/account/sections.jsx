@@ -22,7 +22,6 @@ import { useLanguage } from '@/core/i18n';
 import { ROLE_LABELS } from '@/core/auth/identity';
 import { MODULE_LABELS, disconnectModule, useModuleConnection, useWorkerAccess } from '@/core/auth/bridges';
 import { signOutWithAnimation } from '@/core/auth/signOutFlow';
-import { otherAccounts, useSavedAccounts } from '@/core/auth/accounts';
 import { navFor } from '@/app/navigation';
 import { STAFF_AREAS, useStaffCounts } from '@/app/badges';
 import { paths } from '@/app/paths';
@@ -185,16 +184,13 @@ export function ModuleLinkRow({ role, module }) {
     );
 }
 
-export function SignOutButton({ identity }) {
+export function SignOutButton() {
     const { t } = useLanguage();
     const navigate = useNavigate();
-    const saved = otherAccounts(useSavedAccounts(), identity).length;
     const signOut = async () => {
         const ok = await confirmAction({
             title: t('hub.account.signOutTitle'),
-            message: saved
-                ? `${t('hub.account.signOutMsg')} Your ${saved} other saved account${saved === 1 ? '' : 's'} on this device stay${saved === 1 ? 's' : ''}.`
-                : t('hub.account.signOutMsg'),
+            message: t('hub.account.signOutMsg'),
             confirmLabel: t('hub.account.signOut'),
             destructive: true,
         });
