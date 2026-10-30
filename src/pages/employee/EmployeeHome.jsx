@@ -570,13 +570,18 @@ export default function EmployeeHome() {
         setInboxSeenTick((n) => n + 1);
     }, [workerId, passedOutPayslips]);
 
-    // Notification taps: /me?open=payslips opens the payslips sheet (then the URL is cleaned).
+    // /me?open=payslips (notification taps) · password · tutorial (Account page) open those
+    // sheets here, then the URL is cleaned.
     const [searchParams, setSearchParams] = useSearchParams();
     const openParam = searchParams.get('open');
     useEffect(() => {
-        if (openParam !== 'payslips') return;
-        setShowPayslipDownloadDialog(true);
-        markPayslipsSeen();
+        if (openParam !== 'payslips' && openParam !== 'password' && openParam !== 'tutorial') return;
+        if (openParam === 'password') setShowPasswordDialog(true);
+        else if (openParam === 'tutorial') setIsTutorialRunning(true);
+        else {
+            setShowPayslipDownloadDialog(true);
+            markPayslipsSeen();
+        }
         setSearchParams((prev) => {
             const next = new URLSearchParams(prev);
             next.delete('open');

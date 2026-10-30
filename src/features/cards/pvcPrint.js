@@ -5,9 +5,9 @@
  */
 import { jsPDF } from 'jspdf';
 import { savePdfBlob } from '@/modules/progress/lib/fileSave';
-import QRCode from 'qrcode';
 import { barRuns } from './Barcode';
 import { fmtDate, groupNumber, qrPayload, themeFor } from './cardModel';
+import { qrDataUrlWithLogo } from './qrWithLogo';
 
 const W = 85.6;
 const H = 54;
@@ -296,8 +296,8 @@ async function back(doc, card, logo) {
     lab('Card Valid', L + colW, y);
     val(`${fmtDate(card.valid_from)} – ${fmtDate(card.valid_until)}`, L + colW, y + 2.9, textW - colW, 4.6);
 
-    // QR (printed-card token) in a white tile
-    const qr = await QRCode.toDataURL(qrPayload(`AKK1P.${card.qr_token}`), { margin: 0, width: 400, errorCorrectionLevel: 'M' });
+    // QR (printed-card token + centred company logo) in a white tile
+    const qr = await qrDataUrlWithLogo(qrPayload(`AKK1P.${card.qr_token}`), { margin: 1, width: 400 });
     const qs = 21;
     const qx = W - 4 - qs;
     const qy = 12.2;

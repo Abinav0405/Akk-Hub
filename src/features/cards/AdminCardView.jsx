@@ -4,7 +4,6 @@
  *   linked logins (manager / supervisor / admin accounts → card colour) · card history · recent scans
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import QRCode from 'qrcode';
 import { Ban, BadgeCheck, History, Link2, Loader2, Nfc, Printer, RefreshCw, RotateCw, Unlink } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/ui/button';
@@ -14,6 +13,7 @@ import FlipCard from './FlipCard';
 import { downloadPvcCards } from './pvcPrint';
 import { cancelWrite, nfcAvailable, writeCardTag } from './nfc';
 import { STATE_LABEL, fmtDate, qrPayload, themeFor } from './cardModel';
+import { qrDataUrlWithLogo } from './qrWithLogo';
 
 const ROLE_TONE = { admin: 'bg-red-50 text-red-800', manager: 'bg-emerald-50 text-emerald-800', supervisor: 'bg-blue-50 text-blue-800' };
 
@@ -49,7 +49,7 @@ export default function AdminCardView({ employeeId, actions = true, onChanged })
     const card = d?.card ? { ...d.card, role: d.role } : null;
     useEffect(() => {
         if (!card?.qr_token) return;
-        QRCode.toDataURL(qrPayload(`AKK1P.${card.qr_token}`), { margin: 1, width: 360, errorCorrectionLevel: 'M' }).then(setQrSrc).catch(() => setQrSrc(null));
+        qrDataUrlWithLogo(qrPayload(`AKK1P.${card.qr_token}`), { margin: 1, width: 360 }).then(setQrSrc).catch(() => setQrSrc(null));
     }, [card?.qr_token]);
 
     useEffect(() => {

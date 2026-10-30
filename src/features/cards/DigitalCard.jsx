@@ -8,17 +8,19 @@
  *   - no photo yet → "Add passport photo" (crop dialog) right on the card
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import QRCode from 'qrcode';
-import { ChevronDown, Copy, ImagePlus, Loader2, Maximize2, RotateCw, ShieldAlert, X } from 'lucide-react';
+import { ChevronDown, Copy, ImagePlus, Loader2, Maximize2, QrCode, RotateCw, ShieldAlert, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { toast } from 'sonner';
 import { UNIFIED, supabaseCore } from '@/core/supabase';
 import { getRoleSessionToken } from '@/core/auth/timesheetSession';
 import PhotoCropDialog from '@/ui/PhotoCropDialog';
+import { isNativeApp } from '@/core/platform';
+import { registerNativeBackHandler } from '@/core/nativeShell';
 import { cardsMe } from './api';
 import { CardBack, CardFront, cardStatus } from './CardFaces';
 import FlipCard from './FlipCard';
 import { fmtDate, groupNumber, qrPayload, themeFor } from './cardModel';
+import { qrDataUrlWithLogo } from './qrWithLogo';
 
 const REFRESH_MS = 30_000;
 const STALE_MS = 115_000;
@@ -35,7 +37,7 @@ function useLiveCode(enabled, employeeId) {
             const r = await cardsMe.liveCode(employeeId);
             setCode(r.code);
             setAt(Date.now());
-            setSrc(await QRCode.toDataURL(qrPayload(r.code), { margin: 1, width: 420, errorCorrectionLevel: 'M' }));
+            setSrc(await qrDataUrlWithLogo(qrPayload(r.code), { margin: 1, width: 420 }));
         } catch {
             /* offline: keep the last code; it is marked old after 2 minutes */
         } finally {
@@ -59,6 +61,24 @@ function useLiveCode(enabled, employeeId) {
         };
     }, [enabled, refresh]);
     return { code, at, src, refresh };
+}
+
+/** A light tap on the phone (Android app); a short vibration elsewhere where supported. */
+async function tapFeedback() {
+    if (!isNativeApp()) {
+        try {
+            navigator.vibrate?.(8);
+        } catch {
+            /* ignore */
+        }
+        return;
+    }
+    try {
+        const { Haptics, ImpactStyle } = await import('@capacitor/haptics');
+        await Haptics.impact({ style: ImpactStyle.Light });
+    } catch {
+        /* no haptics */
+    }
 }
 
 function useTick(enabled, ms = 1000) {
@@ -109,6 +129,26 @@ export default function DigitalCard({ canEditPhoto = false }) {
     useTick(Boolean(valid && (flipped || zoom)));
 
     useEffect(() => () => window.clearTimeout(hideTimer.current), []);
+
+    // Full-screen QR: Esc and Android back close it.
+    useEffect(() => {
+        if (!zoom) return undefined;
+        const onKey = (e) => e.key === 'Escape' && setZoom(false);
+        document.addEventListener('keydown', onKey);
+        const off = registerNativeBackHandler(() => {
+            setZoom(false);
+            return true;
+        });
+        return () => {
+            document.removeEventListener('keydown', onKey);
+            off();
+        };
+    }, [zoom]);
+
+    const flip = (next) => {
+        void tapFeedback();
+        setFlipped(next);
+    };
     const toggleNumber = () => {
         window.clearTimeout(hideTimer.current);
         setShowNumber((v) => {
@@ -214,15 +254,30 @@ export default function DigitalCard({ canEditPhoto = false }) {
             <div className="akc-enter">
                 <FlipCard
                     flipped={flipped}
-                    onFlip={setFlipped}
+                    onFlip={flip}
                     label={`${theme.label.toLowerCase()} ID card`}
                     front={<CardFront card={card} live={valid} onAddPhoto={needsPhoto ? pickPhoto : undefined} />}
                     back={<CardBack card={card} qr={qr} number={{ full: card.card_number, show: showNumber, onToggle: toggleNumber }} onQrClick={() => setZoom(true)} />}
                 />
             </div>
 
-            <div className="flex items-center justify-center gap-2 text-xs text-slate-500">
-                <RotateCw className="h-3.5 w-3.5" aria-hidden /> Tap the card to {flipped ? 'see the front' : 'show your QR'}
+            <div className="akc-actions">
+                <button type="button" className="akc-action" onClick={() => flip(!flipped)}>
+                    <RotateCw aria-hidden /> {flipped ? 'Show front' : 'Flip card'}
+                </button>
+                {valid ? (
+                    <button
+                        type="button"
+                        className="akc-action akc-action--primary"
+                        onClick={() => {
+                            void tapFeedback();
+                            setZoom(true);
+                        }}
+                        disabled={!live.src}
+                    >
+                        {live.src ? <QrCode aria-hidden /> : <Loader2 className="animate-spin" aria-hidden />} Show QR
+                    </button>
+                ) : null}
             </div>
 
             <div className="mx-auto max-w-[440px] overflow-hidden rounded-2xl border border-[var(--g-hairline)] bg-white">
@@ -300,16 +355,18 @@ export default function DigitalCard({ canEditPhoto = false }) {
 
             {zoom && qr?.src ? (
                 <div className="akc-qrzoom" role="dialog" aria-modal="true" aria-label="Your card QR code" onClick={() => setZoom(false)}>
+                    {/* White, high-contrast, generous quiet zone: readable by every scanner. */}
                     <div className="akc-qrzoom__box text-center">
                         <p className="mb-1 text-lg font-bold text-slate-900">{card.name}</p>
                         <p className="mb-4 text-sm text-slate-500">
                             {card.employee_id} · {theme.label}
                         </p>
-                        <img src={qr.src} alt="Card QR code" className={`mx-auto w-full rounded-2xl ${stale ? 'opacity-40 blur-sm' : ''}`} style={{ imageRendering: 'pixelated' }} />
+                        <img src={qr.src} alt="Card QR code" className={`akc-qrzoom__img mx-auto w-full ${stale ? 'opacity-40 blur-sm' : ''}`} />
                         <p className={`mt-4 text-sm font-medium ${stale ? 'text-red-700' : 'text-emerald-700'}`}>
                             {stale ? 'Code is old — check your connection' : `Live code · refreshes in ${Math.max(0, Math.ceil((REFRESH_MS - (Date.now() - live.at)) / 1000))}s`}
                         </p>
-                        <button type="button" className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700">
+                        <p className="mt-1 text-xs text-slate-400">Turn your screen brightness up if a scanner can't read it.</p>
+                        <button type="button" onClick={() => setZoom(false)} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700">
                             <X className="h-4 w-4" /> Close
                         </button>
                     </div>
