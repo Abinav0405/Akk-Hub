@@ -26,6 +26,7 @@ import { navFor } from '@/app/navigation';
 import { STAFF_AREAS, useStaffCounts } from '@/app/badges';
 import { paths } from '@/app/paths';
 import { cn } from '@/ui/utils';
+import { fmtDate } from '@/features/cards/cardModel';
 
 /** Status pill text / tone from the ID card (when there is one), else the signed-in session. */
 export function accountStatus(card, cardStatus) {
@@ -33,7 +34,8 @@ export function accountStatus(card, cardStatus) {
     return { tone: 'ok', text: 'Active' };
 }
 
-export function AccountProfileHeader({ identity, card, status }) {
+/** `wide`: website layout — bigger, role + status as badges side by side. */
+export function AccountProfileHeader({ identity, card, status, wide = false }) {
     const isWorker = identity?.role === 'worker';
     const role = ROLE_LABELS[identity?.role] || identity?.role;
     const designation = card?.designation || (isWorker ? null : role);
@@ -43,26 +45,36 @@ export function AccountProfileHeader({ identity, card, status }) {
             : identity?.email || (identity?.id ? `ID ${identity.id}` : null);
     const site = identity?.role === 'supervisor' && identity?.siteId ? `Site · ${identity.siteId}` : null;
     return (
-        <section className="g-acct-hero" data-role={identity?.role}>
+        <section className={cn('g-acct-hero', wide && 'g-acct-hero--wide')} data-role={identity?.role}>
             <MyPhotoAvatar name={identity?.name} isWorker={isWorker} size="lg" />
             <div className="min-w-0 flex-1">
-                <span className="g-acct-hero__role">{role}</span>
+                {wide ? null : <span className="g-acct-hero__role">{role}</span>}
                 <h2 className="g-acct-hero__name">{identity?.name}</h2>
                 {designation && designation !== role ? <p className="g-acct-hero__sub">{designation}</p> : null}
                 {site ? <p className="g-acct-hero__sub">{site}</p> : null}
                 {idLabel ? <p className="g-acct-hero__sub g-acct-hero__sub--id">{idLabel}</p> : null}
-                <span className="g-acct-hero__status" data-tone={status.tone}>
-                    <i aria-hidden /> {status.text}
-                </span>
+                {wide ? (
+                    <div className="g-acct-hero__badges">
+                        <span className="g-acct-hero__role">{role}</span>
+                        <span className="g-acct-hero__status" data-tone={status.tone}>
+                            <i aria-hidden /> {status.text}
+                        </span>
+                    </div>
+                ) : (
+                    <span className="g-acct-hero__status" data-tone={status.tone}>
+                        <i aria-hidden /> {status.text}
+                    </span>
+                )}
             </div>
         </section>
     );
 }
 
 /** Read-only account details, collapsed by default (Card details on the ID card has the rest). */
-export function AccountDetails({ identity, card }) {
+/** `wide`: website — open by default, two columns of label / value. */
+export function AccountDetails({ identity, card, wide = false }) {
     const { t } = useLanguage();
-    const [open, setOpen] = useState(false);
+    const [open, setOpen] = useState(wide);
     const isWorker = identity?.role === 'worker';
     const rows = [
         ['Name', identity?.name],
@@ -75,7 +87,7 @@ export function AccountDetails({ identity, card }) {
         identity?.role === 'supervisor' && identity?.siteId ? ['Assigned site', identity.siteId] : null,
     ].filter((row) => row && row[1]);
     return (
-        <div className="g-acct-details">
+        <div className={cn('g-acct-details', wide && 'g-acct-details--wide')}>
             <button type="button" className="g-acct-details__toggle" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
                 <span>
                     <span className="block text-[15px] font-semibold text-[var(--g-ink)]">Account details</span>
@@ -116,7 +128,7 @@ function areaOf(item, role) {
     return Object.keys(STAFF_AREAS).find((area) => STAFF_AREAS[area].match(pathname, section, role)) || null;
 }
 
-export function RoleShortcuts({ role }) {
+export function RoleShortcuts({ role, max = 4, className }) {
     const { t } = useLanguage();
     const access = useWorkerAccess();
     const counts = useStaffCounts();
@@ -142,7 +154,8 @@ export function RoleShortcuts({ role }) {
     if (!items.length) return null;
     return (
         <CategoryGrid
-            className="g-acct-shortcuts"
+            max={max}
+            className={cn('g-acct-shortcuts', className)}
             categories={[{ id: 'shortcuts', title: config.title, hint: config.hint, icon: LayoutGrid, tone: 'brand', items }]}
         />
     );
@@ -201,5 +214,59 @@ export function SignOutButton() {
         <button type="button" className="g-acct-signout" onClick={signOut}>
             <LogOut aria-hidden /> {t('hub.account.signOut')}
         </button>
+    );
+}
+
+/** Website side column: who is signed in, at a glance (real session + ID card data only). */
+export function IdentitySummary({ identity, card, status }) {
+    const materials = useModuleConnection(identity?.role, 'materials');
+    const progress = useModuleConnection(identity?.role, 'progress');
+    const isWorker = identity?.role === 'worker';
+    const linked = [materials, progress].filter((s) => s === 'connected').length;
+    const offered = [materials, progress].filter((s) => s !== 'unavailable' && s !== 'not-configured').length;
+    const validUntil = card?.valid_until ? fmtDate(card.valid_until) : null;
+    const rows = [
+        ['Status', <span key="s" className="g-acct-pill" data-tone={status.tone === 'ok' ? undefined : 'warn'}>{status.text}</span>],
+        ['Role', ROLE_LABELS[identity?.role]],
+        isWorker || card?.employee_id ? ['Employee ID', card?.employee_id || identity?.id] : null,
+        !isWorker ? ['Signed in as', identity?.email || identity?.id] : null,
+        identity?.role === 'supervisor' && identity?.siteId ? ['Site', identity.siteId] : null,
+        validUntil && validUntil !== '—' ? ['ID card valid until', validUntil] : null,
+        identity?.role !== 'supervisor' && offered ? ['Linked modules', `${linked} of ${offered}`] : null,
+    ].filter((row) => row && row[1]);
+    return (
+        <section className="g-panel" aria-labelledby="acct-summary">
+            <header className="g-panel__head">
+                <h3 id="acct-summary" className="g-panel__title">
+                    Identity
+                </h3>
+                <p className="g-panel__sub">This sign-in on this browser</p>
+            </header>
+            <dl className="g-summary">
+                {rows.map(([label, value]) => (
+                    <div key={label} className="g-summary__row">
+                        <dt>{label}</dt>
+                        <dd>{value}</dd>
+                    </div>
+                ))}
+            </dl>
+        </section>
+    );
+}
+
+/** A titled panel (website layout). */
+export function Panel({ title, sub, children, className, id }) {
+    return (
+        <section className={cn('g-panel', className)} aria-labelledby={id}>
+            {title ? (
+                <header className="g-panel__head">
+                    <h3 id={id} className="g-panel__title">
+                        {title}
+                    </h3>
+                    {sub ? <p className="g-panel__sub">{sub}</p> : null}
+                </header>
+            ) : null}
+            {children}
+        </section>
     );
 }

@@ -1465,3 +1465,9 @@ QA signed in, each role: header data, ID card flip + Show QR scans with the exis
 
 ### 2026-10-30 addendum — account switching REMOVED (Abinav)
 Workers could have saved other people's worker accounts on one phone, so the saved-accounts / switch feature is gone: deleted `core/auth/accounts.js` + `ui/hub/AccountSwitcher.jsx`, the switch chip on role homes and Account, "Accounts on this device", and the "Continue as…" dock on Home / sign-in. Changing account = sign out, sign in. `core/auth/identity.js` now removes any `akk.hub.accounts` left on a device at startup (saved sessions from test builds). `accountKey()` moved to `identity.js` (unread badges still per account). Do not reintroduce multi-account storage.
+
+### 2026-10-30 addendum — website Account page + badge loop fix
+- `pages/Account.jsx`: on the website sidebar layout (≥1024 px, not the app) a separate desktop composition — full-width navy→burgundy hero with role + status badges; main column (ID card panel, Account details open in two columns, Settings = language + linked modules, Security & privacy / About side by side ≥1440 px); sticky side column (Identity summary, role shortcuts as 3-up tiles, Account actions with Sign out). Max width 1180 px; single column below 1180 px. Phone / app layout unchanged.
+- `DigitalCard.jsx`: QR modal portaled to body, Close gets focus and focus returns to Show QR, clicks inside the card no longer close it (backdrop / Close / Esc do). On the website it is a centred card over a dimmed backdrop; the app keeps full-screen white.
+- Sidebar / top bar polish (website only): active rail + tint, icon colours, hover, focus rings, thin scrollbar.
+- **Bug fix:** `app/badges.js` returned a new `{}` snapshot when nobody was signed in → React "Maximum update depth" crash in HubLayout around sign-out. Now a shared frozen empty object.

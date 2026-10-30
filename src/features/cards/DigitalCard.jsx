@@ -8,6 +8,7 @@
  *   - no photo yet → "Add passport photo" (crop dialog) right on the card
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Copy, ImagePlus, Loader2, Maximize2, QrCode, RotateCw, ShieldAlert, X } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/ui/dialog';
 import { toast } from 'sonner';
@@ -104,6 +105,8 @@ export default function DigitalCard({ canEditPhoto = false }) {
     const [lostBusy, setLostBusy] = useState(false);
     const fileRef = useRef(null);
     const hideTimer = useRef(0);
+    const qrCloseRef = useRef(null);
+    const qrOpenerRef = useRef(null);
 
     useEffect(() => {
         if (!UNIFIED) return;
@@ -130,9 +133,11 @@ export default function DigitalCard({ canEditPhoto = false }) {
 
     useEffect(() => () => window.clearTimeout(hideTimer.current), []);
 
-    // Full-screen QR: Esc and Android back close it.
+    // Full-screen QR: Esc and Android back close it; focus goes to Close and back to the opener.
     useEffect(() => {
         if (!zoom) return undefined;
+        qrOpenerRef.current = document.activeElement;
+        window.requestAnimationFrame(() => qrCloseRef.current?.focus());
         const onKey = (e) => e.key === 'Escape' && setZoom(false);
         document.addEventListener('keydown', onKey);
         const off = registerNativeBackHandler(() => {
@@ -142,6 +147,7 @@ export default function DigitalCard({ canEditPhoto = false }) {
         return () => {
             document.removeEventListener('keydown', onKey);
             off();
+            qrOpenerRef.current?.focus?.();
         };
     }, [zoom]);
 
@@ -353,10 +359,10 @@ export default function DigitalCard({ canEditPhoto = false }) {
                 </DialogContent>
             </Dialog>
 
-            {zoom && qr?.src ? (
+            {zoom && qr?.src ? createPortal(
                 <div className="akc-qrzoom" role="dialog" aria-modal="true" aria-label="Your card QR code" onClick={() => setZoom(false)}>
-                    {/* White, high-contrast, generous quiet zone: readable by every scanner. */}
-                    <div className="akc-qrzoom__box text-center">
+                    {/* White, high-contrast, generous quiet zone: readable by every scanner. Backdrop click closes. */}
+                    <div className="akc-qrzoom__box text-center" onClick={(e) => e.stopPropagation()}>
                         <p className="mb-1 text-lg font-bold text-slate-900">{card.name}</p>
                         <p className="mb-4 text-sm text-slate-500">
                             {card.employee_id} · {theme.label}
@@ -366,11 +372,12 @@ export default function DigitalCard({ canEditPhoto = false }) {
                             {stale ? 'Code is old — check your connection' : `Live code · refreshes in ${Math.max(0, Math.ceil((REFRESH_MS - (Date.now() - live.at)) / 1000))}s`}
                         </p>
                         <p className="mt-1 text-xs text-slate-400">Turn your screen brightness up if a scanner can't read it.</p>
-                        <button type="button" onClick={() => setZoom(false)} className="mt-5 inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700">
+                        <button ref={qrCloseRef} type="button" onClick={() => setZoom(false)} className="akc-qrzoom__close mt-5 inline-flex h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700">
                             <X className="h-4 w-4" /> Close
                         </button>
                     </div>
-                </div>
+                </div>,
+                document.body,
             ) : null}
 
             {canEditPhoto ? (

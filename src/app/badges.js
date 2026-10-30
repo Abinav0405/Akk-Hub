@@ -25,8 +25,11 @@ function storeKey(identity) {
     return key ? `akk.hub.seen.${key}` : null;
 }
 
+/** Shared empty value: useSyncExternalStore needs the same object back while nobody is signed in. */
+const NONE = Object.freeze({});
+
 function readSeen(skey) {
-    if (!skey) return {};
+    if (!skey) return NONE;
     if (cache.has(skey)) return cache.get(skey);
     let value = {};
     try {
