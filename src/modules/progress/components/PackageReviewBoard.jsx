@@ -1,5 +1,5 @@
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Loader2, Printer, Images, Check, ThumbsDown, Trash2, Sheet, Files, ShieldCheck, FileDown, Undo2, FileText, CalendarDays, MapPin, UserRound, BadgeCheck, XCircle, LayoutGrid, List as ListIcon, Users } from 'lucide-react';
 import { Card } from '@/ui/card';
@@ -627,6 +627,21 @@ export default function PackageReviewBoard({ role }) {
         refresh();
         if (!isExporter) listAllSites().then(setSites).catch(() => {});
     }, [refresh, isExporter]);
+
+    // Notification taps arrive as ?package=<id>: open that package once the board has it.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const focusPackageId = searchParams.get('package');
+    useEffect(() => {
+        if (!focusPackageId || !packages) return;
+        const pkg = packages.find((p) => String(p.id) === String(focusPackageId));
+        if (pkg) setSelected(pkg);
+        else toast.message('That package is no longer on this board.');
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('package');
+            return next;
+        }, { replace: true });
+    }, [focusPackageId, packages, setSearchParams]);
 
     // Smart heartbeat: poll a single cheap timestamp every 5s and only refetch
     // the full board when it actually moved (e.g. an employee/technician just submitted) —

@@ -67,7 +67,7 @@ function emptyDraft(lookups) {
   };
 }
 
-export default function JsrPanel({ role, lookups, perms = {} }) {
+export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
   const can = (key) => jsrCan(role, perms, key);
   const [rows, setRows] = useState(null);
   const [search, setSearch] = useState('');
@@ -339,7 +339,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
               ) : filtered.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-6 text-muted-foreground">{(rows || []).length ? 'No JSRs match these filters.' : 'No JSRs yet. Create one from existing photo packages.'}</td></tr>
               ) : filtered.map((r) => {
-                const next = jsrNextStep(r, can);
+                const next = jsrNextStep(r, can, Boolean(onAddToClaim));
                 const short = shortJsrLabel(r.jsr_no);
                 const linkedPkgs = r.linked_packages?.length
                   ? r.linked_packages
@@ -384,7 +384,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                       <CertifiedMoney submitted={r.total} certified={r.client_certified_amount} />
                     </td>
                     <td className="py-3 pl-3 pr-3">
-                      <StatusBadge status={r.status} />
+                      <StatusBadge kind="jsr" status={r.status} />
                       {r.client_response_submitted && !r.client_ack_at ? <p className="mt-1 text-xs font-medium text-amber-700">New client response</p> : null}
                     </td>
                     <td className="py-3 pr-3">
@@ -443,7 +443,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                           size="sm"
                           variant={next.primary ? 'default' : 'outline'}
                           className="h-8 min-h-0 whitespace-nowrap px-3 text-xs"
-                          onClick={() => (next.edit ? openEdit(r.id) : openDetail(r.id))}
+                          onClick={() => (next.claim ? onAddToClaim(r.id) : next.edit ? openEdit(r.id) : openDetail(r.id))}
                         >
                           {next.label}
                         </Button>
@@ -497,7 +497,7 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                 </DialogTitle>
               </DialogHeader>
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge status={detail.status} /></dd></div>
+                <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge kind="jsr" status={detail.status} /></dd></div>
                 <div><dt className="text-muted-foreground">Export Only IDs</dt><dd><ExportOnlyLabel row={detail} /></dd></div>
                 <div><dt className="text-muted-foreground">Company</dt><dd>{detail.company?.name}</dd></div>
                 <div><dt className="text-muted-foreground">Contract</dt><dd>{detail.contract?.code} — {detail.contract?.description}</dd></div>
@@ -588,6 +588,15 @@ export default function JsrPanel({ role, lookups, perms = {} }) {
                   onEdit={() => openEdit(detail.id)}
                   onDelete={canShowJsrDelete(role, perms, detail) ? () => handleDelete(detail) : undefined}
                   onPrepareInvoice={() => setInvoiceOpen(true)}
+                  onAddToClaim={
+                    onAddToClaim
+                      ? () => {
+                          const id = detail.id;
+                          setDetail(null);
+                          onAddToClaim(id);
+                        }
+                      : undefined
+                  }
                   onPassToClient={() => {
                     setPassAction('pass_to_client');
                     setPassOpen(true);
@@ -667,8 +676,17 @@ function filterSelect(value) {
 }
 
 /** The one thing to do next for a JSR, shown as the row's main button. */
-function jsrNextStep(r, can) {
+function jsrNextStep(r, can, claimable = false) {
   if (r.client_response_submitted && !r.client_ack_at) return { label: 'View response', primary: true };
+  if (
+    claimable &&
+    ['c-approved', 'c-certified', 'c-partial'].includes(r.status) &&
+    !r.claim_id &&
+    !r.claim_no &&
+    (can('create_claim') || can('edit_claim'))
+  ) {
+    return { label: 'Add to claim', primary: true, claim: true };
+  }
   if ((r.status === 'draft' || r.status === 'rejected') && can('edit_jsr')) return { label: 'Edit', edit: true };
   if (r.status === 'submitted') return { label: 'Review', primary: false };
   if (r.status === 'approved') return { label: 'Send to client', primary: true };

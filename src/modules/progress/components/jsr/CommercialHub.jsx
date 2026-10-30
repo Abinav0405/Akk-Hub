@@ -32,6 +32,7 @@ export default function CommercialHub({ role }) {
   const [tab, setTab] = useState(isExporter ? 'client' : 'jsrs');
   const [lookups, setLookups] = useState(null);
   const [sessionPerms, setSessionPerms] = useState(null);
+  const [claimSeed, setClaimSeed] = useState(null);
   const warnedMissing = useRef(false);
 
   const refreshLookups = () => {
@@ -117,12 +118,24 @@ export default function CommercialHub({ role }) {
       </div>
       {visibleTabs.some((t) => t.id === 'jsrs') ? (
         <TabsContent value="jsrs" className="mt-0">
-          <JsrPanel role={role} lookups={lookups} perms={perms} />
+          <JsrPanel
+            role={role}
+            lookups={lookups}
+            perms={perms}
+            onAddToClaim={
+              visibleTabs.some((t) => t.id === 'claims')
+                ? (jsrId) => {
+                    setClaimSeed(jsrId);
+                    setTab('claims');
+                  }
+                : undefined
+            }
+          />
         </TabsContent>
       ) : null}
       {visibleTabs.some((t) => t.id === 'claims') ? (
         <TabsContent value="claims" className="mt-0">
-          <ClaimPanel role={role} lookups={lookups} perms={perms} />
+          <ClaimPanel role={role} lookups={lookups} perms={perms} seedJsrId={claimSeed} onSeedUsed={() => setClaimSeed(null)} />
         </TabsContent>
       ) : null}
       {visibleTabs.some((t) => t.id === 'invoices') ? (

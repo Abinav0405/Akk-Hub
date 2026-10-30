@@ -177,5 +177,7 @@ export async function signOutEverywhere() {
     local.remove('hub', 'role');
     local.remove('hub', 'id');
     local.remove('hub', 'lastAdminId');
+    // Other saved accounts stay on this device (switch / sign-in screen); this one is forgotten.
+    await import('@/core/auth/accounts').then((m) => m.forgetAccount(m.accountKey(current))).catch(() => {});
     notifyIdentity();
 }

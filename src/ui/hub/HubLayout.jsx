@@ -1,7 +1,8 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { LogOut } from 'lucide-react';
 import { signOutWithAnimation } from '@/core/auth/signOutFlow';
-import { Suspense, useEffect } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef } from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/ui/utils';
 import { Spinner } from '@/ui/hub/primitives';
 import AnimatedOutlet from '@/ui/hub/AnimatedOutlet';
@@ -10,8 +11,14 @@ import { isNavItemActive, navFor } from '@/app/navigation';
 import { prefetchRoleScreens } from '@/app/prefetch';
 import { useIdentity, ROLE_LABELS } from '@/core/auth/identity';
 import { useWorkerAccess } from '@/core/auth/bridges';
+import { rememberAccount } from '@/core/auth/accounts';
 import { confirmAction } from '@/ui/native/NativeConfirm';
 import { useLanguage } from '@/core/i18n';
+import { setNavDirection, useTabSwipe } from '@/ui/hub/tabMotion';
+import ScanButton from '@/ui/hub/ScanButton';
+import ScanIntro from '@/ui/hub/ScanIntro';
+import { useBadges, useMarkAreasSeen, useMarkWorkerAreasSeen, useNewSinceBadge, useStaffCounts } from '@/app/badges';
+import { useMaterialsSummary, useProgressSummary } from '@/pages/employee/useEmployeeModules';
 
 /** Nav items may carry `labelKey` (core-i18n); fall back to the English `label`. */
 function useNavLabel() {
@@ -29,44 +36,100 @@ function initials(name) {
     return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
 }
 
-/** Floating glass capsule — phones and tablets. */
-export function TabBar({ items, className }) {
+/** Index of the bottom tab for the current screen (-1 when the screen is not a tab). */
+function activeTabIndex(items, pathname, search) {
+    return (items || []).findIndex((item) => isNavItemActive(item, pathname, search));
+}
+
+/**
+ * Floating glass capsule — phones and tablets. The highlight slides between tabs; employees get
+ * the centre Scan button (hold & drag up). `badges` maps tab id → unread count on this device.
+ */
+export function TabBar({ items, badges = {}, scan = false, className }) {
     const { pathname, search } = useLocation();
     const navigate = useNavigate();
     const labelOf = useNavLabel();
     if (!items?.length) return null;
+    const activeIndex = activeTabIndex(items, pathname, search);
+    const split = scan ? Math.ceil(items.length / 2) : -1;
+
+    const renderItem = (item, index) => {
+        const Icon = item.icon;
+        const active = index === activeIndex;
+        const target = item.to;
+        const targetPath = String(target || '').split('?')[0];
+        const badge = badges[item.id] || item.badge || 0;
+        return (
+            <Link
+                key={item.id}
+                to={target}
+                className={cn('g-tabbar__item', active && 'is-active')}
+                aria-current={active ? 'page' : undefined}
+                aria-label={badge > 0 ? `${labelOf(item)}, ${badge} new` : undefined}
+                onClick={(e) => {
+                    if (!active) {
+                        if (activeIndex >= 0) setNavDirection(index > activeIndex ? 'next' : 'prev');
+                        return;
+                    }
+                    // Re-tap an already-highlighted module tab (e.g. Attendance while on
+                    // /timesheet/manage?section=leaves or /timesheet/manage/timesheets)
+                    // always returns to that tab's root screen — never a no-op.
+                    if (!targetPath) return;
+                    const onRoot = pathname === targetPath && !search;
+                    if (onRoot) return;
+                    e.preventDefault();
+                    navigate(target);
+                }}
+            >
+                {active ? (
+                    <motion.span
+                        layoutId="g-tabbar-pill"
+                        className="g-tabbar__pill"
+                        transition={{ type: 'spring', stiffness: 520, damping: 38, mass: 0.8 }}
+                        aria-hidden
+                    />
+                ) : null}
+                <Icon strokeWidth={1.9} aria-hidden />
+                <span className="g-tabbar__label">{labelOf(item)}</span>
+                {badge > 0 ? <span className="g-tabbar__badge">{badge > 9 ? '9+' : badge}</span> : null}
+            </Link>
+        );
+    };
+
     return (
-        <nav className={cn('g-tabbar', className)} aria-label="Main">
-            {items.map((item) => {
-                const Icon = item.icon;
-                const active = isNavItemActive(item, pathname, search);
-                const target = item.to;
-                const targetPath = String(target || '').split('?')[0];
-                return (
-                    <Link
-                        key={item.id}
-                        to={target}
-                        className={cn('g-tabbar__item', active && 'is-active')}
-                        aria-current={active ? 'page' : undefined}
-                        onClick={(e) => {
-                            // Re-tap an already-highlighted module tab (e.g. Attendance while on
-                            // /timesheet/manage?section=leaves or /timesheet/manage/timesheets)
-                            // always returns to that tab's root screen — never a no-op.
-                            if (!active || !targetPath) return;
-                            const onRoot = pathname === targetPath && !search;
-                            if (onRoot) return;
-                            e.preventDefault();
-                            navigate(target);
-                        }}
-                    >
-                        <Icon strokeWidth={1.9} aria-hidden />
-                        <span className="g-tabbar__label">{labelOf(item)}</span>
-                        {item.badge > 0 ? <span className="g-tabbar__badge">{item.badge > 9 ? '9+' : item.badge}</span> : null}
-                    </Link>
-                );
-            })}
+        <nav className={cn('g-tabbar', scan && 'g-tabbar--scan', className)} aria-label="Main">
+            {items.slice(0, split >= 0 ? split : items.length).map((item, i) => renderItem(item, i))}
+            {scan ? <ScanButton /> : null}
+            {split >= 0 ? items.slice(split).map((item, i) => renderItem(item, split + i)) : null}
         </nav>
     );
+}
+
+/** Unread counts per bottom tab for this role (opening a tab's screens clears them). */
+function useTabBadges(role) {
+    const staffCounts = useStaffCounts();
+    const staff = useBadges(staffCounts);
+    useMarkAreasSeen(staffCounts);
+    const materials = useMaterialsSummary();
+    const progress = useProgressSummary();
+    const worker = role === 'worker';
+    const totals = useMemo(
+        () => ({
+            'w-materials': worker ? materials.data?.decided ?? null : null,
+            'w-site': worker ? progress.data?.reviewed ?? null : null,
+        }),
+        [worker, materials.data?.decided, progress.data?.reviewed],
+    );
+    const workerMaterials = useNewSinceBadge('w-materials', totals['w-materials']);
+    const workerSite = useNewSinceBadge('w-site', totals['w-site']);
+    useMarkWorkerAreasSeen(totals);
+    if (worker) return { materials: workerMaterials, site: workerSite };
+    if (role === 'supervisor') return { shifts: staff.shifts };
+    return {
+        time: (staff.shifts || 0) + (staff.leave || 0),
+        materials: staff.materials,
+        site: staff.packages,
+    };
 }
 
 /** In-shell placeholder while a screen's code loads (rarely seen: screens are prefetched). */
@@ -145,9 +208,23 @@ export default function HubLayout() {
     const identity = useIdentity();
     const wide = useWideLayout();
     const navigate = useNavigate();
-    const { pathname } = useLocation();
+    const { pathname, search } = useLocation();
     const workerAccess = useWorkerAccess();
     const nav = navFor(identity?.role, workerAccess);
+    const bodyRef = useRef(null);
+    const tabBadges = useTabBadges(identity?.role);
+    const tabIndex = activeTabIndex(nav.tabs, pathname, search);
+    const goToTab = useCallback(
+        (index, dir) => {
+            const tab = nav.tabs[index];
+            if (!tab) return;
+            setNavDirection(dir);
+            navigate(tab.to);
+        },
+        [nav.tabs, navigate],
+    );
+    // Phones: swipe left / right on a tab's screen to move to the neighbouring tab.
+    useTabSwipe(bodyRef, { enabled: !wide, index: tabIndex, count: nav.tabs.length, onGo: goToTab });
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -156,6 +233,11 @@ export default function HubLayout() {
     useEffect(() => {
         return prefetchRoleScreens(identity?.role);
     }, [identity?.role]);
+
+    // Keep this account in the device's saved accounts (account switcher).
+    useEffect(() => {
+        if (identity?.role) rememberAccount(identity);
+    }, [identity]);
 
     // One backend: refresh which areas this worker may open (admins can change it any time).
     useEffect(() => {
@@ -170,6 +252,7 @@ export default function HubLayout() {
         let active = true;
         import('@/core/push').then((push) => {
             if (!active) return;
+            push.setPushRole(identity?.role);
             push.setPushNavigator((path) => navigate(path));
             if (identity?.role) void push.registerPushDevice(identity);
         });
@@ -193,7 +276,7 @@ export default function HubLayout() {
     return (
         <div className={cn('g-shell', wide && 'g-shell--sidebar')} data-role={identity?.role}>
             {wide ? <Sidebar groups={nav.groups} identity={identity} onSignOut={handleSignOut} /> : null}
-            <div className="g-shell__body g-page">
+            <div ref={bodyRef} className="g-shell__body g-page">
                 {/* Screens load inside the shell: the sidebar / tab bar stay put while a
                     screen's code downloads, instead of the whole app swapping to a loader.
                     AnimatedOutlet fades/slides the new view in (tab + module changes). */}
@@ -202,7 +285,8 @@ export default function HubLayout() {
                 </Suspense>
             </div>
             {/* Web admin uses hub TabBar + AdminMobileSectionStrip (native keeps AdminAppChrome dock; CSS hides .admin-app-dock in .g-shell). */}
-            {wide ? null : <TabBar items={nav.tabs} />}
+            {wide ? null : <TabBar items={nav.tabs} badges={tabBadges} scan={identity?.role === 'worker'} />}
+            {!wide && identity?.role === 'worker' ? <ScanIntro /> : null}
         </div>
     );
 }

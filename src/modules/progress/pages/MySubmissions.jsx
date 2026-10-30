@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Loader2, Trash2, ShieldCheck, Camera, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { AppShell, PageHeader } from '@/ui/layout';
@@ -62,6 +62,26 @@ export default function MySubmissions() {
     const [sites, setSites] = useState([]);
     const inbox = useNotifications(session ? 'worker' : null);
     const { markRead } = inbox;
+    // Notification taps arrive as ?package=<id>: scroll to that package and flash it.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const focusId = searchParams.get('package');
+    useEffect(() => {
+        if (!focusId || !packages?.length) return undefined;
+        const el = document.getElementById(`pkg-${focusId}`);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('g-focus-flash');
+        }
+        const t = window.setTimeout(() => {
+            el?.classList.remove('g-focus-flash');
+            setSearchParams((prev) => {
+                const next = new URLSearchParams(prev);
+                next.delete('package');
+                return next;
+            }, { replace: true });
+        }, 2200);
+        return () => window.clearTimeout(t);
+    }, [focusId, packages, setSearchParams]);
 
     const refresh = () => {
         listMyPackages()
@@ -194,6 +214,7 @@ export default function MySubmissions() {
                         return (
                             <Card
                                 key={p.id}
+                                id={`pkg-${p.id}`}
                                 className={cn(
                                     'min-w-0 overflow-x-hidden p-4 shadow-xs',
                                     isDeclined && 'border-red-200',

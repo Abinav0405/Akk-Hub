@@ -9,16 +9,18 @@ import { useApprovalsInbox } from '@/pages/hubs/useApprovalsInbox';
 import { paths } from '@/app/paths';
 import { sectionHref } from '@/app/useHubSection';
 
-function InboxItem({ icon: Icon, tone, label, emptyHint, query, to, linkTo }) {
+function InboxItem({ icon: Icon, tone, label, emptyHint, query, to, linkTo, fresh }) {
     const linked = !linkTo;
     const value = !linked ? null : query?.isLoading ? null : query?.isError ? '!' : query?.data ?? 0;
     const busy = value > 0;
     return (
         <Link
             to={linked ? to : linkTo}
-            className="g-card g-card--flat flex min-h-[92px] flex-col justify-between gap-2 p-3.5 transition-transform active:scale-[0.98]"
+            className="g-card g-card--flat relative flex min-h-[92px] flex-col justify-between gap-2 p-3.5 transition-transform active:scale-[0.98]"
             data-tone={tone}
         >
+            {/* New since this device last opened that screen. */}
+            {linked && fresh > 0 ? <span className="g-inbox-new">New</span> : null}
             <div className="flex items-center justify-between gap-2">
                 <span className="g-row__icon !h-9 !w-9 !rounded-[11px]">
                     <Icon strokeWidth={1.9} aria-hidden />
@@ -47,7 +49,7 @@ function InboxItem({ icon: Icon, tone, label, emptyHint, query, to, linkTo }) {
     );
 }
 
-export default function ApprovalsInbox() {
+export default function ApprovalsInbox({ badges = {} }) {
     const { role, shifts, leave, requests, packages, materials, progress } = useApprovalsInbox();
     if (!role || role === 'worker') return null;
 
@@ -122,7 +124,7 @@ export default function ApprovalsInbox() {
             </div>
             <div className={`mt-2.5 grid gap-2.5 ${items.length > 1 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-1'}`}>
                 {items.map(({ key, ...item }) => (
-                    <InboxItem key={key} {...item} />
+                    <InboxItem key={key} fresh={badges[key]} {...item} />
                 ))}
             </div>
         </section>

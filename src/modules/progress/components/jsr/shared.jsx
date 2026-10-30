@@ -17,10 +17,10 @@ import { downloadJsrExcel, downloadClaimExcel, downloadInvoiceExcel } from '@/mo
 import { CLAIM_PDF_PHOTO_FIT, JSR_PDF_PHOTO_FIT } from '@/modules/progress/lib/packagePdf';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/ui/table';
 
-export function StatusBadge({ status }) {
+export function StatusBadge({ status, kind }) {
   return (
     <span className={cn('inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide', jsrStatusBadgeClass(status))}>
-      {jsrStatusLabel(status)}
+      {jsrStatusLabel(status, kind)}
     </span>
   );
 }

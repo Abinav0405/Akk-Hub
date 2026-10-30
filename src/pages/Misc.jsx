@@ -1,21 +1,96 @@
-/** Small hub screens: notifications placeholder, connect page, not found. */
+/** Small hub screens: notifications inbox, connect page, not found. */
 import { Link, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { BellRing, Compass } from 'lucide-react';
+import { BellRing, Boxes, CalendarDays, ClipboardCheck, ClipboardList, Compass } from 'lucide-react';
 import { HubPage } from '@/ui/PortalShell';
-import { EmptyState } from '@/ui/hub/primitives';
+import { EmptyState, List, ListRow, SectionLabel } from '@/ui/hub/primitives';
+import { useModuleConnection } from '@/core/auth/bridges';
+import { useNotifications } from '@/modules/progress/hooks/useNotifications';
+import { formatDateTime } from '@/modules/progress/lib/dates';
+import { notificationTarget } from '@/core/notificationLinks';
+import { useBadges, useStaffCounts } from '@/app/badges';
+import { sectionHref } from '@/app/useHubSection';
+import { paths } from '@/app/paths';
 import ConnectForm from '@/pages/connect/ConnectForm';
 import { MODULE_LABELS, moduleRoleFor } from '@/core/auth/bridges';
 import { homePathFor, useIdentity } from '@/core/auth/identity';
 import { useLanguage } from '@/core/i18n';
 import { legacyPath } from '@/app/paths';
 
+/**
+ * Staff inbox: what is waiting (new since this device last looked) and Site work alerts. Every
+ * row opens the exact screen — a package opens that package.
+ */
 export function Notifications() {
     const { t } = useLanguage();
+    const identity = useIdentity();
+    const navigate = useNavigate();
+    const role = identity?.role;
+    const staff = role === 'manager' || role === 'admin';
+    const progress = useModuleConnection(role, 'progress');
+    const inbox = useNotifications(staff && progress === 'connected' ? role : null, { toastOnArrival: false });
+    const counts = useStaffCounts();
+    const fresh = useBadges(counts);
+    const home = role === 'admin' ? paths.timesheet.admin : paths.timesheet.manage;
+    const waiting = [
+        { key: 'shifts', icon: ClipboardCheck, tone: 'timesheet', title: 'Shifts & on site', to: role === 'supervisor' ? paths.timesheet.siteShifts : home },
+        staff && { key: 'leave', icon: CalendarDays, tone: 'timesheet', title: 'Leave requests', to: sectionHref(home, 'leaves') },
+        staff && { key: 'materials', icon: Boxes, tone: 'materials', title: 'Material requests', to: role === 'admin' ? paths.materials.admin : paths.materials.manage },
+        staff && { key: 'packages', icon: ClipboardList, tone: 'progress', title: 'Site packages', to: role === 'admin' ? paths.progress.admin : paths.progress.review },
+    ].filter((row) => row && counts[row.key] > 0);
+
+    const open = (item) => {
+        const to = notificationTarget({ path: item.path, title: item.title, body: item.body, packageId: item.packageId, role, module: 'progress' });
+        if (to) navigate(to);
+    };
+
     return (
         <HubPage title={t('hub.misc.notificationsTitle')} eyebrow={t('hub.brand')} narrow>
-            <EmptyState icon={BellRing} title={t('hub.misc.notificationsEmpty')}>
-                {t('hub.misc.notificationsBody')}
-            </EmptyState>
+            {waiting.length ? (
+                <>
+                    <SectionLabel>Waiting for you</SectionLabel>
+                    <List>
+                        {waiting.map((row) => (
+                            <ListRow
+                                key={row.key}
+                                to={row.to}
+                                icon={row.icon}
+                                tone={row.tone}
+                                title={row.title}
+                                hint={`${counts[row.key]} waiting${fresh[row.key] ? ' · new' : ''}`}
+                                badge={fresh[row.key] ? <span className="g-tabbar__badge !static">{fresh[row.key]}</span> : null}
+                            />
+                        ))}
+                    </List>
+                </>
+            ) : null}
+            {inbox.items.length ? (
+                <>
+                    <SectionLabel action={inbox.unread ? <button type="button" className="text-[var(--g-brand-text)]" onClick={() => inbox.markRead()}>Mark all read</button> : null}>
+                        Site work
+                    </SectionLabel>
+                    <List>
+                        {inbox.items.map((item) => (
+                            <ListRow
+                                key={item.id}
+                                icon={ClipboardList}
+                                tone="progress"
+                                title={item.title}
+                                hint={`${item.body || ''}${item.body ? ' · ' : ''}${formatDateTime(item.createdAt, { seconds: false })}`}
+                                className={item.readAt ? undefined : 'bg-[var(--g-brand-muted)]'}
+                                onClick={() => {
+                                    if (!item.readAt) inbox.markRead([item.id]).catch(() => {});
+                                    open(item);
+                                }}
+                            />
+                        ))}
+                    </List>
+                </>
+            ) : null}
+            {!waiting.length && !inbox.items.length ? (
+                <EmptyState icon={BellRing} title="You're all caught up">
+                    New approvals and Site work alerts show up here. Tap one to open it.
+                </EmptyState>
+            ) : null}
         </HubPage>
     );
 }

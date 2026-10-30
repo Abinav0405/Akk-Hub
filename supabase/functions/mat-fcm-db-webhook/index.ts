@@ -237,7 +237,7 @@ Deno.serve(async (req) => {
           kind: 'staff',
           title: 'Low stock alert',
           body: `${record.name || 'Material'} (#${record.reference_number || '?'}) is now ${next} ${record.unit || ''}`.trim(),
-          path: '/materials/admin',
+          path: '/materials/admin?section=materials',
         });
       }
     } else {
@@ -277,7 +277,7 @@ Deno.serve(async (req) => {
           row.fcm_token,
           t.title,
           t.body,
-          t.kind === 'staff' && row.role === 'manager' ? '/ManagerDashboard' : t.path,
+          t.kind === 'staff' && row.role === 'manager' ? '/materials/manage' : t.path,
         );
         results.push({
           token: row.fcm_token.slice(0, 12) + '…',

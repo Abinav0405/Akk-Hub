@@ -64,8 +64,25 @@ const BADGE_CLASS = {
   claimed: 'bg-cyan-100 text-cyan-900',
 };
 
-export function jsrStatusLabel(status) {
-  return JSR_STATUS_LABELS[status] || status || '—';
+/**
+ * A payment certificate belongs to a monthly claim, never to a single JSR: on a JSR the client's
+ * "approved" means "add this JSR to a claim", and on a claim it is the payment certificate.
+ */
+const KIND_STATUS_LABELS = {
+  jsr: {
+    'c-approved': 'Client: add to claim',
+    'c-certified': 'Client: add to claim',
+    'c-partial': 'Client: add to claim (revised)',
+  },
+  claim: {
+    'c-approved': 'Payment cert granted',
+    'c-certified': 'Payment cert granted',
+    'c-partial': 'Payment cert granted (revised)',
+  },
+};
+
+export function jsrStatusLabel(status, kind) {
+  return KIND_STATUS_LABELS[kind]?.[status] || JSR_STATUS_LABELS[status] || status || '—';
 }
 
 export function jsrStatusBadgeClass(status) {
@@ -89,8 +106,44 @@ export const CLIENT_RESPONSE_LABELS = {
   reply: 'Reply / comment only',
 };
 
-export function clientResponseLabel(response) {
-  return CLIENT_RESPONSE_LABELS[response] || response || '—';
+const KIND_RESPONSE_LABELS = {
+  jsr: {
+    approved: 'Add to claim',
+    certified: 'Add to claim',
+    partial: 'Add to claim (revised addition / deduction)',
+  },
+  claim: {
+    approved: 'Payment certificate granted',
+    certified: 'Payment certificate granted',
+    partial: 'Payment certificate granted (revised addition / deduction)',
+  },
+};
+
+export function clientResponseLabel(response, kind) {
+  return KIND_RESPONSE_LABELS[kind]?.[response] || CLIENT_RESPONSE_LABELS[response] || response || '—';
+}
+
+/** Client response choices: a JSR goes onto a claim; the claim gets the payment certificate. */
+export function clientResponseOptions(kind) {
+  if (kind === 'jsr') {
+    return [
+      { value: 'approved', label: 'Add to claim' },
+      { value: 'partial', label: 'Add to claim — revised (addition / deduction)' },
+      { value: 'rejected', label: 'Rejected' },
+      { value: 'reply', label: 'Reply / comment only' },
+    ];
+  }
+  return [
+    { value: 'certified', label: 'Grant payment certificate' },
+    { value: 'partial', label: 'Grant payment certificate — revised (addition / deduction)' },
+    { value: 'rejected', label: 'Rejected' },
+    { value: 'reply', label: 'Reply / comment only' },
+  ];
+}
+
+/** The client's opening choice: Add to claim (JSR) or Grant payment certificate (claim). */
+export function defaultClientResponse(kind) {
+  return kind === 'jsr' ? 'approved' : 'certified';
 }
 
 export function fmtMoney(n) {

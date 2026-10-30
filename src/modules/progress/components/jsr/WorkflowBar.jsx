@@ -17,6 +17,7 @@ export default function WorkflowBar({
   onPassToClient,
   onAssignExporter,
   onSubmitInvoice,
+  onAddToClaim,
 }) {
   const st = record?.status;
   const allow = (key) => jsrCan(role, perms, key);
@@ -65,7 +66,16 @@ export default function WorkflowBar({
       </Button>
     ), true);
   }
-  if (['c-approved', 'c-certified', 'c-partial'].includes(st) && allow('payment_cert')) {
+  // A JSR the client accepted goes onto a monthly claim; the payment certificate is the claim's.
+  const clientAccepted = ['c-approved', 'c-certified', 'c-partial'].includes(st);
+  if (kind === 'jsr' && clientAccepted && onAddToClaim && !record?.claim_id && (allow('create_claim') || allow('edit_claim'))) {
+    btn((
+      <Button key="claim" size="sm" className="w-full sm:w-auto" onClick={onAddToClaim}>
+        Add to claim
+      </Button>
+    ));
+  }
+  if (kind !== 'jsr' && clientAccepted && allow('payment_cert')) {
     btn((
       <Button key="cert" size="sm" className="w-full sm:w-auto" onClick={() => runWorkflow(kind, record.id, 'payment_cert', {}, onRefresh)}>
         Payment cert received

@@ -80,6 +80,11 @@ async function resolveNotifications(
   const out: Array<{ tokens: string[]; message: FcmPayload }> = [];
 
   const workerId = String(record.worker_id || '');
+  // Taps open this package itself (AKK Hub reads ?package=).
+  const pkg = record.id ? `?package=${encodeURIComponent(String(record.id))}` : '';
+  const adminPath = `/progress/admin${pkg}`;
+  const managerPath = `/progress/review${pkg}`;
+  const workerPath = `/progress/submissions${pkg}`;
 
   if (type === 'INSERT') {
     const name = await workerDisplayName(supabase, workerId);
@@ -90,11 +95,11 @@ async function resolveNotifications(
     ]);
     out.push({
       tokens: adminTokens,
-      message: { title: 'New submission', body, path: '/progress/review' },
+      message: { title: 'New submission', body, path: adminPath },
     });
     out.push({
       tokens: managerTokens,
-      message: { title: 'New submission', body, path: '/progress/review' },
+      message: { title: 'New submission', body, path: managerPath },
     });
     return out;
   }
@@ -105,13 +110,13 @@ async function resolveNotifications(
   if (oldStatus !== newStatus) {
     let workerMsg: FcmPayload | null = null;
     if (newStatus === 'approved') {
-      workerMsg = { title: 'Package approved', body: 'Your site progress submission was approved.', path: '/progress/submissions' };
+      workerMsg = { title: 'Package approved', body: 'Your site progress submission was approved.', path: workerPath };
     } else if (newStatus === 'declined') {
       const reason = String(record.decline_reason || '').trim();
       workerMsg = {
         title: 'Package declined',
         body: reason ? `Declined: ${reason}` : 'Your submission was declined — check for details.',
-        path: '/progress/submissions',
+        path: workerPath,
       };
     }
     if (workerMsg && workerId) {
@@ -131,11 +136,11 @@ async function resolveNotifications(
     ]);
     out.push({
       tokens: adminTokens,
-      message: { title: 'Submission updated', body, path: '/progress/review' },
+      message: { title: 'Submission updated', body, path: adminPath },
     });
     out.push({
       tokens: managerTokens,
-      message: { title: 'Submission updated', body, path: '/progress/review' },
+      message: { title: 'Submission updated', body, path: managerPath },
     });
   }
 

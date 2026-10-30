@@ -26,13 +26,15 @@ export function useMaterialsSummary() {
             if (error) throw error;
             let pending = 0;
             let itemsOut = 0;
+            let decided = 0; // approved + declined: a new decision lights the tab badge
             for (const t of data || []) {
                 if (t.approval_status === 'pending') pending += 1;
+                else if (t.approval_status === 'approved' || t.approval_status === 'declined') decided += 1;
                 if (t.transaction_type === 'take' && t.approval_status === 'approved') {
                     for (const m of t.materials || []) if (m.reference_number && !m.returned) itemsOut += 1;
                 }
             }
-            return { pending, itemsOut, total: (data || []).length };
+            return { pending, itemsOut, decided, total: (data || []).length };
         },
     });
     return { status, ...query };
@@ -53,12 +55,14 @@ export function useProgressSummary() {
             let declined = 0;
             let drafts = 0;
             let waiting = 0;
+            let reviewed = 0; // approved + declined: a new review lights the tab badge
             for (const p of rows) {
+                if (p.approval_status === 'approved' || p.approval_status === 'declined') reviewed += 1;
                 if (p.approval_status === 'declined') declined += 1;
                 else if (!p.submitted_to_staff) drafts += 1;
                 else if (p.approval_status === 'pending') waiting += 1;
             }
-            return { declined, drafts, waiting, total: rows.length };
+            return { declined, drafts, waiting, reviewed, total: rows.length };
         },
     });
     return { status, ...query };

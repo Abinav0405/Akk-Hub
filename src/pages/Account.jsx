@@ -1,12 +1,12 @@
 /**
- * Account — profile, language, biometric sign-in (employees in the app), module links,
- * privacy and sign-out.
+ * Account — profile, accounts on this device (switch without signing in), language, biometric
+ * sign-in (employees in the app), module links, privacy and sign-out. Same page for every role.
  */
 import { useEffect, useState } from 'react';
 import { signOutWithAnimation } from '@/core/auth/signOutFlow';
 import MyPhotoAvatar from '@/ui/MyPhotoAvatar';
 import { useNavigate } from 'react-router-dom';
-import { CircleCheck, Fingerprint, Languages, Link2, LogOut, ScrollText, Unlink } from 'lucide-react';
+import { CircleCheck, Fingerprint, Languages, Link2, LogOut, ScrollText, ShieldCheck, Unlink } from 'lucide-react';
 import { HubPage } from '@/ui/PortalShell';
 import { List, ListRow, SectionLabel } from '@/ui/hub/primitives';
 import LanguageSwitcher from '@/core-i18n/LanguageSwitcher';
@@ -20,12 +20,7 @@ import { isNativeApp } from '@/core/platform';
 import { paths } from '@/app/paths';
 import { MyInfoTasksBanner } from '@/features/workerInfo/MyInfo';
 import DigitalCard from '@/features/cards/DigitalCard';
-
-function initials(name) {
-    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return 'A';
-    return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
-}
+import { AccountSwitchChip, AccountsList } from '@/ui/hub/AccountSwitcher';
 
 function ModuleLinkRow({ role, module }) {
     const { t } = useLanguage();
@@ -96,24 +91,30 @@ export default function Account() {
         await signOutWithAnimation(navigate);
     };
 
+    const workerTypeLabel = isWorker ? (identity.workerType === 'local' ? t('hub.account.local') : t('hub.account.foreign')) : null;
+
     return (
-        <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow>
-            <div className="mb-4 space-y-3">
+        <HubPage title={t('hub.account.pageTitle')} eyebrow={t('hub.brand')} narrow trailing={<AccountSwitchChip />}>
+            <section className="g-acct-hero g-rise" data-role={identity?.role}>
+                <MyPhotoAvatar name={identity?.name} isWorker={isWorker} />
+                <div className="min-w-0 flex-1">
+                    <p className="g-acct-hero__name">{identity?.name}</p>
+                    <div className="g-acct-hero__chips">
+                        <span className="g-acct-hero__chip">{ROLE_LABELS[identity?.role]}</span>
+                        {identity?.id ? <span className="g-acct-hero__chip g-acct-hero__chip--plain">{identity.id}</span> : null}
+                        {workerTypeLabel ? <span className="g-acct-hero__chip g-acct-hero__chip--plain">{workerTypeLabel}</span> : null}
+                    </div>
+                </div>
+            </section>
+
+            <div className="mt-3 space-y-3">
                 {/* Own ID card: workers, and staff whose login an admin linked to their employee ID. */}
                 <DigitalCard canEditPhoto={isWorker} />
                 {isWorker ? <MyInfoTasksBanner /> : null}
             </div>
-            <section className="g-card g-card--pad g-rise flex items-center gap-4">
-                <MyPhotoAvatar name={identity?.name} isWorker={isWorker} />
-                <div className="min-w-0">
-                    <p className="truncate text-lg font-bold tracking-tight text-[var(--g-ink)]">{identity?.name}</p>
-                    <p className="truncate text-sm text-[var(--g-muted)]">
-                        {ROLE_LABELS[identity?.role]}
-                        {identity?.id ? ` · ${identity.id}` : ''}
-                        {isWorker ? ` · ${identity.workerType === 'local' ? t('hub.account.local') : t('hub.account.foreign')}` : ''}
-                    </p>
-                </div>
-            </section>
+
+            <SectionLabel>Accounts on this device</SectionLabel>
+            <AccountsList />
 
             <SectionLabel>{t('hub.account.preferences')}</SectionLabel>
             <List>
@@ -143,6 +144,7 @@ export default function Account() {
             <SectionLabel>{t('hub.account.about')}</SectionLabel>
             <List>
                 <ListRow to={paths.privacy} icon={ScrollText} title={t('hub.privacyPdpa')} />
+                <ListRow to={paths.verify} icon={ShieldCheck} title="Verify a photo" hint="Check a site photo is genuine" />
             </List>
 
             <button type="button" className="g-btn g-btn--secondary g-btn--block mt-6 text-[var(--g-danger)]" onClick={signOut}>

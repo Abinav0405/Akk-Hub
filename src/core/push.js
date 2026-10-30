@@ -18,7 +18,7 @@
 import { Capacitor } from '@capacitor/core';
 import { FN, supabaseMaterials, supabaseProgress, supabaseTimesheet } from '@/core/supabase';
 import { storageKey } from '@/core/storage';
-import { legacyPath } from '@/app/paths';
+import { notificationTarget } from '@/core/notificationLinks';
 
 const TOKEN_KEY = storageKey('hub', 'fcmToken');
 const REGISTER_DELAY_MS = 2500; // let the post-login screen mount first (FCM token fetch is heavy)
@@ -31,6 +31,7 @@ const CHANNELS = [
 let listenersReady = false;
 let navigator = null;
 let pendingPath = null;
+let currentRole = null;
 let registerGen = 0;
 let pendingMaterialsPassword = null;
 let lastRegisteredKey = '';
@@ -62,28 +63,43 @@ function storeToken(token) {
 /* Taps → screens                                                      */
 /* ------------------------------------------------------------------ */
 
-/** Only in-app destinations; never open URLs from a payload. */
-function safePath(raw) {
-    if (!raw || typeof raw !== 'string') return null;
-    const value = raw.trim();
-    if (!value || /^[a-z]+:/i.test(value) || value.startsWith('//')) return null;
-    const path = legacyPath(value.replace(/^#/, ''));
-    return path.startsWith('/') ? path : null;
+/** Only in-app destinations (never URLs from a payload), resolved to the exact screen. */
+function safePath(raw, notification = {}) {
+    if (raw != null && typeof raw !== 'string') return null;
+    const data = notification?.data || {};
+    const path = notificationTarget({
+        path: raw,
+        title: notification?.title || data.title,
+        body: notification?.body || data.body,
+        packageId: data.package_id || data.packageId,
+        role: currentRole,
+    });
+    return path && path.startsWith('/') ? path : null;
+}
+
+/** HubLayout tells push who is signed in, so role-specific screens resolve correctly. */
+export function setPushRole(role) {
+    currentRole = role || null;
 }
 
 function openPath(path) {
     if (!path) return;
     if (navigator) navigator(path);
-    else pendingPath = path;
+}
+
+/** A tap: resolve now if the router is up, else once HubLayout knows who is signed in. */
+function openNotification(raw, notification) {
+    if (navigator) openPath(safePath(raw, notification));
+    else pendingPath = { raw, notification };
 }
 
 /** HubLayout / app root registers the router's navigate; replays a cold-start tap. */
 export function setPushNavigator(fn) {
     navigator = fn || null;
     if (navigator && pendingPath) {
-        const path = pendingPath;
+        const { raw, notification } = pendingPath;
         pendingPath = null;
-        navigator(path);
+        openPath(safePath(raw, notification));
     }
 }
 
@@ -93,7 +109,7 @@ async function foregroundToast(notification) {
     if (!title && !body) return;
     try {
         const { toast } = await import('sonner');
-        const path = safePath(notification?.data?.path);
+        const path = safePath(notification?.data?.path, notification);
         toast(title || 'AKK Hub', {
             description: body || undefined,
             action: path ? { label: 'Open', onClick: () => openPath(path) } : undefined,
@@ -115,7 +131,7 @@ export async function initPush() {
         await PushNotifications.addListener('pushNotificationReceived', (n) => void foregroundToast(n));
         await PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
             const data = action?.notification?.data || {};
-            openPath(safePath(data.path || data.route));
+            openNotification(data.path || data.route, action?.notification);
         });
     } catch (e) {
         listenersReady = false;

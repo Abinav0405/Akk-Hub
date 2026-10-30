@@ -51,7 +51,11 @@ function emptyDraft(lookups) {
   };
 }
 
-export default function ClaimPanel({ role, lookups, perms = {} }) {
+/**
+ * `seedJsrId`: a JSR the client marked "Add to claim" — opens that contract's editable claim for
+ * the JSR's month (or a new one) with the JSR ticked. `onSeedUsed` clears it in the parent.
+ */
+export default function ClaimPanel({ role, lookups, perms = {}, seedJsrId = null, onSeedUsed }) {
   const can = (key) => jsrCan(role, perms, key);
   const [rows, setRows] = useState(null);
   const [search, setSearch] = useState('');
@@ -73,6 +77,57 @@ export default function ClaimPanel({ role, lookups, perms = {} }) {
   };
 
   useEffect(refresh, []);
+
+  useEffect(() => {
+    if (!seedJsrId) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const jsr = await getJsr(seedJsrId);
+        const month = String(jsr?.jsr_date || todayIso()).slice(0, 7);
+        const claims = rows || (await listClaims());
+        let target = null;
+        // Same contract and month, still editable → add the JSR to that claim.
+        for (const row of claims.filter((c) => c.month === month && ['draft', 'rejected'].includes(c.status))) {
+          const rec = await getClaim(row.id);
+          if (rec?.contract_id === jsr?.contract_id) {
+            target = rec;
+            break;
+          }
+        }
+        if (cancelled) return;
+        if (target && can('edit_claim')) {
+          await openEdit(target.id);
+          setDraft((d) => (d && !d.jsr_ids.includes(seedJsrId) ? { ...d, jsr_ids: [...d.jsr_ids, seedJsrId] } : d));
+          toast.success(`Added to draft claim ${target.claim_no}. Save to keep it.`);
+        } else if (can('create_claim')) {
+          const ct = (lookups.contracts || []).find((c) => c.id === jsr?.contract_id);
+          setEditId(null);
+          setDraft({
+            ...emptyDraft(lookups),
+            company_id: jsr?.company_id || ct?.company_id || '',
+            contract_id: jsr?.contract_id || '',
+            month,
+            pc_no: ct?.pc_no || 1,
+            price: ct?.price || 0,
+            prev_cert: ct?.prev_cert || 0,
+            jsr_ids: [seedJsrId],
+          });
+          setDetail(null);
+          setView('edit');
+        } else {
+          toast.error('You are not allowed to create claims');
+        }
+      } catch (e) {
+        if (!cancelled) toast.error(e.message || 'Could not open a claim for that JSR');
+      } finally {
+        if (!cancelled) onSeedUsed?.();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [seedJsrId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(
     () => (rows || []).filter((r) => matchesQuery([r.claim_no, r.month, r.contract_code, r.status], search)),
@@ -181,7 +236,7 @@ export default function ClaimPanel({ role, lookups, perms = {} }) {
                 <TableCell>{r.jsr_count}</TableCell>
                 <TableCell><CertifiedMoney submitted={r.this_month_total} certified={r.client_certified_amount} /></TableCell>
                 <TableCell>
-                  <StatusBadge status={r.status} />
+                  <StatusBadge kind="claim" status={r.status} />
                   {r.client_response_submitted && !r.client_ack_at ? <span className="ml-1 text-xs text-amber-700">Response</span> : null}
                 </TableCell>
                 <TableCell className="text-right">
@@ -213,7 +268,7 @@ export default function ClaimPanel({ role, lookups, perms = {} }) {
                 <DialogTitle>Claim {detail.claim_no}</DialogTitle>
               </DialogHeader>
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
-                <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge status={detail.status} /></dd></div>
+                <div><dt className="text-muted-foreground">Status</dt><dd><StatusBadge kind="claim" status={detail.status} /></dd></div>
                 <div><dt className="text-muted-foreground">Month</dt><dd>{monthName(detail.month)}</dd></div>
                 <div><dt className="text-muted-foreground">Contract</dt><dd>{detail.contract?.code} — {detail.contract?.description}</dd></div>
                 <div><dt className="text-muted-foreground">This month</dt><dd><CertifiedMoney submitted={detail.this_month_total} certified={detail.client_certified_amount} /></dd></div>
@@ -471,7 +526,7 @@ function ClaimEditor({ lookups, draft, setDraft, editId, onCancel, onSaved, canS
                 <TableCell className="font-medium">{j.jsr_no}</TableCell>
                 <TableCell>{j.site_name}</TableCell>
                 <TableCell><Money value={j.total} /></TableCell>
-                <TableCell><StatusBadge status={j.status} /></TableCell>
+                <TableCell><StatusBadge kind="jsr" status={j.status} /></TableCell>
               </TableRow>
             ))}
             {locked.map((j) => (
@@ -481,7 +536,7 @@ function ClaimEditor({ lookups, draft, setDraft, editId, onCancel, onSaved, canS
                 <TableCell>{j.site_name}</TableCell>
                 <TableCell><Money value={j.total} /></TableCell>
                 <TableCell>
-                  <StatusBadge status={j.status} />
+                  <StatusBadge kind="jsr" status={j.status} />
                   <div className="text-xs text-amber-800">Already claimed in {j.claim_no} ({j.claimed_month})</div>
                 </TableCell>
               </TableRow>

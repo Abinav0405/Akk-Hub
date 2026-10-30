@@ -10,6 +10,8 @@ import {
   clientResponseIsFinal,
   clientAdjustment,
   clientResponseLabel,
+  clientResponseOptions,
+  defaultClientResponse,
   fmtMoney,
   fmtSignedMoney,
 } from '@/modules/progress/lib/jsrStatus';
@@ -62,7 +64,7 @@ function seedLines(kind, record) {
 export default function ClientReviewDialog({ open, kind, record, onClose, onDone }) {
   const submitted = kind === 'jsr' ? Number(record?.total) || 0 : Number(record?.this_month_total) || 0;
   const locked = Boolean(record && clientResponseIsFinal(record.status));
-  const [response, setResponse] = useState(record?.client_response || 'approved');
+  const [response, setResponse] = useState(record?.client_response || defaultClientResponse(kind));
   const [amount, setAmount] = useState(record?.client_certified_amount ?? submitted);
   const [reason, setReason] = useState(record?.client_reason || '');
   const [comments, setComments] = useState(record?.client_comments || '');
@@ -76,7 +78,7 @@ export default function ClientReviewDialog({ open, kind, record, onClose, onDone
     if (clientCanRespond(record.status)) {
       exporterStartReview(kind, record.id).catch(() => {});
     }
-    setResponse(record.client_response || 'approved');
+    setResponse(record.client_response || defaultClientResponse(kind));
     setAmount(record.client_certified_amount ?? submitted);
     setReason(record.client_reason || '');
     setComments(record.client_comments || '');
@@ -250,6 +252,9 @@ export default function ClientReviewDialog({ open, kind, record, onClose, onDone
     return buildClaimPdfBlob(priced, nested, photosByJsrId);
   };
 
+  const accepting = response !== 'rejected' && response !== 'reply';
+  const submitLabel = !accepting ? 'Submit response' : kind === 'jsr' ? 'Add to claim' : 'Grant payment certificate';
+
   if (!record) return null;
 
   return (
@@ -267,7 +272,7 @@ export default function ClientReviewDialog({ open, kind, record, onClose, onDone
             <p className="font-semibold">Response already submitted</p>
             <p>
               <span className="text-muted-foreground">Decision:</span>{' '}
-              {clientResponseLabel(record.client_response)}
+              {clientResponseLabel(record.client_response, kind)}
             </p>
             {record.client_certified_amount != null ? (
               <p>
@@ -297,11 +302,9 @@ export default function ClientReviewDialog({ open, kind, record, onClose, onDone
             <div>
               <Label>Response</Label>
               <select className="mt-1 h-11 w-full rounded-lg border border-input bg-background px-3 text-sm" value={response} onChange={(e) => onResp(e.target.value)}>
-                <option value="approved">Approved</option>
-                <option value="certified">Certified</option>
-                <option value="partial">Revised (addition / deduction)</option>
-                <option value="rejected">Rejected</option>
-                <option value="reply">Reply / comment only</option>
+                {clientResponseOptions(kind).map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -406,7 +409,7 @@ export default function ClientReviewDialog({ open, kind, record, onClose, onDone
               <Textarea className="mt-1" rows={3} value={comments} onChange={(e) => setComments(e.target.value)} />
             </div>
             <div className="sm:col-span-2">
-              <Label>Attachments (payment cert, rejection letter…)</Label>
+              <Label>{kind === 'jsr' ? 'Attachments (marked-up JSR, rejection letter…)' : 'Attachments (payment certificate, rejection letter…)'}</Label>
               <Input className="mt-1" type="file" multiple onChange={(e) => setFiles(Array.from(e.target.files || []))} />
             </div>
           </div>
@@ -414,7 +417,7 @@ export default function ClientReviewDialog({ open, kind, record, onClose, onDone
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Close</Button>
           {!locked ? (
-            <Button disabled={busy} onClick={submit}>{busy ? 'Sending…' : 'Submit response'}</Button>
+            <Button disabled={busy} onClick={submit}>{busy ? 'Sending…' : submitLabel}</Button>
           ) : null}
         </DialogFooter>
       </DialogContent>

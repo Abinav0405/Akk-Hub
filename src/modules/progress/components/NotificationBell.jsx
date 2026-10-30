@@ -7,6 +7,7 @@ import { formatDateTime } from '@/modules/progress/lib/dates';
 import { useNotifications } from '@/modules/progress/hooks/useNotifications';
 import { isNativeApp } from '@/core/platform';
 import { pushNativeBackHandler } from '@/core/nativeBack';
+import { notificationTarget } from '@/core/notificationLinks';
 
 export default function NotificationBell({ role, inbox }) {
   const owned = useNotifications(inbox ? null : role);
@@ -52,7 +53,8 @@ export default function NotificationBell({ role, inbox }) {
 
   const handleItem = (item) => {
     setOpen(false);
-    if (item.path) navigate(item.path);
+    const to = notificationTarget({ path: item.path, title: item.title, body: item.body, packageId: item.packageId, role, module: 'progress' });
+    if (to) navigate(to);
   };
 
   const handleClearAll = async () => {

@@ -209,7 +209,7 @@ async function resolveNotifications(
           message: {
             title: 'Leave awaiting manager',
             body: `Worker ${employeeId} submitted a leave request.`,
-            path: '/timesheet/manage',
+            path: '/timesheet/manage?section=leaves',
           },
         });
         out.push({
@@ -217,7 +217,7 @@ async function resolveNotifications(
           message: {
             title: 'Leave submitted on site',
             body: `Worker ${employeeId} submitted a leave request.`,
-            path: '/site',
+            path: '/timesheet/site-shifts',
           },
         });
       }
@@ -258,7 +258,7 @@ async function resolveNotifications(
         body: monthYear
           ? `Your payslip of ${monthYear} is ready`
           : 'Your payslip is ready',
-        path: '/me',
+        path: '/me?open=payslips',
       },
     });
   }
@@ -297,7 +297,7 @@ async function resolveNotifications(
             message: {
               title: 'Timesheet awaiting admin',
               body: `Worker ${workerId} timesheet needs admin approval.`,
-              path: '/timesheet/admin?section=timesheets',
+              path: '/timesheet/admin?section=timesheet-report',
             },
           });
         }
@@ -320,7 +320,7 @@ async function resolveNotifications(
             message: {
               title: 'Timesheet submitted on site',
               body: `Worker ${workerId} submitted a timesheet for approval.`,
-              path: '/site',
+              path: '/timesheet/site-shifts',
             },
           });
         }

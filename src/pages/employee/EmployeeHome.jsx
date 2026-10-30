@@ -27,14 +27,17 @@ import {
     DialogTitle,
 } from '@/ui/dialog';
 import {
-    Bell, Clock, Coffee, LogOut, Calendar, AlertCircle, FileText, Loader2, Download, Key, HelpCircle, Printer, ClipboardList, History, Car, ChevronDown, Fingerprint, ClipboardCheck, Languages, Boxes, PackagePlus, Camera, Link2, ShieldCheck
+    Bell, Clock, Coffee, LogOut, Calendar, AlertCircle, FileText, Loader2, Download, Key, HelpCircle, Printer, ClipboardList, History, Car, ChevronDown, Fingerprint, ClipboardCheck, Boxes, PackagePlus, Camera, Link2, ShieldCheck,
+    LayoutGrid, Briefcase, Settings2, CalendarRange, IdCard,
 } from "lucide-react";
+import CategoryGrid from '@/ui/hub/CategoryGrid';
+import { useWorkerAccess } from '@/core/auth/bridges';
 import { useMaterialsSummary, useProgressSummary } from '@/pages/employee/useEmployeeModules';
 import { paths } from '@/app/paths';
 import { motion, AnimatePresence } from "framer-motion";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl, cn } from '@/modules/timesheet/lib/utils';
-import LanguageSwitcher from '@/core-i18n';
+
 import { useLanguage } from '@/core-i18n';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabaseTimesheet as supabase } from '@/core/supabase';
@@ -42,11 +45,9 @@ import DriverStatusCard from '@/modules/timesheet/components/DriverStatusCard';
 import ScanSuccessOverlay from '@/modules/timesheet/components/ScanSuccessOverlay';
 import ScanFailureOverlay from '@/modules/timesheet/components/ScanFailureOverlay';
 import {
-    ActionTiles,
     AttendanceDock as HomeDock,
     FormsBanner,
     HomeHeader,
-    ListGroup,
     NotificationsList,
     ShiftCard,
 } from '@/modules/timesheet/components/worker/WorkerHome';
@@ -185,6 +186,7 @@ export default function EmployeeHome() {
     }, [showScanFailure]);
 
     const navigate = useNavigate();
+    const workerAccess = useWorkerAccess();
 
     const [showLeaveRequestDialog, setShowLeaveRequestDialog] = useState(false);
     const [showPasswordDialog, setShowPasswordDialog] = useState(false);
@@ -567,6 +569,20 @@ export default function EmployeeHome() {
         writeSeenRecord('payslips', workerId, record);
         setInboxSeenTick((n) => n + 1);
     }, [workerId, passedOutPayslips]);
+
+    // Notification taps: /me?open=payslips opens the payslips sheet (then the URL is cleaned).
+    const [searchParams, setSearchParams] = useSearchParams();
+    const openParam = searchParams.get('open');
+    useEffect(() => {
+        if (openParam !== 'payslips') return;
+        setShowPayslipDownloadDialog(true);
+        markPayslipsSeen();
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('open');
+            return next;
+        }, { replace: true });
+    }, [openParam, markPayslipsSeen, setSearchParams]);
 
     const markLeavesSeen = useCallback(() => {
         if (!workerId) return;
@@ -1555,6 +1571,24 @@ export default function EmployeeHome() {
         }
     };
 
+    // Centre Scan button (tab bar: hold & drag up) → /me?scan=1. Opens the scanner for what the
+    // attendance card would do next — clock in, end the break, or clock out. Opening it never
+    // clocks anyone in; the scan + site checks still do that.
+    const scanParam = searchParams.get('scan');
+    useEffect(() => {
+        if (scanParam !== '1' || isLoadingShift) return;
+        setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('scan');
+            return next;
+        }, { replace: true });
+        if (activeScan) return;
+        if (canClockIn && !activeVehicleJourney) startClockInScan();
+        else if (dockOnBreak) startDockBreak();
+        else startDockClockOut();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [scanParam, isLoadingShift]);
+
     /** t() with an English fallback for strings that don't have a translation key yet. */
     const tt = (key, fallback, vars) => {
         const value = t(key, vars);
@@ -1899,6 +1933,173 @@ export default function EmployeeHome() {
         />
     );
 
+    // Home categories: four icons each, "See all" for the rest. Items the tutorial points at
+    // (data-tour) stay within the first four of their card.
+    const canMaterials = workerAccess?.materials !== false;
+    const canProgress = workerAccess?.progress !== false;
+    const linkPill = (summary) => (summary.status === 'disconnected' ? 'Link account' : undefined);
+    const homeCategories = [
+        {
+            id: 'quick',
+            title: tt('worker.quickActions', 'Quick actions'),
+            icon: LayoutGrid,
+            tone: 'brand',
+            tour: 'worker-shortcuts',
+            items: [
+                canProgress && {
+                    id: 'site-photos',
+                    icon: Camera,
+                    tone: 'progress',
+                    label: 'Site photos',
+                    to: paths.progress.submit,
+                    badge: progressSummary.data?.declined || 0,
+                    pill: progressSummary.data?.declined > 0 ? `${progressSummary.data.declined} declined` : undefined,
+                },
+                canMaterials && {
+                    id: 'materials',
+                    icon: PackagePlus,
+                    tone: 'materials',
+                    label: 'Materials',
+                    to: paths.materials.request,
+                    badge: materialsSummary.data?.pending || 0,
+                    pill: materialsSummary.data?.itemsOut > 0 ? `${materialsSummary.data.itemsOut} to return` : undefined,
+                },
+                workerInCompany && {
+                    id: 'timesheets',
+                    icon: Clock,
+                    tone: 'timesheet',
+                    label: t('worker.timesheets'),
+                    to: '/timesheet/timesheets',
+                    badge: timesheetActionCount,
+                    tour: 'worker-timesheets',
+                },
+                workerInCompany && {
+                    id: 'payslips',
+                    icon: Download,
+                    tone: 'violet',
+                    label: t('worker.payslips'),
+                    badge: unreadPayslipCount,
+                    tour: 'worker-payslip',
+                    onClick: () => {
+                        markPayslipsSeen();
+                        setShowPayslipDownloadDialog(true);
+                        refetchPayslips();
+                    },
+                },
+                {
+                    id: 'company-forms',
+                    icon: ClipboardList,
+                    tone: 'brand',
+                    label: t('worker.companyForms'),
+                    to: '/timesheet/company-forms',
+                    tour: 'worker-company-forms',
+                },
+            ].filter(Boolean),
+        },
+        {
+            id: 'time',
+            title: tt('worker.timeAndLeave', 'Time & leave'),
+            icon: Calendar,
+            tone: 'timesheet',
+            items: [
+                { id: 'leave', icon: FileText, label: t('worker.leaveRequest'), onClick: () => setShowLeaveRequestDialog(true), tour: 'worker-leave' },
+                { id: 'shift-history', icon: History, label: t('worker.shiftHistory'), to: '/timesheet/shifts', tour: 'worker-shift-history' },
+                {
+                    id: 'leave-history',
+                    icon: Calendar,
+                    label: t('worker.leaveHistory'),
+                    to: '/timesheet/leave/history',
+                    badge: unreadLeaveCount,
+                    onClick: markLeavesSeen,
+                    tour: 'worker-leave-history',
+                },
+                UNIFIED && { id: 'deployment', icon: CalendarRange, label: 'My deployment', to: paths.deployment.mine },
+                UNIFIED && { id: 'my-info', icon: IdCard, label: 'My information', to: paths.myInfo },
+            ].filter(Boolean).map((item) => ({ tone: 'timesheet', ...item })),
+        },
+        canMaterials && {
+            id: 'materials',
+            title: 'Materials',
+            icon: Boxes,
+            tone: 'materials',
+            items: [
+                { id: 'materials-request', icon: PackagePlus, label: 'Take or return', to: paths.materials.request, tone: 'materials' },
+                {
+                    id: 'materials-history',
+                    icon: Boxes,
+                    label: 'My requests',
+                    to: paths.materials.history,
+                    tone: 'materials',
+                    pill: materialsSummary.data?.pending > 0 ? `${materialsSummary.data.pending} pending` : linkPill(materialsSummary),
+                },
+            ],
+        },
+        canProgress && {
+            id: 'site',
+            title: 'Site progress',
+            icon: Camera,
+            tone: 'progress',
+            items: [
+                { id: 'progress-submit', icon: Camera, label: 'Submit photos', to: paths.progress.submit, tone: 'progress' },
+                {
+                    id: 'progress-submissions',
+                    icon: ClipboardCheck,
+                    label: 'My submissions',
+                    to: paths.progress.submissions,
+                    tone: 'progress',
+                    pill:
+                        progressSummary.data?.declined > 0
+                            ? `${progressSummary.data.declined} declined`
+                            : progressSummary.data?.drafts > 0
+                              ? `${progressSummary.data.drafts} not sent`
+                              : linkPill(progressSummary),
+                },
+                { id: 'verify', icon: ShieldCheck, label: 'Verify a photo', to: paths.verify, tone: 'progress' },
+            ],
+        },
+        {
+            id: 'work',
+            title: tt('worker.work', 'Work'),
+            icon: Briefcase,
+            tone: 'comms',
+            items: [
+                {
+                    id: 'driver',
+                    icon: Car,
+                    label: t('worker.scanDriver'),
+                    pill: activeVehicleJourney ? tt('worker.journeyActive', 'Journey active') : tt('worker.driversOnly', 'Drivers only'),
+                    onClick: () => setActiveScan('driver'),
+                    tour: 'worker-scan-driver',
+                },
+                feedbackFormsQuery.data?.hasPublished && {
+                    id: 'submitted-forms',
+                    icon: ClipboardCheck,
+                    label: tt('worker.submittedForms', 'Submitted forms'),
+                    to: '/timesheet/forms',
+                },
+                { id: 'company-forms-work', icon: ClipboardList, label: t('worker.companyForms'), to: '/timesheet/company-forms' },
+            ].filter(Boolean).map((item) => ({ tone: 'comms', ...item })),
+        },
+        {
+            id: 'account',
+            title: tt('worker.account', 'Account'),
+            icon: Settings2,
+            tone: 'settings',
+            items: [
+                { id: 'modules', icon: Link2, label: 'Account & modules', to: paths.account },
+                { id: 'password', icon: Key, label: tt('worker.changePassword', 'Change password'), onClick: () => setShowPasswordDialog(true) },
+                Capacitor.isNativePlatform() && {
+                    id: 'biometric',
+                    icon: Fingerprint,
+                    label: tt('worker.biometricLogin', 'Biometric login'),
+                    onClick: () => setShowBiometricDialog(true),
+                },
+                { id: 'tutorial', icon: HelpCircle, label: tt('worker.tutorial', 'Tutorial'), onClick: () => setIsTutorialRunning(true) },
+                NATIVE_APP && { id: 'logout', icon: LogOut, label: t('common.logout'), onClick: handleLogout, danger: true },
+            ].filter(Boolean).map((item) => ({ tone: 'settings', ...item })),
+        },
+    ].filter(Boolean);
+
     return (
         <div className={cn('wh-page relative min-h-dvh-safe', NATIVE_APP && 'akk-worker-portal akk-screen')}>
             <ScanSuccessOverlay
@@ -2040,232 +2241,11 @@ export default function EmployeeHome() {
                             <div className="wh-home-side">
                             <MyInfoTasksBanner />
                             <MyDeploymentCard />
-                            <ActionTiles
-                                tour="worker-shortcuts"
-                                label={t('worker.moreActions')}
-                                tiles={[
-                                    {
-                                        key: 'site-photos',
-                                        icon: Camera,
-                                        tone: 'teal',
-                                        title: 'Site photos',
-                                        hint:
-                                            progressSummary.data?.declined > 0
-                                                ? `${progressSummary.data.declined} declined — fix & resend`
-                                                : 'Before · during · after',
-                                        to: paths.progress.submit,
-                                        badge: progressSummary.data?.declined || 0,
-                                    },
-                                    {
-                                        key: 'materials',
-                                        icon: PackagePlus,
-                                        tone: 'sky',
-                                        title: 'Materials',
-                                        hint:
-                                            materialsSummary.data?.itemsOut > 0
-                                                ? `${materialsSummary.data.itemsOut} item${materialsSummary.data.itemsOut === 1 ? '' : 's'} to return`
-                                                : 'Take or return',
-                                        to: paths.materials.request,
-                                        badge: materialsSummary.data?.pending || 0,
-                                    },
-                                    workerInCompany && {
-                                        key: 'timesheets',
-                                        icon: Clock,
-                                        tone: 'teal',
-                                        title: t('worker.timesheets'),
-                                        hint: t('worker.timesheetsHint'),
-                                        to: "/timesheet/timesheets",
-                                        badge: timesheetActionCount,
-                                        tour: 'worker-timesheets',
-                                    },
-                                    {
-                                        key: 'leave',
-                                        icon: FileText,
-                                        tone: 'sky',
-                                        title: t('worker.leaveRequest'),
-                                        hint: t('worker.leaveRequestHint'),
-                                        onClick: () => setShowLeaveRequestDialog(true),
-                                        tour: 'worker-leave',
-                                    },
-                                    workerInCompany && {
-                                        key: 'payslips',
-                                        icon: Download,
-                                        tone: 'violet',
-                                        title: t('worker.payslips'),
-                                        hint: t('worker.payslipsHint'),
-                                        badge: unreadPayslipCount,
-                                        onClick: () => {
-                                            markPayslipsSeen();
-                                            setShowPayslipDownloadDialog(true);
-                                            refetchPayslips();
-                                        },
-                                        tour: 'worker-payslip',
-                                    },
-                                    {
-                                        key: 'forms',
-                                        icon: ClipboardList,
-                                        tone: 'brand',
-                                        title: t('worker.companyForms'),
-                                        hint: t('worker.companyFormsHint'),
-                                        to: "/timesheet/company-forms",
-                                        tour: 'worker-company-forms',
-                                    },
-                                ].filter(Boolean)}
-                            />
                             </div>
                             </div>
 
-                            {/* On desktop the sidebar already lists these screens. */}
-                            {wide ? null : (
-                            <>
-                            <ListGroup
-                                label={tt('worker.timeAndLeave', 'Time & leave')}
-                                rows={[
-                                    {
-                                        key: 'shift-history',
-                                        icon: History,
-                                        title: t('worker.shiftHistory'),
-                                        to: "/timesheet/shifts",
-                                        tour: 'worker-shift-history',
-                                    },
-                                    {
-                                        key: 'leave-history',
-                                        icon: Calendar,
-                                        title: t('worker.leaveHistory'),
-                                        to: "/timesheet/leave/history",
-                                        badge: unreadLeaveCount,
-                                        onClick: markLeavesSeen,
-                                        tour: 'worker-leave-history',
-                                    },
-                                ]}
-                            />
-
-                            <ListGroup
-                                label="Materials"
-                                rows={[
-                                    {
-                                        key: 'materials-request',
-                                        icon: PackagePlus,
-                                        title: 'Take or return materials',
-                                        to: paths.materials.request,
-                                    },
-                                    {
-                                        key: 'materials-history',
-                                        icon: Boxes,
-                                        title: 'My material requests',
-                                        to: paths.materials.history,
-                                        pill:
-                                            materialsSummary.data?.pending > 0
-                                                ? `${materialsSummary.data.pending} pending`
-                                                : materialsSummary.status === 'disconnected'
-                                                  ? 'Link account'
-                                                  : undefined,
-                                    },
-                                ]}
-                            />
-
-                            <ListGroup
-                                label="Site progress"
-                                rows={[
-                                    {
-                                        key: 'progress-submit',
-                                        icon: Camera,
-                                        title: 'Submit site photos',
-                                        to: paths.progress.submit,
-                                    },
-                                    {
-                                        key: 'progress-submissions',
-                                        icon: ClipboardCheck,
-                                        title: 'My submissions',
-                                        to: paths.progress.submissions,
-                                        pill:
-                                            progressSummary.data?.declined > 0
-                                                ? `${progressSummary.data.declined} declined`
-                                                : progressSummary.data?.drafts > 0
-                                                  ? `${progressSummary.data.drafts} not sent`
-                                                  : progressSummary.status === 'disconnected'
-                                                    ? 'Link account'
-                                                    : undefined,
-                                    },
-                                    {
-                                        key: 'verify',
-                                        icon: ShieldCheck,
-                                        title: 'Verify a photo',
-                                        to: paths.verify,
-                                    },
-                                ]}
-                            />
-                            </>
-                            )}
-
-                            <div className="wh-home-more">
-                            <ListGroup
-                                label={tt('worker.work', 'Work')}
-                                rows={[
-                                    feedbackFormsQuery.data?.hasPublished && {
-                                        key: 'submitted-forms',
-                                        icon: ClipboardCheck,
-                                        title: tt('worker.submittedForms', 'Submitted forms'),
-                                        to: "/timesheet/forms",
-                                    },
-                                    {
-                                        key: 'driver',
-                                        icon: Car,
-                                        title: t('worker.scanDriver'),
-                                        pill: activeVehicleJourney
-                                            ? tt('worker.journeyActive', 'Journey active')
-                                            : tt('worker.driversOnly', 'Drivers only'),
-                                        onClick: () => setActiveScan('driver'),
-                                        tour: 'worker-scan-driver',
-                                    },
-                                ]}
-                            />
-
-                            <ListGroup
-                                id="worker-account"
-                                label={tt('worker.account', 'Account')}
-                                rows={[
-                                    {
-                                        key: 'modules',
-                                        icon: Link2,
-                                        title: 'Hub account & linked modules',
-                                        to: paths.account,
-                                    },
-                                    {
-                                        key: 'password',
-                                        icon: Key,
-                                        title: tt('worker.changePassword', 'Change password'),
-                                        onClick: () => setShowPasswordDialog(true),
-                                    },
-                                    Capacitor.isNativePlatform() && {
-                                        key: 'biometric',
-                                        icon: Fingerprint,
-                                        title: tt('worker.biometricLogin', 'Biometric login'),
-                                        onClick: () => setShowBiometricDialog(true),
-                                    },
-                                    {
-                                        key: 'tutorial',
-                                        icon: HelpCircle,
-                                        title: tt('worker.tutorial', 'Tutorial'),
-                                        onClick: () => setIsTutorialRunning(true),
-                                    },
-                                    // Language + sign-out live on hub /account (single chrome).
-                                    NATIVE_APP && {
-                                        key: 'language',
-                                        icon: Languages,
-                                        title: t('common.language'),
-                                        trailing: <LanguageSwitcher className="wh-lang" />,
-                                    },
-                                    NATIVE_APP && {
-                                        key: 'logout',
-                                        icon: LogOut,
-                                        title: t('common.logout'),
-                                        onClick: handleLogout,
-                                        danger: true,
-                                    },
-                                ]}
-                            />
-                            </div>
+                            {/* Everything else, by category: four icons each, "See all" for the rest. */}
+                            <CategoryGrid className="wh-cats" categories={homeCategories} />
                         </motion.div>
                     ) : (
                         <motion.div

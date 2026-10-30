@@ -101,7 +101,7 @@ export default function ClientPortalPanel() {
                 <TableCell>{r.site_name}</TableCell>
                 <TableCell>{formatDate(r.jsr_date)}</TableCell>
                 <TableCell><CertifiedMoney submitted={r.total} certified={r.client_certified_amount} /></TableCell>
-                <TableCell><StatusBadge status={r.status} /></TableCell>
+                <TableCell><StatusBadge kind="jsr" status={r.status} /></TableCell>
                 <TableCell>
                   <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:flex-wrap sm:justify-end">
                     {/* Review / respond is inside View, next to the full details. */}
@@ -138,7 +138,7 @@ export default function ClientPortalPanel() {
                 <TableCell>{monthName(r.month)}</TableCell>
                 <TableCell><Money value={r.this_month_total} /></TableCell>
                 <TableCell>{r.client_certified_amount != null ? <Money value={r.client_certified_amount} /> : '—'}</TableCell>
-                <TableCell><StatusBadge status={r.status} /></TableCell>
+                <TableCell><StatusBadge kind="claim" status={r.status} /></TableCell>
                 <TableCell>
                   <div className="flex flex-col items-stretch gap-1 sm:flex-row sm:flex-wrap sm:justify-end">
                     {/* Review / respond is inside View, next to the full details. */}
@@ -199,7 +199,7 @@ export default function ClientPortalPanel() {
               <DialogHeader>
                 <DialogTitle>{detail.kind === 'jsr' ? rec.jsr_no : rec.claim_no}</DialogTitle>
               </DialogHeader>
-              <p className="text-sm"><StatusBadge status={rec.status} /></p>
+              <p className="text-sm"><StatusBadge kind={detail.kind} status={rec.status} /></p>
               {detail.kind === 'jsr' ? (
                 <Table>
                   <TableHeader>
@@ -248,7 +248,7 @@ export default function ClientPortalPanel() {
                 <Card className="p-3 text-sm">
                   <div className="font-semibold">Your response</div>
                   <p>
-                    {clientResponseLabel(rec.client_response)}
+                    {clientResponseLabel(rec.client_response, detail.kind)}
                     {rec.client_certified_amount != null ? <> · Certified <Money value={rec.client_certified_amount} /></> : null}
                   </p>
                   {rec.client_reason ? <p>Reason: {rec.client_reason}</p> : null}
