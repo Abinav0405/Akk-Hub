@@ -392,13 +392,19 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
                     });
                     if (error) throw error;
                 } else {
-                    // Staff (authenticated) path: RLS already scopes this via is_staff().
-                    const updatedTransaction = { ...formData, materials: processedMaterials };
-                    const { error } = await supabaseMaterials
-                        .from('transactions')
-                        .update(updatedTransaction)
-                        .eq('id', existingTransaction.id);
-
+                    // Staff (authenticated) path: staff have no direct UPDATE on transactions, so this
+                    // goes through a SECURITY DEFINER RPC that checks is_staff() + pending status.
+                    const { error } = await supabaseMaterials.rpc('staff_update_pending_transaction', {
+                        p_transaction_id: existingTransaction.id,
+                        p_materials: processedMaterials,
+                        p_notes: formData.notes,
+                        p_site_id: formData.site_id,
+                        p_site_name: formData.site_name,
+                        p_transaction_date: formData.transaction_date,
+                        p_transaction_time: formData.transaction_time,
+                        p_worker_name: formData.worker_name,
+                        p_worker_id: formData.worker_id,
+                    });
                     if (error) throw error;
                 }
 

@@ -541,11 +541,13 @@ export async function applyReturnToTakeMaterials(returnTransaction, status, admi
         }
     }
 
+    // Staff have no direct UPDATE on transactions; this RPC (is_staff()) only lets the
+    // return-tracking keys of an approved take's lines change.
     for (const [transactionId, updatedMaterials] of updates) {
-        const { error: updateError } = await supabaseMaterials
-            .from('transactions')
-            .update({ materials: updatedMaterials })
-            .eq('id', transactionId);
+        const { error: updateError } = await supabaseMaterials.rpc('staff_set_return_progress', {
+            p_transaction_id: transactionId,
+            p_materials: updatedMaterials,
+        });
         if (updateError) throw updateError;
     }
 }
