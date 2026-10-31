@@ -1,29 +1,47 @@
+/**
+ * Stock — the material catalogue (admin and manager): summary, add, search / filter / sort,
+ * table on wide screens and cards on phones, history drawer, restock / edit / print / delete.
+ * Presentation pieces: StockParts.jsx + stock.css. Data rules are unchanged.
+ */
 import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
 import { supabaseMaterials } from '@/core/supabase'
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/table';
-import { Badge } from '@/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/ui/select';
 import { storageKey } from '@/core/storage'
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from '@/ui/dialog';
 import {
-    Pencil, Trash2, Plus, Check, Search, Package, History,
-    ArrowUpCircle, AlertTriangle, Hash, Loader2, Printer, X
+    Pencil, Plus, Check, Search, Package, History, ChevronDown, SlidersHorizontal,
+    ArrowUpCircle, AlertTriangle, Loader2, Printer, X
 } from 'lucide-react';
+import Sheet from '@/ui/hub/Sheet';
+import { HistoryItem, MaterialActions, MaterialCard, RefPill, StatusBadge, SummaryTiles, stockStatus } from './StockParts';
 import { toast } from 'sonner';
 import { confirmAction } from '@/modules/materials/components/mobile/NativeConfirm';
 import {
-    fetchMaterialHistory, restockMaterial, logMaterialHistory,
+    fetchMaterialHistory, fetchMaterialsCatalog, restockMaterial, logMaterialHistory,
     formatHistoryEntry, LOW_STOCK_THRESHOLD,
 } from '@/modules/materials/lib/inventory';
 import { printSingleMaterial, printAllMaterials } from '@/modules/materials/lib/materialPrint';
 import { printFailureMessage } from '@/modules/materials/lib/printDocument';
 import { filterAndSortMaterials } from '@/modules/materials/lib/materialFilters';
+
+const PAGE = 60; // rows / cards rendered at a time ("Show more" adds the next page)
+
+/** Phones and narrow windows get cards instead of the table. */
+function useCompact() {
+    const query = '(max-width: 767px)';
+    const [compact, setCompact] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
+    useEffect(() => {
+        const mq = window.matchMedia(query);
+        const apply = () => setCompact(mq.matches);
+        mq.addEventListener('change', apply);
+        return () => mq.removeEventListener('change', apply);
+    }, []);
+    return compact;
+}
 
 const sortByRef = (items) =>
     [...items].sort((a, b) =>
@@ -38,6 +56,12 @@ export default function MaterialsManager() {
     const [stockFilter, setStockFilter] = useState('all');
     const [unitFilter, setUnitFilter] = useState('all');
     const [sortMode, setSortMode] = useState('reference');
+    const [loadState, setLoadState] = useState('loading'); // loading | ready | error
+    const [addOpen, setAddOpen] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 768px)').matches);
+    const [addErrors, setAddErrors] = useState({});
+    const [filtersOpen, setFiltersOpen] = useState(false);
+    const [visibleCount, setVisibleCount] = useState(PAGE);
+    const compact = useCompact();
 
     // Edit dialog
     const [editMaterial, setEditMaterial] = useState(null);
@@ -48,6 +72,7 @@ export default function MaterialsManager() {
     const [historyMaterial, setHistoryMaterial] = useState(null);
     const [historyEntries, setHistoryEntries] = useState([]);
     const [historyLoading, setHistoryLoading] = useState(false);
+    const [historyError, setHistoryError] = useState(false);
 
     // Restock dialog
     const [restockMaterial_, setRestockMaterial] = useState(null);
@@ -62,13 +87,13 @@ export default function MaterialsManager() {
 
     const fetchMaterials = useCallback(async () => {
         try {
-            const { data, error } = await supabaseMaterials
-                .from('materials_catalog')
-                .select('*');
-            if (error) throw error;
+            // Every page of the catalogue (a plain select stops at Supabase's 1000-row default).
+            const data = await fetchMaterialsCatalog();
             setMaterials(sortByRef(data || []));
+            setLoadState('ready');
         } catch (error) {
             console.error('Error fetching materials:', error);
+            setLoadState((s) => (s === 'ready' ? s : 'error'));
             toast.error('Failed to load materials. Have you run the database migration?');
         }
     }, []);
@@ -97,9 +122,16 @@ export default function MaterialsManager() {
         const unit = addForm.unit.trim() || 'pcs';
 
         if (!refNo || !name) {
+            setAddErrors({ reference_number: refNo ? '' : 'Enter a reference number', name: name ? '' : 'Enter the material name' });
             toast.error('Reference number and name are required');
             return;
         }
+        if (materials.some((m) => String(m.reference_number).trim().toLowerCase() === refNo.toLowerCase())) {
+            setAddErrors({ reference_number: `#${refNo} is already in the list` });
+            toast.error('A material with this reference number already exists');
+            return;
+        }
+        setAddErrors({});
 
         setIsAdding(true);
         const adminName = sessionStorage.getItem(storageKey('materials', 'adminName')) || 'Admin';
@@ -244,12 +276,14 @@ export default function MaterialsManager() {
     const openHistory = async (material) => {
         setHistoryMaterial(material);
         setHistoryLoading(true);
+        setHistoryError(false);
         try {
             const entries = await fetchMaterialHistory(material.id);
             setHistoryEntries(entries);
         } catch {
             toast.error('Failed to load history');
             setHistoryEntries([]);
+            setHistoryError(true);
         } finally {
             setHistoryLoading(false);
         }
@@ -347,323 +381,346 @@ export default function MaterialsManager() {
         setPrintDialog({ mode, material });
     };
 
+    const counts = {
+        total: materials.length,
+        in: materials.filter((m) => stockStatus(m.quantity) === 'in').length,
+        low: lowStockCount,
+        out: materials.filter((m) => m.quantity === 0).length,
+    };
+    const shown = filteredMaterials.slice(0, visibleCount);
+    const activeFilterCount = [searchTerm, stockFilter !== 'all', unitFilter !== 'all', sortMode !== 'reference'].filter(Boolean).length;
+    const clearFilters = () => {
+        setSearchTerm('');
+        setStockFilter('all');
+        setUnitFilter('all');
+        setSortMode('reference');
+    };
+    const actionsFor = (material) => (
+        <MaterialActions
+            material={material}
+            compact={compact}
+            onHistory={() => openHistory(material)}
+            onRestock={() => { setRestockMaterial(material); setRestockQty(''); setRestockNotes(''); }}
+            onEdit={() => handleEdit(material)}
+            onPrint={() => openPrintDialog('single', material)}
+            onDelete={() => handleDelete(material)}
+        />
+    );
+    const filterControls = (
+        <>
+            <Select value={stockFilter} onValueChange={setStockFilter}>
+                <SelectTrigger className="stk-select" aria-label="Stock status"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All stock</SelectItem>
+                    <SelectItem value="in">In stock</SelectItem>
+                    <SelectItem value="low">Low stock</SelectItem>
+                    <SelectItem value="out">Out of stock</SelectItem>
+                </SelectContent>
+            </Select>
+            <Select value={unitFilter} onValueChange={setUnitFilter}>
+                <SelectTrigger className="stk-select" aria-label="Unit"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="all">All units</SelectItem>
+                    {units.map((unit) => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}
+                </SelectContent>
+            </Select>
+            <Select value={sortMode} onValueChange={setSortMode}>
+                <SelectTrigger className="stk-select stk-select--wide" aria-label="Sort"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="reference">Sort: Reference</SelectItem>
+                    <SelectItem value="name">Sort: Name</SelectItem>
+                    <SelectItem value="quantity-asc">Qty: Low to high</SelectItem>
+                    <SelectItem value="quantity-desc">Qty: High to low</SelectItem>
+                </SelectContent>
+            </Select>
+        </>
+    );
+    const historyStatus = historyMaterial ? stockStatus(historyMaterial.quantity) : 'in';
+
     return (
-        <motion.div className="space-y-6">
-            {/* Summary cards */}
-            <motion.div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <Card className="border-slate-200">
-                    <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-slate-800">{materials.length}</p>
-                        <p className="text-xs text-slate-500 mt-1">Total Materials</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-green-600">
-                            {materials.filter(m => m.quantity > LOW_STOCK_THRESHOLD).length}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">In Stock</p>
-                    </CardContent>
-                </Card>
-                <Card className={`border ${lowStockCount > 0 ? 'border-amber-300 bg-amber-50' : 'border-slate-200'}`}>
-                    <CardContent className="p-4 text-center">
-                        <p className={`text-2xl font-bold ${lowStockCount > 0 ? 'text-amber-600' : 'text-slate-400'}`}>
-                            {lowStockCount}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Low Stock</p>
-                    </CardContent>
-                </Card>
-                <Card className="border-slate-200">
-                    <CardContent className="p-4 text-center">
-                        <p className="text-2xl font-bold text-red-500">
-                            {materials.filter(m => m.quantity === 0).length}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-1">Out of Stock</p>
-                    </CardContent>
-                </Card>
-            </motion.div>
+        <div className="stk">
+            <SummaryTiles counts={counts} active={stockFilter} onPick={(key) => { setStockFilter(key); setVisibleCount(PAGE); }} />
 
-            {/* Add form */}
-            <Card className="border-slate-200">
-                <CardHeader className="pb-3">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                        <Package className="w-5 h-5 text-[#dc6b2f]" />
-                        Add New Material
-                    </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    <form onSubmit={handleAdd} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 items-end">
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600">Ref No. *</label>
-                            <Input
-                                placeholder="e.g. 1001"
-                                value={addForm.reference_number}
-                                onChange={(e) => setAddForm(p => ({ ...p, reference_number: e.target.value }))}
-                                className="font-mono"
-                            />
-                        </div>
-                        <motion.div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600">Name *</label>
-                            <Input
-                                placeholder="Material name"
-                                value={addForm.name}
-                                onChange={(e) => setAddForm(p => ({ ...p, name: e.target.value }))}
-                            />
-                        </motion.div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600">Initial Qty</label>
-                            <Input
-                                type="number"
-                                min="0"
-                                placeholder="0"
-                                value={addForm.quantity}
-                                onChange={(e) => setAddForm(p => ({ ...p, quantity: e.target.value }))}
-                            />
-                        </div>
-                        <div className="space-y-1">
-                            <label className="text-xs font-medium text-slate-600">Unit</label>
-                            <Input
-                                placeholder="pcs"
-                                value={addForm.unit}
-                                onChange={(e) => setAddForm(p => ({ ...p, unit: e.target.value }))}
-                            />
-                        </div>
-                        <div className="flex gap-2">
-                            <Button type="submit" disabled={isAdding} className="bg-slate-700 hover:bg-slate-800 flex-1">
-                                {isAdding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-                                <span className="ml-1">Add</span>
-                            </Button>
-                        </div>
-                    </form>
-                </CardContent>
-            </Card>
-
-            {/* Materials list */}
-            <Card className="border-slate-200">
-                <CardHeader className="pb-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            Materials Inventory
-                            <Badge variant="outline" className="font-normal">
-                                {filteredMaterials.length} / {materials.length}
-                            </Badge>
-                        </CardTitle>
-                        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 w-full sm:w-auto">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                onClick={() => openPrintDialog('all')}
-                                disabled={materials.length === 0}
-                                className="shrink-0 border-slate-300"
-                            >
-                                <Printer className="w-4 h-4 mr-2" />
-                                Print All
-                            </Button>
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            {/* Add new material */}
+            <section className="stk-panel" aria-labelledby="stk-add-title">
+                <button
+                    type="button"
+                    className="stk-panel__head stk-panel__head--toggle"
+                    aria-expanded={addOpen}
+                    aria-controls="stk-add-form"
+                    onClick={() => setAddOpen((v) => !v)}
+                >
+                    <span className="stk-panel__icon" aria-hidden><Plus /></span>
+                    <span className="min-w-0 flex-1 text-left">
+                        <span id="stk-add-title" className="stk-panel__title">Add new material</span>
+                        <span className="stk-panel__sub">Reference number and name are required</span>
+                    </span>
+                    <ChevronDown className={`stk-chev${addOpen ? ' is-open' : ''}`} aria-hidden />
+                </button>
+                <div className="stk-collapse" data-open={addOpen ? 'true' : 'false'}>
+                    <div>
+                        <form id="stk-add-form" onSubmit={handleAdd} className="stk-addform" noValidate>
+                            <div className="stk-field">
+                                <label htmlFor="stk-ref">Reference no. <span aria-hidden className="stk-req">*</span></label>
                                 <Input
-                                    placeholder="Search by name or ref..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="pl-9"
+                                    id="stk-ref"
+                                    placeholder="e.g. ADR100"
+                                    value={addForm.reference_number}
+                                    onChange={(e) => { setAddForm((p) => ({ ...p, reference_number: e.target.value })); setAddErrors((x) => ({ ...x, reference_number: '' })); }}
+                                    className="font-mono"
+                                    aria-required="true"
+                                    aria-invalid={Boolean(addErrors.reference_number)}
+                                    aria-describedby={addErrors.reference_number ? 'stk-ref-err' : undefined}
+                                />
+                                {addErrors.reference_number ? <p id="stk-ref-err" className="stk-err">{addErrors.reference_number}</p> : null}
+                            </div>
+                            <div className="stk-field stk-field--grow">
+                                <label htmlFor="stk-name">Material name <span aria-hidden className="stk-req">*</span></label>
+                                <Input
+                                    id="stk-name"
+                                    placeholder="e.g. Anchor drill bit 10 mm"
+                                    value={addForm.name}
+                                    onChange={(e) => { setAddForm((p) => ({ ...p, name: e.target.value })); setAddErrors((x) => ({ ...x, name: '' })); }}
+                                    aria-required="true"
+                                    aria-invalid={Boolean(addErrors.name)}
+                                    aria-describedby={addErrors.name ? 'stk-name-err' : undefined}
+                                />
+                                {addErrors.name ? <p id="stk-name-err" className="stk-err">{addErrors.name}</p> : null}
+                            </div>
+                            <div className="stk-field">
+                                <label htmlFor="stk-qty">Initial quantity</label>
+                                <Input
+                                    id="stk-qty"
+                                    type="number"
+                                    inputMode="numeric"
+                                    min="0"
+                                    placeholder="0"
+                                    value={addForm.quantity}
+                                    onChange={(e) => setAddForm((p) => ({ ...p, quantity: e.target.value }))}
                                 />
                             </div>
-                            <Select value={stockFilter} onValueChange={setStockFilter}>
-                                <SelectTrigger className="w-full sm:w-36"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All stock</SelectItem>
-                                    <SelectItem value="in">In stock</SelectItem>
-                                    <SelectItem value="low">Low stock</SelectItem>
-                                    <SelectItem value="out">Out of stock</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <Select value={unitFilter} onValueChange={setUnitFilter}>
-                                <SelectTrigger className="w-full sm:w-32"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="all">All units</SelectItem>
-                                    {units.map((unit) => <SelectItem key={unit} value={unit}>{unit}</SelectItem>)}
-                                </SelectContent>
-                            </Select>
-                            <Select value={sortMode} onValueChange={setSortMode}>
-                                <SelectTrigger className="w-full sm:w-40"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="reference">Sort: Reference</SelectItem>
-                                    <SelectItem value="name">Sort: Name</SelectItem>
-                                    <SelectItem value="quantity-asc">Qty: Low to high</SelectItem>
-                                    <SelectItem value="quantity-desc">Qty: High to low</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            {hasFilters && (
-                                <Button type="button" variant="ghost" onClick={() => {
-                                    setSearchTerm('');
-                                    setStockFilter('all');
-                                    setUnitFilter('all');
-                                    setSortMode('reference');
-                                }}>
-                                    <X className="mr-1 h-4 w-4" />Clear
-                                </Button>
-                            )}
-                        </div>
+                            <div className="stk-field">
+                                <label htmlFor="stk-unit">Unit</label>
+                                <Input
+                                    id="stk-unit"
+                                    placeholder="pcs"
+                                    list="stk-units"
+                                    value={addForm.unit}
+                                    onChange={(e) => setAddForm((p) => ({ ...p, unit: e.target.value }))}
+                                />
+                                <datalist id="stk-units">
+                                    {[...new Set(['pcs', 'set', 'm', 'box', ...units])].map((u) => <option key={u} value={u} />)}
+                                </datalist>
+                            </div>
+                            <Button type="submit" disabled={isAdding} className="stk-btn-primary">
+                                {isAdding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                <span>{isAdding ? 'Adding…' : 'Add material'}</span>
+                            </Button>
+                        </form>
                     </div>
-                </CardHeader>
-                <CardContent className="p-0">
-                    <div className="overflow-x-auto">
-                        <Table>
-                            <TableHeader>
-                                <TableRow className="bg-slate-50">
-                                    <TableHead className="w-24">Ref No.</TableHead>
-                                    <TableHead>Name</TableHead>
-                                    <TableHead className="w-24 text-center">Qty</TableHead>
-                                    <TableHead className="w-20">Unit</TableHead>
-                                    <TableHead className="w-28">Status</TableHead>
-                                    <TableHead className="w-52 text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredMaterials.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-10 text-slate-400">
-                                            {materials.length === 0
-                                                ? 'No materials yet. Add your first material above.'
-                                                : 'No materials match the active filters.'}
-                                        </TableCell>
-                                    </TableRow>
-                                ) : filteredMaterials.map((material) => {
-                                    const isLow = material.quantity <= LOW_STOCK_THRESHOLD && material.quantity > 0;
-                                    const isOut = material.quantity === 0;
+                </div>
+            </section>
 
+            {/* Inventory */}
+            <section className="stk-panel stk-panel--flush" aria-labelledby="stk-inv-title">
+                <div className="stk-invhead">
+                    <div className="min-w-0">
+                        <h2 id="stk-inv-title" className="stk-panel__title">Materials inventory</h2>
+                        <p className="stk-panel__sub">
+                            {loadState === 'ready'
+                                ? filteredMaterials.length === materials.length
+                                    ? `${materials.length} materials`
+                                    : `Showing ${filteredMaterials.length} of ${materials.length}`
+                                : loadState === 'error' ? 'Could not load' : 'Loading…'}
+                        </p>
+                    </div>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => openPrintDialog('all')}
+                        disabled={materials.length === 0}
+                        className="stk-btn-secondary"
+                    >
+                        <Printer className="h-4 w-4" /> <span>Print all</span>
+                    </Button>
+                </div>
+
+                <div className="stk-toolbar">
+                    <div className="stk-search">
+                        <Search className="stk-search__icon" aria-hidden />
+                        <Input
+                            type="search"
+                            placeholder="Search name or reference"
+                            aria-label="Search materials by name or reference number"
+                            value={searchTerm}
+                            onChange={(e) => { setSearchTerm(e.target.value); setVisibleCount(PAGE); }}
+                        />
+                    </div>
+                    {compact ? (
+                        <button type="button" className="stk-filterbtn" onClick={() => setFiltersOpen(true)} aria-label={`Filters and sort${activeFilterCount ? `, ${activeFilterCount} active` : ''}`}>
+                            <SlidersHorizontal aria-hidden /> Filters
+                            {activeFilterCount ? <span className="stk-filterbtn__n">{activeFilterCount}</span> : null}
+                        </button>
+                    ) : (
+                        <>
+                            {filterControls}
+                            {hasFilters ? (
+                                <Button type="button" variant="ghost" onClick={clearFilters} className="stk-btn-ghost">
+                                    <X className="h-4 w-4" /> Clear
+                                </Button>
+                            ) : null}
+                        </>
+                    )}
+                </div>
+                {compact && hasFilters ? (
+                    <div className="stk-chips">
+                        {stockFilter !== 'all' ? <span className="stk-chip">{{ in: 'In stock', low: 'Low stock', out: 'Out of stock' }[stockFilter]}</span> : null}
+                        {unitFilter !== 'all' ? <span className="stk-chip">Unit: {unitFilter}</span> : null}
+                        {sortMode !== 'reference' ? <span className="stk-chip">{{ name: 'By name', 'quantity-asc': 'Qty low → high', 'quantity-desc': 'Qty high → low' }[sortMode]}</span> : null}
+                        <button type="button" className="stk-chip stk-chip--clear" onClick={clearFilters}><X aria-hidden /> Clear</button>
+                    </div>
+                ) : null}
+
+                {loadState === 'loading' ? (
+                    <div className="stk-skeleton" aria-busy="true" aria-label="Loading materials">
+                        {Array.from({ length: 6 }, (_, i) => <span key={i} className="g-skeleton" />)}
+                    </div>
+                ) : loadState === 'error' ? (
+                    <div className="stk-empty" role="alert">
+                        <AlertTriangle aria-hidden className="text-[var(--g-danger)]" />
+                        <p className="stk-empty__title">Could not load materials</p>
+                        <p className="stk-empty__text">Check your connection and try again.</p>
+                        <Button type="button" variant="outline" className="stk-btn-secondary" onClick={fetchMaterials}>Try again</Button>
+                    </div>
+                ) : filteredMaterials.length === 0 ? (
+                    <div className="stk-empty">
+                        <Package aria-hidden />
+                        <p className="stk-empty__title">{materials.length === 0 ? 'No materials yet' : 'No materials match'}</p>
+                        <p className="stk-empty__text">
+                            {materials.length === 0 ? 'Add your first material above.' : 'Try another search, or clear the filters.'}
+                        </p>
+                        {materials.length ? <Button type="button" variant="outline" className="stk-btn-secondary" onClick={clearFilters}>Clear filters</Button> : null}
+                    </div>
+                ) : compact ? (
+                    <div className="stk-cards">
+                        {shown.map((material) => (
+                            <MaterialCard key={material.id} material={material} actions={actionsFor(material)} onOpen={() => openHistory(material)} />
+                        ))}
+                    </div>
+                ) : (
+                    <div className="stk-tablewrap">
+                        <table className="stk-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" className="w-[8.5rem]">Reference</th>
+                                    <th scope="col">Material</th>
+                                    <th scope="col" className="w-[7rem] text-right">Available</th>
+                                    <th scope="col" className="w-[5rem]">Unit</th>
+                                    <th scope="col" className="w-[9rem]">Status</th>
+                                    <th scope="col" className="w-[10rem] text-right"><span className="sr-only">Actions</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {shown.map((material) => {
+                                    const status = stockStatus(material.quantity);
                                     return (
-                                        <TableRow
+                                        <tr
                                             key={material.id}
-                                            className="cursor-pointer hover:bg-slate-50"
+                                            tabIndex={0}
                                             onClick={() => openHistory(material)}
+                                            onKeyDown={(e) => {
+                                                if (e.target !== e.currentTarget) return;
+                                                if (e.key === 'Enter') openHistory(material);
+                                            }}
+                                            aria-label={`${material.name}: open history`}
                                         >
-                                            <TableCell>
-                                                <span className="font-mono text-sm bg-slate-100 px-2 py-0.5 rounded">
-                                                    #{material.reference_number}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="font-medium">{material.name}</TableCell>
-                                            <TableCell className="text-center">
-                                                <span className={`font-bold ${isOut ? 'text-red-500' : isLow ? 'text-amber-600' : 'text-green-600'}`}>
-                                                    {material.quantity}
-                                                </span>
-                                            </TableCell>
-                                            <TableCell className="text-slate-500">{material.unit}</TableCell>
-                                            <TableCell>
-                                                {isOut ? (
-                                                    <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Out of Stock</Badge>
-                                                ) : isLow ? (
-                                                    <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">
-                                                        <AlertTriangle className="w-3 h-3 mr-1" />Low
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge className="bg-green-100 text-green-700 hover:bg-green-100">In Stock</Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <motion.div className="inline-flex justify-end gap-0.5 rounded-lg border border-border bg-muted/50 p-1" onClick={(e) => e.stopPropagation()}>
-                                                    <Button
-                                                        variant="ghost" size="icon"
-                                                        className="h-8 w-8 text-slate-700 hover:text-slate-900 hover:bg-slate-100"
-                                                        title="Print"
-                                                        onClick={() => openPrintDialog('single', material)}
-                                                    >
-                                                        <Printer className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost" size="icon"
-                                                        className="h-8 w-8 text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                                                        title="View history"
-                                                        onClick={() => openHistory(material)}
-                                                    >
-                                                        <History className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost" size="icon"
-                                                        className="h-8 w-8 text-green-600 hover:text-green-800 hover:bg-green-50"
-                                                        title="Restock"
-                                                        onClick={() => { setRestockMaterial(material); setRestockQty(''); setRestockNotes(''); }}
-                                                    >
-                                                        <ArrowUpCircle className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost" size="icon"
-                                                        className="h-8 w-8 text-slate-600 hover:text-slate-800"
-                                                        title="Edit"
-                                                        onClick={() => handleEdit(material)}
-                                                    >
-                                                        <Pencil className="w-4 h-4" />
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost" size="icon"
-                                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                        title="Delete"
-                                                        onClick={() => handleDelete(material)}
-                                                    >
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </Button>
-                                                </motion.div>
-                                            </TableCell>
-                                        </TableRow>
+                                            <td><RefPill value={material.reference_number} /></td>
+                                            <td><span className="stk-name" title={material.name}>{material.name}</span></td>
+                                            <td className="text-right"><span className="stk-qty" data-status={status}>{material.quantity}</span></td>
+                                            <td className="stk-unit">{material.unit}</td>
+                                            <td><StatusBadge quantity={material.quantity} /></td>
+                                            <td className="text-right">{actionsFor(material)}</td>
+                                        </tr>
                                     );
                                 })}
-                            </TableBody>
-                        </Table>
+                            </tbody>
+                        </table>
                     </div>
-                    <p className="text-xs text-slate-400 px-4 py-3 border-t">
-                        Click a row to view full history. Stock changes on take/return approval and restock.
-                    </p>
-                </CardContent>
-            </Card>
+                )}
 
-            {/* History Dialog */}
-            <Dialog open={!!historyMaterial} onOpenChange={(open) => !open && setHistoryMaterial(null)}>
-                <DialogContent className="max-w-lg max-h-[80vh] flex flex-col">
-                    <DialogHeader>
-                        <DialogTitle className="flex items-center gap-2">
-                            <Hash className="w-5 h-5 text-[#dc6b2f]" />
-                            #{historyMaterial?.reference_number} — {historyMaterial?.name}
-                        </DialogTitle>
-                        <DialogDescription>
-                            Current stock: <strong>{historyMaterial?.quantity} {historyMaterial?.unit}</strong>
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="flex-1 overflow-y-auto space-y-2 py-2">
-                        {historyLoading ? (
-                            <motion.div className="flex justify-center py-8">
-                                <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
-                            </motion.div>
-                        ) : historyEntries.length === 0 ? (
-                            <p className="text-center text-slate-400 py-8 text-sm">No history yet.</p>
-                        ) : historyEntries.map((entry) => {
-                            const fmt = formatHistoryEntry(entry);
-                            const colorMap = {
-                                orange: 'border-l-orange-400 bg-orange-50',
-                                green: 'border-l-green-400 bg-green-50',
-                                blue: 'border-l-blue-400 bg-blue-50',
-                                slate: 'border-l-slate-400 bg-slate-50',
-                            };
-                            return (
-                                <div
-                                    key={entry.id}
-                                    className={`border-l-4 rounded-r-lg px-3 py-2 text-sm ${colorMap[fmt.color] || colorMap.slate}`}
-                                >
-                                    <p className="font-medium text-slate-800">{fmt.text}</p>
-                                    <p className="text-xs text-slate-500 mt-0.5">{fmt.date}</p>
-                                </div>
-                            );
-                        })}
+                {loadState === 'ready' && filteredMaterials.length > shown.length ? (
+                    <div className="stk-more">
+                        <Button type="button" variant="outline" className="stk-btn-secondary" onClick={() => setVisibleCount((n) => n + PAGE)}>
+                            Show {Math.min(PAGE, filteredMaterials.length - shown.length)} more
+                        </Button>
                     </div>
-                </DialogContent>
-            </Dialog>
+                ) : null}
+                <p className="stk-foot">
+                    {compact ? 'Tap a material for its full history.' : 'Click a row (or press Enter) for its full history.'} Stock changes on take / return approval and restock.
+                </p>
+            </section>
+
+            {/* Phone filters */}
+            <Sheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters & sort" subtitle={`${filteredMaterials.length} of ${materials.length} materials`}>
+                <div className="stk-sheetfilters">{filterControls}</div>
+                <div className="stk-sheetfilters__actions">
+                    <Button type="button" variant="outline" className="stk-btn-secondary" onClick={clearFilters} disabled={!hasFilters}>Clear all</Button>
+                    <Button type="button" className="stk-btn-primary" onClick={() => setFiltersOpen(false)}>Show {filteredMaterials.length}</Button>
+                </div>
+            </Sheet>
+
+            {/* History drawer */}
+            <Sheet
+                open={!!historyMaterial}
+                onClose={() => setHistoryMaterial(null)}
+                title={historyMaterial?.name}
+                subtitle={historyMaterial ? `#${historyMaterial.reference_number} · stock history, newest first` : undefined}
+                className="stk-historysheet"
+            >
+                {historyMaterial ? (
+                    <>
+                        <div className="stk-histstats">
+                            <div>
+                                <p className="stk-card__label">Available</p>
+                                <p className="stk-card__qty" data-status={historyStatus}>{historyMaterial.quantity} <span>{historyMaterial.unit}</span></p>
+                            </div>
+                            <StatusBadge quantity={historyMaterial.quantity} />
+                        </div>
+                        {historyLoading ? (
+                            <div className="stk-skeleton" aria-busy="true">{Array.from({ length: 4 }, (_, i) => <span key={i} className="g-skeleton" />)}</div>
+                        ) : historyError ? (
+                            <div className="stk-empty" role="alert">
+                                <AlertTriangle aria-hidden className="text-[var(--g-danger)]" />
+                                <p className="stk-empty__title">Could not load the history</p>
+                                <Button type="button" variant="outline" className="stk-btn-secondary" onClick={() => openHistory(historyMaterial)}>Try again</Button>
+                            </div>
+                        ) : historyEntries.length === 0 ? (
+                            <div className="stk-empty"><History aria-hidden /><p className="stk-empty__title">No history yet</p></div>
+                        ) : (
+                            <ol className="stk-moves">
+                                {historyEntries.map((entry) => (
+                                    <HistoryItem key={entry.id} entry={entry} unit={historyMaterial.unit} date={formatHistoryEntry(entry).date} />
+                                ))}
+                            </ol>
+                        )}
+                        <div className="stk-histactions">
+                            <Button type="button" variant="outline" className="stk-btn-secondary" onClick={() => { const m = historyMaterial; setHistoryMaterial(null); openPrintDialog('single', m); }}>
+                                <Printer className="h-4 w-4" /> Print
+                            </Button>
+                            <Button type="button" className="stk-btn-primary" onClick={() => { const m = historyMaterial; setHistoryMaterial(null); setRestockMaterial(m); setRestockQty(''); setRestockNotes(''); }}>
+                                <ArrowUpCircle className="h-4 w-4" /> Restock
+                            </Button>
+                        </div>
+                    </>
+                ) : null}
+            </Sheet>
 
             {/* Edit Dialog */}
             <Dialog open={!!editMaterial} onOpenChange={(open) => !open && setEditMaterial(null)}>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <Pencil className="w-5 h-5 text-[#dc6b2f]" />
+                            <Pencil className="w-5 h-5 text-[var(--g-brand)]" />
                             Edit Material
                         </DialogTitle>
                         <DialogDescription>
@@ -671,14 +728,14 @@ export default function MaterialsManager() {
                         </DialogDescription>
                     </DialogHeader>
                     <form onSubmit={handleEditSave} className="space-y-4 py-2">
-                        <motion.div className="space-y-1">
+                        <div className="space-y-1">
                             <label className="text-sm font-medium text-slate-700">Ref No. *</label>
                             <Input
                                 value={editForm.reference_number}
                                 onChange={(e) => setEditForm(p => ({ ...p, reference_number: e.target.value }))}
                                 className="font-mono"
                             />
-                        </motion.div>
+                        </div>
                         <div className="space-y-1">
                             <label className="text-sm font-medium text-slate-700">Name *</label>
                             <Input
@@ -709,7 +766,7 @@ export default function MaterialsManager() {
                             <Button type="button" variant="outline" onClick={() => setEditMaterial(null)}>
                                 Cancel
                             </Button>
-                            <Button type="submit" disabled={editLoading} className="bg-slate-700 hover:bg-slate-800">
+                            <Button type="submit" disabled={editLoading} className="stk-btn-primary">
                                 {editLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Check className="w-4 h-4 mr-1" />}
                                 Save Changes
                             </Button>
@@ -723,7 +780,7 @@ export default function MaterialsManager() {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <Printer className="w-5 h-5 text-[#dc6b2f]" />
+                            <Printer className="w-5 h-5 text-[var(--g-brand)]" />
                             {printDialog?.mode === 'single' ? 'Print Material' : 'Print All Materials'}
                         </DialogTitle>
                         <DialogDescription>
@@ -739,7 +796,7 @@ export default function MaterialsManager() {
                             <button
                                 type="button"
                                 onClick={() => setPrintIncludeHistory(true)}
-                                className={`rounded-lg border-2 p-3 text-left transition-colors ${printIncludeHistory ? 'border-[#dc6b2f] bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}
+                                className={`rounded-lg border-2 p-3 text-left transition-colors ${printIncludeHistory ? 'border-[var(--g-brand)] bg-[var(--g-brand-muted)]' : 'border-slate-200 hover:border-slate-300'}`}
                             >
                                 <p className="text-sm font-semibold text-slate-800">With history</p>
                                 <p className="text-xs text-slate-500 mt-1">Takes, returns, restocks & adjustments</p>
@@ -747,7 +804,7 @@ export default function MaterialsManager() {
                             <button
                                 type="button"
                                 onClick={() => setPrintIncludeHistory(false)}
-                                className={`rounded-lg border-2 p-3 text-left transition-colors ${!printIncludeHistory ? 'border-[#dc6b2f] bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}
+                                className={`rounded-lg border-2 p-3 text-left transition-colors ${!printIncludeHistory ? 'border-[var(--g-brand)] bg-[var(--g-brand-muted)]' : 'border-slate-200 hover:border-slate-300'}`}
                             >
                                 <p className="text-sm font-semibold text-slate-800">Summary only</p>
                                 <p className="text-xs text-slate-500 mt-1">Ref, name, qty, unit & status</p>
@@ -756,7 +813,7 @@ export default function MaterialsManager() {
                     </div>
                     <DialogFooter className="gap-2 sm:gap-0">
                         <Button type="button" variant="outline" onClick={() => setPrintDialog(null)}>Cancel</Button>
-                        <Button onClick={handlePrintConfirm} disabled={printLoading} className="bg-slate-700 hover:bg-slate-800">
+                        <Button onClick={handlePrintConfirm} disabled={printLoading} className="stk-btn-primary">
                             {printLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Printer className="w-4 h-4 mr-1" />}
                             Print
                         </Button>
@@ -796,13 +853,13 @@ export default function MaterialsManager() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setRestockMaterial(null)}>Cancel</Button>
-                        <Button onClick={handleRestock} disabled={restockLoading} className="bg-green-600 hover:bg-green-700">
+                        <Button onClick={handleRestock} disabled={restockLoading} className="stk-btn-success">
                             {restockLoading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <ArrowUpCircle className="w-4 h-4 mr-1" />}
                             Restock
                         </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </motion.div>
+        </div>
     );
 }

@@ -1,12 +1,10 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, memo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback, lazy, Suspense } from 'react';
 import { withoutLocalWorkers } from '@/core/localWorkers';
 import { storageKey } from '@/core/storage';
 import { UNIFIED, supabaseMaterials as supabase } from '@/core/supabase';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from '@/ui/card';
 import { Button } from '@/ui/button';
 import { Input } from '@/ui/input';
-import { Badge } from '@/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/ui/tabs';
 import {
     Dialog,
@@ -17,15 +15,13 @@ import {
     DialogTitle,
 } from '@/ui/dialog';
 import {
-    Search, Package, RotateCcw,
-    Calendar, Clock, User, FileSpreadsheet, Loader2, Trash2, Printer,
-    CheckCircle, XCircle, AlertCircle, Edit2, ChevronDown, ChevronUp, MapPin,
-    ClipboardList, Users, BarChart3, UserCog, MoreHorizontal, Inbox, ShieldCheck
+    Package, FileSpreadsheet, Loader2, Trash2, Printer, Clock3,
+    MapPin, ClipboardList, Users, BarChart3, UserCog, MoreHorizontal, ShieldCheck
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useHubSection } from '@/app/useHubSection';
-import { formatDisplayDate, formatDisplayDateTime, formatFileDate } from '@/modules/materials/lib/dates';
-import { motion, AnimatePresence } from "framer-motion";
+import { formatDisplayDate, formatFileDate } from '@/modules/materials/lib/dates';
+import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { sendBrowserNotification, requestBrowserNotificationPermission } from '@/modules/materials/lib/emailNotification';
 
@@ -46,9 +42,9 @@ const ManagerTabFallback = (
         Loading…
     </div>
 );
-import { parseReturnQty, applyReturnToTakeMaterials } from '@/modules/materials/lib/inventory';
+import { applyReturnToTakeMaterials } from '@/modules/materials/lib/inventory';
 import { requireStaffSession } from '@/core/auth/materialsSession';
-import { matchesDateFilter, TRANSACTION_QUERY_LIMIT } from '@/modules/materials/lib/dates';
+import { TRANSACTION_QUERY_LIMIT } from '@/modules/materials/lib/dates';
 import {
     buildReturnHistoryMap,
     fetchApprovedReturnsOnce,
@@ -56,103 +52,22 @@ import {
     printBulkTransactions,
 } from '@/modules/materials/lib/transactionPrint';
 import { printFailureMessage } from '@/modules/materials/lib/printDocument';
-import { AppShell, PageHeader, FilterToolbar, EmptyState } from '@/ui/layout';
+import { AppShell, PageHeader } from '@/ui/layout';
 import NativeBottomNav from '@/modules/materials/components/mobile/NativeBottomNav';
-import NativeFilterBar from '@/modules/materials/components/mobile/NativeFilterBar';
 import NativeActionSheet from '@/modules/materials/components/mobile/NativeActionSheet';
-import NativeTxCard, { staffItemStatus } from '@/modules/materials/components/mobile/NativeTxCard';
-import MoreMenu from '@/modules/progress/components/MoreMenu';
 import { NavIconButton } from '@/modules/materials/components/mobile/NativeNavBar';
-import { NativeEmptyState, NativeErrorState, RouteFallback, SkeletonList } from '@/modules/materials/components/mobile/NativeStates';
-import { confirmAction } from '@/modules/materials/components/mobile/NativeConfirm';
+import { RouteFallback } from '@/modules/materials/components/mobile/NativeStates';
+import { confirmAction } from '@/ui/native/NativeConfirm';
 import { isNativeApp } from '@/core/platform';
-import { setNativeBackInterceptor } from '@/modules/materials/hooks/useAndroidBackButton';
-import { useProgressiveList } from '@/modules/materials/hooks/useProgressiveList';
+import { registerNativeBackHandler } from '@/core/nativeShell';
 import { getStaffCapabilities } from '@/modules/materials/lib/staffCapabilities';
-// Component to display GitHub-style commit history for returns
-const ReturnHistoryDisplay = ({ referenceNumber, totalQuantity, materialName, approvedReturns = [] }) => {
-    const returnHistory = React.useMemo(() => {
-        if (!referenceNumber) return [];
-        const history = [];
-        for (const transaction of approvedReturns) {
-            const materialReturn = transaction.materials?.find(m =>
-                m.reference_number === referenceNumber
-            );
-            const qty = parseReturnQty(materialReturn?.return_quantity);
-            if (qty > 0) {
-                history.push({
-                    returner: transaction.worker_name,
-                    quantity: qty,
-                    date: transaction.transaction_date,
-                    time: transaction.transaction_time,
-                    transactionId: transaction.id
-                });
-            }
-        }
-        return history;
-    }, [approvedReturns, referenceNumber]);
-
-    if (returnHistory.length === 0) {
-        return (
-            <div className="bg-yellow-50 border border-yellow-200 rounded px-2 py-1">
-                <div className="text-yellow-700 font-medium">
-                    Taken to Site
-                </div>
-                <div className="text-yellow-600 text-xs mt-1">
-                    Not Returned
-                </div>
-            </div>
-        );
-    }
-
-    // Calculate total returned and remaining
-    const totalReturned = returnHistory.reduce((sum, entry) => sum + entry.quantity, 0);
-    const remaining = totalQuantity - totalReturned;
-    const isFullyReturned = remaining <= 0;
-
-    return (
-        <div className="space-y-1">
-            {/* Individual return entries */}
-            {returnHistory.map((entry, index) => (
-                <div key={entry.transactionId} className="bg-blue-50 border border-blue-200 rounded px-2 py-1">
-                    <div className="text-blue-700 font-medium">
-                        🔄 Returned {entry.quantity}/{totalQuantity} {materialName} by {entry.returner}
-                    </div>
-                    <div className="text-blue-600 text-xs mt-1">
-                        on {formatDisplayDate(entry.date)} at {entry.time}
-                    </div>
-                </div>
-            ))}
-
-            {/* Final status */}
-            {isFullyReturned ? (
-                <div className="bg-green-50 border border-green-200 rounded px-2 py-1">
-                    <div className="text-green-700 font-medium">
-                        ✅ Fully returned {totalQuantity}/{totalQuantity} {materialName}
-                    </div>
-                    <div className="text-green-600 text-xs mt-1">
-                        All materials returned
-                    </div>
-                </div>
-            ) : (
-                <div className="bg-[var(--g-warning-soft,rgb(180_83_9/0.1))] border border-[var(--g-warning,#b45309)]/25 rounded px-2 py-1">
-                    <div className="text-[var(--g-warning,#b45309)] font-medium">
-                        🔄 Partially returned {totalReturned}/{totalQuantity} {materialName}
-                    </div>
-                    <div className="text-[var(--g-warning,#b45309)] text-xs mt-1">
-                        Remaining qty to return: {remaining}/{totalQuantity}
-                    </div>
-                </div>
-            )}
-        </div>
-    );
-};
-
+import RequestsWeb from '@/modules/materials/components/requests/RequestsWeb';
+import RequestsNative, { RequestDetailScreen } from '@/modules/materials/components/requests/RequestsNative';
+import {
+    DEFAULT_FILTERS, computeMetrics, filterRequests, siteOptions,
+} from '@/modules/materials/components/requests/requestModel';
 import MaterialForm from '@/modules/materials/components/MaterialForm';
 import IssueByCard from '@/features/cards/IssueByCard';
-
-/** Long lists render in pages so the screen stays smooth. */
-const LIST_PAGE = 60;
 
 const NATIVE_TAB_COPY = {
     transactions: { title: 'Requests' },
@@ -164,153 +79,32 @@ const NATIVE_TAB_COPY = {
     admins: { title: 'Admins', subtitle: 'Full control of every area' },
 };
 
-const TYPE_OPTIONS = [
-    { value: 'all', label: 'All types' },
-    { value: 'take', label: 'Take' },
-    { value: 'return', label: 'Return' },
-];
-const STATUS_OPTIONS = [
-    { value: 'all', label: 'All status' },
-    { value: 'pending', label: 'Pending' },
-    { value: 'approved', label: 'Approved' },
-    { value: 'declined', label: 'Declined' },
-];
-const RETURN_OPTIONS = [
-    { value: 'all', label: 'All materials' },
-    { value: 'returned', label: 'Returned' },
-    { value: 'partially_returned', label: 'Partial' },
-    { value: 'not_returned', label: 'Not returned' },
-];
-const DATE_OPTIONS = [
-    { value: 'all', label: 'All time' },
-    { value: 'week', label: 'This week' },
-    { value: 'month', label: 'This month' },
-    { value: 'year', label: 'This year' },
-];
+const FILTERS_KEY = storageKey('materials', 'requestFilters');
 
-/**
- * A request in the app's staff inbox. Memoised: React Query keeps unchanged
- * rows referentially stable, so the 3 s poll only re-renders rows that changed.
- */
-const StaffRequestCard = memo(function StaffRequestCard({
-    transaction,
-    expanded,
-    approvedReturns,
-    isAdmin,
-    processing,
-    busy,
-    onToggle,
-    onEdit,
-    onProcess,
-    onPrint,
-    onDelete,
-}) {
-    const isPending = transaction.approval_status === 'pending';
-    const isTake = transaction.transaction_type === 'take';
-    const materials = transaction.materials || [];
-
-    return (
-        <NativeTxCard
-            tx={transaction}
-            title={transaction.worker_name}
-            titleNote={`ID ${transaction.worker_id}`}
-            itemStatus={staffItemStatus}
-            expanded={expanded}
-            onToggleExpand={isTake && materials.length ? () => onToggle(transaction.id) : undefined}
-            expandedContent={materials.map((material, idx) => (
-                <div key={idx}>
-                    <p className="mb-1.5 font-semibold text-slate-800">
-                        {material.name}
-                        {material.reference_number ? <span className="n-ref ml-2">#{material.reference_number}</span> : null}
-                    </p>
-                    {material.reference_number ? (
-                        <ReturnHistoryDisplay
-                            referenceNumber={material.reference_number}
-                            totalQuantity={material.quantity}
-                            materialName={material.name}
-                            approvedReturns={approvedReturns}
-                        />
-                    ) : (
-                        <div className="bg-gray-50 border border-gray-200 rounded px-2 py-1">
-                            <div className="text-gray-700 font-medium">No reference number</div>
-                            <div className="text-gray-600 text-xs mt-1">
-                                This material cannot be returned (missing reference number)
-                            </div>
-                        </div>
-                    )}
-                </div>
-            ))}
-            actions={
-                <>
-                    {isPending ? (
-                        <>
-                            <button
-                                type="button"
-                                className="n-btn n-btn--sm n-tx__decide"
-                                data-tone="success"
-                                disabled={processing}
-                                onClick={() => onProcess(transaction, 'approved')}
-                            >
-                                {busy ? <span className="n-spinner" aria-hidden /> : <CheckCircle className="h-4 w-4" aria-hidden />}
-                                Approve
-                            </button>
-                            <button
-                                type="button"
-                                className="n-btn n-btn--tinted n-btn--sm n-tx__decide"
-                                data-tone="danger"
-                                disabled={processing}
-                                onClick={() => onProcess(transaction, 'declined')}
-                            >
-                                <XCircle className="h-4 w-4" aria-hidden />
-                                Decline
-                            </button>
-                            <button
-                                type="button"
-                                className="n-btn n-btn--tinted n-btn--sm"
-                                data-tone="info"
-                                onClick={() => onEdit(transaction)}
-                            >
-                                <Edit2 className="h-4 w-4" aria-hidden />
-                                Edit
-                            </button>
-                        </>
-                    ) : null}
-                    <button
-                        type="button"
-                        className="n-btn n-btn--tinted n-btn--sm"
-                        data-tone="neutral"
-                        onClick={() => onPrint(transaction)}
-                    >
-                        <Printer className="h-4 w-4" aria-hidden />
-                        Print
-                    </button>
-                    {isAdmin ? (
-                        <button
-                            type="button"
-                            className="n-btn n-btn--tinted n-btn--sm"
-                            data-tone="danger"
-                            aria-label="Delete request"
-                            onClick={() => onDelete(transaction)}
-                        >
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                            Delete
-                        </button>
-                    ) : null}
-                </>
+/** Filters survive leaving and returning to the screen (per tab session). */
+function loadSavedFilters() {
+    try {
+        const saved = JSON.parse(sessionStorage.getItem(FILTERS_KEY) || 'null');
+        if (saved && typeof saved === 'object') {
+            const merged = { ...DEFAULT_FILTERS };
+            for (const key of Object.keys(DEFAULT_FILTERS)) {
+                if (typeof saved[key] === 'string') merged[key] = saved[key];
             }
-        />
-    );
-});
+            return merged;
+        }
+    } catch {
+        /* storage unavailable */
+    }
+    return { ...DEFAULT_FILTERS };
+}
 
 export default function AdminDashboard({ role = 'admin' }) {
     const navigate = useNavigate();
     const native = isNativeApp();
     const [activeTab, setActiveTab] = useHubSection('transactions', MATERIALS_ADMIN_SECTIONS);
-    const [txLimit, setTxLimit] = useState(LIST_PAGE);
-    const [filter, setFilter] = useState('all');
-    const [searchTerm, setSearchTerm] = useState('');
-    const [dateFilter, setDateFilter] = useState('all');
-    const [workerIdFilter, setWorkerIdFilter] = useState('');
+    const [filters, setFiltersState] = useState(loadSavedFilters);
+    const [page, setPage] = useState(1);
+    const [detailId, setDetailId] = useState(null);
     const [showDeleteDialog, setShowDeleteDialog] = useState(false);
     const [confirmText, setConfirmText] = useState('');
     const [confirmError, setConfirmError] = useState('');
@@ -321,11 +115,8 @@ export default function AdminDashboard({ role = 'admin' }) {
     const [printStartDate, setPrintStartDate] = useState('');
     const [printEndDate, setPrintEndDate] = useState('');
     const [printWorkerId, setPrintWorkerId] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
-    const [materialReturnFilter, setMaterialReturnFilter] = useState('all');
     const [adminStatusId, setAdminStatusId] = useState(null);
     const [editingTransaction, setEditingTransaction] = useState(null);
-    const [expandedCards, setExpandedCards] = useState(new Set());
     const [isBulkPrinting, setIsBulkPrinting] = useState(false);
     const [actionsOpen, setActionsOpen] = useState(false);
     
@@ -333,6 +124,24 @@ export default function AdminDashboard({ role = 'admin' }) {
     const adminEmail = adminSessionEmail || sessionStorage.getItem(storageKey('materials', 'adminEmail'));
     const capabilities = getStaffCapabilities(role);
     const isAdmin = capabilities.canDeleteTransactions;
+    const requestCaps = useMemo(() => ({
+        canProcess: capabilities.canProcessTransactions,
+        canDelete: capabilities.canDeleteTransactions,
+    }), [capabilities.canProcessTransactions, capabilities.canDeleteTransactions]);
+
+    // Any filter change starts again from page 1.
+    const setFilters = useCallback((update) => {
+        setFiltersState(update);
+        setPage(1);
+    }, []);
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem(FILTERS_KEY, JSON.stringify(filters));
+        } catch {
+            /* storage unavailable */
+        }
+    }, [filters]);
 
     useEffect(() => {
         let cancelled = false;
@@ -544,56 +353,22 @@ export default function AdminDashboard({ role = 'admin' }) {
     };
 
 
-    const filteredTransactions = useMemo(() => transactions.filter(t => {
-        const matchesFilter = filter === 'all' || t.transaction_type === filter;
-        let matchesSearch = false;
-
-        if (searchTerm.startsWith('/')) {
-            // Special search syntax: /approver_name to search by who approved the transaction
-            const approverName = searchTerm.slice(1).toLowerCase().trim();
-            matchesSearch = t.approved_by?.toLowerCase().includes(approverName);
-        } else {
-            // Regular search: worker name, worker ID, material name, or reference number
-            matchesSearch =
-                t.worker_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                t.worker_id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                t.materials?.some(m => m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                                       m.reference_number?.includes(searchTerm));
-        }
-
-        const matchesWorkerId = !workerIdFilter || t.worker_id?.toLowerCase().includes(workerIdFilter.toLowerCase());
-        const matchesStatus = statusFilter === 'all' || t.approval_status === statusFilter;
-        const matchesDate = matchesDateFilter(t.transaction_date, dateFilter);
-
-        let matchesMaterialReturn = true;
-        if (materialReturnFilter !== 'all' && t.transaction_type === 'take' && t.materials) {
-            if (materialReturnFilter === 'returned') {
-                // Show only take transactions where ALL materials are returned
-                matchesMaterialReturn = t.materials.every(m => m.returned === true);
-            } else if (materialReturnFilter === 'partially_returned') {
-                // Show only take transactions where some materials are returned but not all
-                matchesMaterialReturn = t.materials.some(m => (m.returned_quantity || 0) > 0) &&
-                                       t.materials.some(m => (m.returned_quantity || 0) < m.quantity);
-            } else if (materialReturnFilter === 'not_returned') {
-                // Show only take transactions where no materials are returned
-                matchesMaterialReturn = t.materials.every(m => (m.returned_quantity || 0) === 0);
-            }
-        } else if (materialReturnFilter !== 'all') {
-            // For non-take transactions (like return requests), don't show them in material return filters
-            matchesMaterialReturn = false;
-        }
-
-        return matchesFilter && matchesSearch && matchesDate && matchesWorkerId && matchesStatus && matchesMaterialReturn;
-    }), [transactions, filter, searchTerm, workerIdFilter, statusFilter, dateFilter, materialReturnFilter]);
+    const filteredTransactions = useMemo(() => filterRequests(transactions, filters), [transactions, filters]);
+    const requestMetrics = useMemo(() => computeMetrics(transactions, filters), [transactions, filters]);
+    const requestSites = useMemo(() => siteOptions(transactions), [transactions]);
 
     const pendingCount = useMemo(
         () => transactions.filter(t => t.approval_status === 'pending').length,
         [transactions]
     );
 
-    const exportToExcel = async () => {
+    const exportToExcel = async (rows = filteredTransactions) => {
+        if (!rows.length) {
+            toast.error('No requests to export');
+            return;
+        }
         const data = [];
-        filteredTransactions.forEach(t => {
+        rows.forEach(t => {
             if (t.materials && t.materials.length > 0) {
                 t.materials.forEach(m => {
                     data.push({
@@ -675,51 +450,45 @@ export default function AdminDashboard({ role = 'admin' }) {
         }
     };
 
-    const toggleCardExpansion = (transactionId) => {
-        const newExpanded = new Set(expandedCards);
-        if (newExpanded.has(transactionId)) {
-            newExpanded.delete(transactionId);
-        } else {
-            newExpanded.add(transactionId);
+    const printSelected = async (rows) => {
+        if (!rows.length) return;
+        try {
+            const approvedReturns = await fetchApprovedReturnsOnce(supabase);
+            printBulkTransactions(rows, buildReturnHistoryMap(approvedReturns), {
+                filterNote: `${rows.length} selected request${rows.length === 1 ? '' : 's'}`,
+            });
+        } catch (error) {
+            console.error('Error printing selected requests:', error);
+            toast.error(printFailureMessage(error));
         }
-        setExpandedCards(newExpanded);
     };
 
-    // ── App-only handlers (stable, so memoised cards don't re-render) ──────────
-    const { visible: visibleTransactions, hasMore, sentinelRef } = useProgressiveList(filteredTransactions, {
-        resetKey: `${filter}|${searchTerm}|${workerIdFilter}|${statusFilter}|${dateFilter}|${materialReturnFilter}`,
-    });
-
-    const toggleExpandedNative = useCallback((id) => {
-        setExpandedCards((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    }, []);
-
+    // ── Request actions (web + app; stable so memoised cards don't re-render) ──
     const processMutate = approveRequestMutation.mutate;
-    const processNative = useCallback(async (transaction, status) => {
+    const processRequest = useCallback(async (transaction, status) => {
         const approving = status === 'approved';
+        const who = `${transaction.worker_name || 'this worker'}${transaction.worker_id ? ` (ID ${transaction.worker_id})` : ''}`;
+        const kind = transaction.transaction_type === 'return' ? 'return' : 'take';
+        const count = (transaction.materials || []).length;
         const ok = await confirmAction(approving
             ? {
                 title: 'Approve request?',
-                message: 'Approve this request? Stock will change if this is a take or return.',
+                message: `Approve the ${kind} request from ${who}? Stock will change for ${count} material${count === 1 ? '' : 's'}.`,
                 confirmLabel: 'Approve',
-                tone: 'success',
             }
             : {
                 title: 'Decline request?',
-                message: 'Decline this request?',
+                message: `Decline the ${kind} request from ${who}? No stock will change.`,
                 confirmLabel: 'Decline',
                 destructive: true,
             });
         if (ok) processMutate({ id: transaction.id, status });
     }, [processMutate]);
+    const approveRequest = useCallback((t) => processRequest(t, 'approved'), [processRequest]);
+    const declineRequest = useCallback((t) => processRequest(t, 'declined'), [processRequest]);
 
     const deleteMutateAsync = deleteMutation.mutateAsync;
-    const deleteNative = useCallback(async (transaction) => {
+    const deleteRequest = useCallback(async (transaction) => {
         const ok = await confirmAction({
             title: 'Delete request?',
             message: 'Are you sure you want to delete this request? This action cannot be undone.',
@@ -729,21 +498,50 @@ export default function AdminDashboard({ role = 'admin' }) {
         if (!ok) return;
         try {
             await deleteMutateAsync({ id: transaction.id });
+            setDetailId((id) => (id === transaction.id ? null : id));
         } catch {
             // Error is already handled by the mutation
         }
     }, [deleteMutateAsync]);
 
-    const printNative = useCallback((transaction) => {
+    const printRequest = useCallback((transaction) => {
         printTransaction(transaction);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    // App: details screen. The row is looked up live so approvals and polls update it.
+    const detailTx = useMemo(
+        () => (detailId ? transactions.find((t) => t.id === detailId) || null : null),
+        [detailId, transactions]
+    );
+    const listScrollRef = useRef(0);
+    const openDetail = useCallback((id) => {
+        listScrollRef.current = window.scrollY;
+        setDetailId(id);
+        window.scrollTo(0, 0);
+    }, []);
+    const closeDetail = useCallback(() => {
+        setDetailId(null);
+        requestAnimationFrame(() => window.scrollTo(0, listScrollRef.current));
+    }, []);
+    // A deleted / vanished row closes its details screen.
+    useEffect(() => {
+        if (detailId && !isLoading && !detailTx) setDetailId(null);
+    }, [detailId, detailTx, isLoading]);
+
+    useEffect(() => {
+        if (!native || !detailId) return undefined;
+        return registerNativeBackHandler(() => {
+            closeDetail();
+            return true;
+        });
+    }, [native, detailId, closeDetail]);
 
     // App: hardware back leaves the edit form first; each form opens at the top.
     useEffect(() => {
         if (!native || !editingTransaction) return undefined;
         window.scrollTo(0, 0);
-        return setNativeBackInterceptor(() => {
+        return registerNativeBackHandler(() => {
             setEditingTransaction(null);
             return true;
         });
@@ -752,18 +550,11 @@ export default function AdminDashboard({ role = 'admin' }) {
     // Switching section scrolls back to the top, like a native tab bar.
     useEffect(() => {
         if (native) window.scrollTo(0, 0);
+        setDetailId(null);
     }, [native, activeTab]);
 
-    const getStatusBadge = (status) => {
-        switch(status) {
-            case 'approved':
-                return <Badge variant="success"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
-            case 'declined':
-                return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Declined</Badge>;
-            default:
-                return <Badge variant="warning"><AlertCircle className="w-3 h-3 mr-1" />Pending</Badge>;
-        }
-    };
+    const onRequestsTab = activeTab === 'transactions' && !editingTransaction;
+    const showDetail = native && onRequestsTab && Boolean(detailTx);
 
     if (!authReady) {
         if (native) return <RouteFallback />;
@@ -774,47 +565,69 @@ export default function AdminDashboard({ role = 'admin' }) {
         );
     }
 
+    const requestsTitle = 'Material Requests';
+    const nativeTitle = editingTransaction
+        ? 'Edit request'
+        : showDetail
+            ? 'Request'
+            : activeTab === 'transactions' ? requestsTitle : NATIVE_TAB_COPY[activeTab]?.title;
+    const nativeSubtitle = editingTransaction
+        ? `${editingTransaction.worker_name} · ${editingTransaction.transaction_type === 'return' ? 'Return' : 'Take'}`
+        : showDetail
+            ? `${detailTx.worker_name || 'Worker'} · ${detailTx.transaction_type === 'return' ? 'Return' : 'Take'}`
+            : activeTab === 'transactions'
+                ? (loadFailed ? 'Offline — retrying' : isLoading ? 'Loading requests…' : pendingCount > 0 ? `${pendingCount} waiting for approval` : 'All caught up')
+                : NATIVE_TAB_COPY[activeTab]?.subtitle;
+    const pendingIndicator = pendingCount > 0 ? (
+        <button
+            type="button"
+            className="rq-pending-pill"
+            onClick={() => {
+                setActiveTab('transactions');
+                setFilters((f) => ({ ...f, type: 'all', status: 'pending', returns: 'all' }));
+            }}
+            aria-label={`${pendingCount} pending request${pendingCount === 1 ? '' : 's'} — show them`}
+        >
+            <Clock3 aria-hidden className="h-3.5 w-3.5" />
+            {pendingCount} pending
+        </button>
+    ) : null;
+
     return (
         <>
         <AppShell
+            className={!native && onRequestsTab ? 'rq-main-wide' : undefined}
             header={
                 <PageHeader
                     title={native
-                        ? (editingTransaction ? 'Edit request' : NATIVE_TAB_COPY[activeTab]?.title)
-                        : (NATIVE_TAB_COPY[activeTab]?.title || 'Requests')}
+                        ? nativeTitle
+                        : activeTab === 'transactions' ? requestsTitle : (NATIVE_TAB_COPY[activeTab]?.title || 'Requests')}
                     description={native
-                        ? (editingTransaction
-                            ? `${editingTransaction.worker_name} · ${editingTransaction.transaction_type === 'return' ? 'Return' : 'Take'}`
-                            : activeTab === 'transactions'
-                                ? (loadFailed ? 'Offline — retrying' : isLoading ? 'Loading requests…' : pendingCount > 0 ? `${pendingCount} waiting for approval` : 'All caught up')
-                                : NATIVE_TAB_COPY[activeTab]?.subtitle)
-                        : undefined}
-                    eyebrow={native && !editingTransaction
-                        ? `${isAdmin ? 'Admin' : 'Manager'}${staffSession?.name ? ` · ${staffSession.name}` : ''}`
-                        : undefined}
-                    onBack={editingTransaction ? () => setEditingTransaction(null) : undefined}
-                    backLabel={editingTransaction ? 'Requests' : 'Back'}
-                    nativeActions={native && !editingTransaction ? (
+                        ? nativeSubtitle
+                        : onRequestsTab ? 'Review requests, track issued materials, and manage returns.' : undefined}
+                    eyebrow={native
+                        ? (!editingTransaction && !showDetail ? `${isAdmin ? 'Admin' : 'Manager'}${staffSession?.name ? ` · ${staffSession.name}` : ''}` : undefined)
+                        : (activeTab === 'transactions' ? 'Materials' : undefined)}
+                    onBack={editingTransaction ? () => setEditingTransaction(null) : showDetail ? closeDetail : undefined}
+                    backLabel={editingTransaction || showDetail ? 'Requests' : 'Back'}
+                    nativeActions={native && !editingTransaction && !showDetail ? (
                         <NavIconButton icon={MoreHorizontal} label="More actions" onClick={() => setActionsOpen(true)} />
                     ) : null}
                     variant="admin"
                     actions={
                         <div className="flex items-center gap-2">
-                            {pendingCount > 0 && (
-                                <Badge variant="warning">{pendingCount} Pending</Badge>
-                            )}
-                            {!editingTransaction ? <IssueByCard onIssued={() => queryClient.invalidateQueries({ queryKey: ['transactions'] })} /> : null}
+                            {!showDetail ? pendingIndicator : null}
+                            {!editingTransaction && !showDetail ? <IssueByCard onIssued={() => queryClient.invalidateQueries({ queryKey: ['transactions'] })} /> : null}
                         </div>
                     }
                 />
             }
         >
             <div className="space-y-4">
-            <div className="flex flex-col gap-3">
                 {!native && (
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                     <TabsList data-section-nav className="w-full overflow-x-auto border border-[var(--g-hairline)] bg-[var(--g-surface)] shadow-[0_1px_2px_rgb(15_29_51/0.04)] sm:w-auto">
-                        <TabsTrigger value="transactions" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">Inbox</span><span className="hidden sm:inline">Transactions</span></TabsTrigger>
+                        <TabsTrigger value="transactions" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white">Requests</TabsTrigger>
                         {!UNIFIED ? (
                             <TabsTrigger value="requesters" className="data-[state=active]:bg-[var(--g-brand)] data-[state=active]:text-white"><span className="sm:hidden">People</span><span className="hidden sm:inline">Requesters</span></TabsTrigger>
                         ) : null}
@@ -826,101 +639,6 @@ export default function AdminDashboard({ role = 'admin' }) {
                     </TabsList>
                 </Tabs>
                 )}
-
-                {activeTab === 'transactions' && native && !editingTransaction && (
-                    <NativeFilterBar
-                        search={searchTerm}
-                        onSearch={setSearchTerm}
-                        placeholder="Name, ID, material or /approver"
-                        groups={[
-                            { id: 'status', label: 'Status', value: statusFilter, onChange: setStatusFilter, options: STATUS_OPTIONS },
-                            { id: 'type', label: 'Type', value: filter, onChange: setFilter, options: TYPE_OPTIONS },
-                            { id: 'returns', label: 'Returns', value: materialReturnFilter, onChange: setMaterialReturnFilter, options: RETURN_OPTIONS },
-                            { id: 'date', label: 'Date', value: dateFilter, onChange: setDateFilter, options: DATE_OPTIONS },
-                        ]}
-                        fields={[
-                            { id: 'worker', label: 'Worker ID', value: workerIdFilter, onChange: setWorkerIdFilter, placeholder: 'Filter by worker ID' },
-                        ]}
-                    />
-                )}
-                {activeTab === 'transactions' && !native && (
-                    <FilterToolbar
-                        search={
-                            <div className="relative w-full">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <Input
-                                    className="pl-10 w-full"
-                                    placeholder="Search by name, ID, or material..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                            </div>
-                        }
-                        filters={
-                            <>
-                                <Tabs value={filter} onValueChange={setFilter}>
-                                    <TabsList>
-                                        <TabsTrigger value="all">All Types</TabsTrigger>
-                                        <TabsTrigger value="take">Take</TabsTrigger>
-                                        <TabsTrigger value="return">Return</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                                <Tabs value={statusFilter} onValueChange={setStatusFilter}>
-                                    <TabsList>
-                                        <TabsTrigger value="all">All Status</TabsTrigger>
-                                        <TabsTrigger value="pending">Pending</TabsTrigger>
-                                        <TabsTrigger value="approved">Approved</TabsTrigger>
-                                        <TabsTrigger value="declined">Declined</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                                <Tabs value={materialReturnFilter} onValueChange={setMaterialReturnFilter}>
-                                    <TabsList>
-                                        <TabsTrigger value="all">All Materials</TabsTrigger>
-                                        <TabsTrigger value="returned">Returned</TabsTrigger>
-                                        <TabsTrigger value="partially_returned">Partial</TabsTrigger>
-                                        <TabsTrigger value="not_returned">Not Returned</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                                <Tabs value={dateFilter} onValueChange={setDateFilter}>
-                                    <TabsList>
-                                        <TabsTrigger value="all">All Time</TabsTrigger>
-                                        <TabsTrigger value="week">Week</TabsTrigger>
-                                        <TabsTrigger value="month">Month</TabsTrigger>
-                                        <TabsTrigger value="year">Year</TabsTrigger>
-                                    </TabsList>
-                                </Tabs>
-                                <div className="relative">
-                                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                    <Input
-                                        placeholder="Filter by Worker ID"
-                                        value={workerIdFilter}
-                                        onChange={(e) => setWorkerIdFilter(e.target.value)}
-                                        className="pl-9 w-full sm:w-44"
-                                    />
-                                </div>
-                            </>
-                        }
-                        actions={
-                            <>
-                                <Button onClick={exportToExcel} className="bg-[var(--g-brand)] hover:bg-[var(--g-brand-press)] text-white">
-                                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                                    Export
-                                </Button>
-                                <Button variant="secondary" onClick={() => setShowPrintDialog(true)}>
-                                    <Printer className="w-4 h-4 mr-2" />
-                                    Bulk Print
-                                </Button>
-                                {isAdmin && (
-                                    <Button variant="destructive" onClick={() => setShowDeleteDialog(true)}>
-                                        <Trash2 className="w-4 h-4 mr-2" />
-                                        Delete All
-                                    </Button>
-                                )}
-                            </>
-                        }
-                    />
-                )}
-            </div>
                 <AnimatePresence mode="wait">
                     {activeTab === 'analytics' && isAdmin ? (
                         <Suspense
@@ -958,6 +676,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                             key={editingTransaction.id}
                             type={editingTransaction.transaction_type}
                             editMode={true}
+                            asStaff
                             existingTransaction={editingTransaction}
                             onBack={() => setEditingTransaction(null)}
                             onSuccess={handleEditSuccess}
@@ -977,355 +696,72 @@ export default function AdminDashboard({ role = 'admin' }) {
                             } : null}
                         />
                     ) : native ? (
-                        loadFailed ? (
-                            <NativeErrorState
-                                title="Couldn’t load requests"
-                                onRetry={() => refetch()}
-                                retrying={isFetching}
-                            />
-                        ) : isLoading ? (
-                            <SkeletonList count={4} label="Loading requests" />
-                        ) : filteredTransactions.length === 0 ? (
-                            <NativeEmptyState
-                                icon={Inbox}
-                                title={transactions.length ? 'No matching requests' : 'No requests yet'}
-                                description={transactions.length
-                                    ? 'Try a different search or clear the filters.'
-                                    : 'Take and return requests from workers will appear here.'}
-                            />
-                        ) : (
-                            <div>
-                                <p className="n-results" aria-live="polite">
-                                    {filteredTransactions.length} request{filteredTransactions.length === 1 ? '' : 's'}
-                                </p>
-                                <div className="n-list">
-                                    {visibleTransactions.map((transaction) => (
-                                        <StaffRequestCard
-                                            key={transaction.id}
-                                            transaction={transaction}
-                                            expanded={expandedCards.has(transaction.id)}
-                                            approvedReturns={approvedReturns}
-                                            isAdmin={isAdmin}
-                                            processing={approveRequestMutation.isPending}
-                                            busy={approveRequestMutation.isPending && approveRequestMutation.variables?.id === transaction.id}
-                                            onToggle={toggleExpandedNative}
-                                            onEdit={setEditingTransaction}
-                                            onProcess={processNative}
-                                            onPrint={printNative}
-                                            onDelete={deleteNative}
-                                        />
-                                    ))}
-                                </div>
-                                {hasMore ? (
-                                    <div ref={sentinelRef} className="n-more">
-                                        <span className="n-spinner" aria-hidden />
-                                    </div>
-                                ) : null}
-                            </div>
-                        )
-                    ) : isLoading ? (
-                        <div className="flex items-center justify-center py-20">
-                            <Loader2 className="w-8 h-8 animate-spin text-slate-700" />
-                        </div>
-                    ) : filteredTransactions.length === 0 ? (
-                        <EmptyState title="No Transactions Found" description="Try adjusting filters or search." />
-                    ) : (
-                        <div className="space-y-4">
-                            <AnimatePresence>
-                                {filteredTransactions.slice(0, txLimit).map((transaction, index) => (
-                                    <motion.div
-                                        key={transaction.id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{ delay: Math.min(index, 8) * 0.02 }}
-                                    >
-                                        <Card className="overflow-hidden">
-                                            <div className={`h-0.5 ${transaction.transaction_type === 'return' ? 'bg-emerald-600' : 'bg-brand'}`} />
-                                            <CardContent className="p-4 sm:p-5">
-                                                <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => toggleCardExpansion(transaction.id)}
-                                                        className="text-slate-500 hover:text-slate-700 p-1 h-10 w-10"
-                                                    >
-                                                        {expandedCards.has(transaction.id) ? (
-                                                            <ChevronUp className="w-4 h-4" />
-                                                        ) : (
-                                                            <ChevronDown className="w-4 h-4" />
-                                                        )}
-                                                    </Button>
-                                                    <div className="hidden sm:flex flex-wrap gap-2">
-                                                        {transaction.approval_status === 'pending' ? (
-                                                            <>
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => setEditingTransaction(transaction)}
-                                                                    className="bg-blue-600 hover:bg-blue-700"
-                                                                >
-                                                                    <Edit2 className="w-4 h-4 mr-1" />
-                                                                    Edit
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        if (!window.confirm('Approve this request? Stock will change if this is a take or return.')) return;
-                                                                        approveRequestMutation.mutate({ id: transaction.id, status: 'approved' });
-                                                                    }}
-                                                                    className="bg-green-600 hover:bg-green-700"
-                                                                    disabled={approveRequestMutation.isPending}
-                                                                >
-                                                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                                                    Approve
-                                                                </Button>
-                                                                <Button
-                                                                    size="sm"
-                                                                    onClick={() => {
-                                                                        if (!window.confirm('Decline this request?')) return;
-                                                                        approveRequestMutation.mutate({ id: transaction.id, status: 'declined' });
-                                                                    }}
-                                                                    className="bg-red-600 hover:bg-red-700"
-                                                                    disabled={approveRequestMutation.isPending}
-                                                                >
-                                                                    <XCircle className="w-4 h-4 mr-1" />
-                                                                    Decline
-                                                                </Button>
-                                                            </>
-                                                        ) : (
-                                                            <Badge className={transaction.approval_status === 'approved' ? 'bg-green-600' : 'bg-red-600'}>
-                                                                {transaction.approval_status === 'approved' ? 'Already Approved' : 'Already Declined'}
-                                                            </Badge>
-                                                        )}
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() => printTransaction(transaction)}
-                                                        >
-                                                            <Printer className="w-4 h-4 mr-1" />
-                                                            Print
-                                                        </Button>
-                                                        {isAdmin && <Button
-                                                            size="sm"
-                                                            variant="destructive"
-                                                            onClick={async () => {
-                                                                if (!window.confirm('Are you sure you want to delete this request? This action cannot be undone.')) return;
-                                                                try {
-                                                                    await deleteMutation.mutateAsync({ id: transaction.id });
-                                                                } catch (error) {
-                                                                    // Error is already handled by the mutation
-                                                                }
-                                                            }}
-                                                            disabled={deleteMutation.isPending}
-                                                        >
-                                                            <Trash2 className="w-4 h-4 mr-1" />
-                                                            Delete
-                                                        </Button>}
-                                                    </div>
-                                                    <div className="sm:hidden">
-                                                        <MoreMenu
-                                                            items={[
-                                                                transaction.approval_status === 'pending' && {
-                                                                    label: 'Edit',
-                                                                    icon: <Edit2 className="h-4 w-4" />,
-                                                                    onClick: () => setEditingTransaction(transaction),
-                                                                },
-                                                                transaction.approval_status === 'pending' && {
-                                                                    label: 'Approve',
-                                                                    icon: <CheckCircle className="h-4 w-4" />,
-                                                                    disabled: approveRequestMutation.isPending,
-                                                                    onClick: () => {
-                                                                        if (!window.confirm('Approve this request? Stock will change if this is a take or return.')) return;
-                                                                        approveRequestMutation.mutate({ id: transaction.id, status: 'approved' });
-                                                                    },
-                                                                },
-                                                                transaction.approval_status === 'pending' && {
-                                                                    label: 'Decline',
-                                                                    icon: <XCircle className="h-4 w-4" />,
-                                                                    danger: true,
-                                                                    disabled: approveRequestMutation.isPending,
-                                                                    onClick: () => {
-                                                                        if (!window.confirm('Decline this request?')) return;
-                                                                        approveRequestMutation.mutate({ id: transaction.id, status: 'declined' });
-                                                                    },
-                                                                },
-                                                                {
-                                                                    label: 'Print',
-                                                                    icon: <Printer className="h-4 w-4" />,
-                                                                    onClick: () => printTransaction(transaction),
-                                                                },
-                                                                isAdmin && {
-                                                                    label: 'Delete',
-                                                                    icon: <Trash2 className="h-4 w-4" />,
-                                                                    danger: true,
-                                                                    disabled: deleteMutation.isPending,
-                                                                    onClick: async () => {
-                                                                        if (!window.confirm('Are you sure you want to delete this request? This action cannot be undone.')) return;
-                                                                        try {
-                                                                            await deleteMutation.mutateAsync({ id: transaction.id });
-                                                                        } catch {
-                                                                            /* mutation handles toast */
-                                                                        }
-                                                                    },
-                                                                },
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                                                    <div className="flex items-start gap-4">
-                                                        <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                                                            transaction.transaction_type === 'return'
-                                                                ? 'bg-emerald-50'
-                                                                : 'bg-brand-muted'
-                                                        }`}>
-                                                            {transaction.transaction_type === 'return' ? (
-                                                                <RotateCcw className="w-5 h-5 text-emerald-600" />
-                                                            ) : (
-                                                                <Package className="w-5 h-5 text-brand" />
-                                                            )}
-                                                        </div>
-                                                        <div className="space-y-1.5">
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <Badge className={transaction.transaction_type === 'return' ? 'bg-emerald-600 text-white' : ''}>
-                                                                    {transaction.transaction_type === 'return' ? 'Return' : 'Take'}
-                                                                </Badge>
-                                                                {getStatusBadge(transaction.approval_status)}
-                                                            </div>
-                                                            <p className="font-medium text-slate-900">
-                                                                {transaction.worker_name}
-                                                                <span className="ml-2 text-sm font-normal text-muted-foreground">ID {transaction.worker_id}</span>
-                                                            </p>
-                                                            <div className="akk-tx-meta">
-                                                                <span className="inline-flex items-center gap-1">
-                                                                    <Calendar className="w-3.5 h-3.5" />
-                                                                    {formatDisplayDate(transaction.transaction_date)}
-                                                                </span>
-                                                                <span className="inline-flex items-center gap-1">
-                                                                    <Clock className="w-3.5 h-3.5" />
-                                                                    {transaction.transaction_time}
-                                                                </span>
-                                                                {transaction.site_name && (
-                                                                    <span className="inline-flex items-center gap-1">
-                                                                        <MapPin className="w-3.5 h-3.5" />
-                                                                        {transaction.site_name}
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                            {transaction.approved_by && transaction.approval_status !== 'pending' && (
-                                                                <p className="text-xs text-muted-foreground">
-                                                                    {transaction.approval_status === 'approved' ? 'Approved' : 'Declined'} by {transaction.approved_by}
-                                                                    {transaction.approval_date && ` on ${formatDisplayDateTime(transaction.approval_date)}`}
-                                                                </p>
-                                                            )}
-                                                        </div>
-                                                    </div>
-
-                                                <div className="rounded-lg border border-border bg-muted/40 p-3">
-                                                    {/* Collapsed view - horizontal layout */}
-                                                    {!expandedCards.has(transaction.id) && (
-                                                        <div className="flex flex-wrap gap-2">
-                                                            {transaction.materials?.map((material, idx) => (
-                                                                <Badge
-                                                                    key={idx}
-                                                                    variant="outline"
-                                                                    className={`${
-                                                                        material.returned
-                                                                            ? 'bg-green-50 border-green-200 text-green-800'
-                                                                            : transaction.transaction_type === 'take'
-                                                                            ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                                                            : 'bg-slate-50 border-slate-200'
-                                                                    }`}
-                                                                >
-                                                                    {material.name}
-                                                                    <span className="ml-1 text-slate-500">
-                                                                        {transaction.transaction_type === 'return' && material.return_quantity
-                                                                            ? `(${material.return_quantity}/${material.quantity} ${material.unit})`
-                                                                            : `(${material.quantity} ${material.unit})`
-                                                                        }
-                                                                    </span>
-                                                                    {material.reference_number && (
-                                                                        <span className="ml-2 font-mono text-xs">
-                                                                            #{material.reference_number}
-                                                                        </span>
-                                                                    )}
-                                                                </Badge>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Expanded view - vertical layout with status history */}
-                                                    {expandedCards.has(transaction.id) && (
-                                                        <div className="space-y-3">
-                                                            {transaction.materials?.map((material, idx) => (
-                                                                <div key={idx} className="border border-border rounded-lg p-3 bg-card">
-                                                                    <div className="flex items-center gap-2 mb-2">
-                                                                        <Badge
-                                                                            variant="outline"
-                                                                            className={`${
-                                                                                material.returned
-                                                                                    ? 'bg-green-50 border-green-200 text-green-800'
-                                                                                    : transaction.transaction_type === 'take'
-                                                                                    ? 'bg-yellow-50 border-yellow-200 text-yellow-800'
-                                                                                    : 'bg-slate-50 border-slate-200'
-                                                                            }`}
-                                                                        >
-                                                                            {material.name}
-                                                                            <span className="ml-1 text-slate-500">
-                                                                                {transaction.transaction_type === 'return' && material.return_quantity
-                                                                                    ? `(${material.return_quantity}/${material.quantity} ${material.unit})`
-                                                                                    : `(${material.quantity} ${material.unit})`
-                                                                                }
-                                                                            </span>
-                                                                            {material.reference_number && (
-                                                                                <span className="ml-2 font-mono text-xs">
-                                                                                    #{material.reference_number}
-                                                                                </span>
-                                                                            )}
-                                                                        </Badge>
-                                                                    </div>
-
-                                                                {transaction.transaction_type === 'take' && material.reference_number && (
-                                                                    <ReturnHistoryDisplay
-                                                                        referenceNumber={material.reference_number}
-                                                                        totalQuantity={material.quantity}
-                                                                        materialName={material.name}
-                                                                        approvedReturns={approvedReturns}
-                                                                    />
-                                                                )}
-
-                                                                {!material.reference_number && (
-                                                                    <div className="bg-gray-50 border border-gray-200 rounded px-2 py-1 ml-2">
-                                                                        <div className="text-gray-700 font-medium">
-                                                                            📦 {material.name} - No reference number
-                                                                        </div>
-                                                                        <div className="text-gray-600 text-xs mt-1">
-                                                                            This material cannot be returned (missing reference number)
-                                                                        </div>
-                                                                    </div>
-                                                                )}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-
-                                                    {transaction.notes && (
-                                                        <p className="text-sm text-slate-500 mt-2 italic">
-                                                            "{transaction.notes}"
-                                                        </p>
-                                                    )}
-                                                </div>
-                                                </div>
-                                            </CardContent>
-                                        </Card>
-                                    </motion.div>
-                                ))}
-                            </AnimatePresence>
-                            {filteredTransactions.length > txLimit ? (
-                                <button type="button" className="g-btn g-btn--secondary g-btn--block" onClick={() => setTxLimit((n) => n + LIST_PAGE)}>
-                                    Show more ({filteredTransactions.length - txLimit} more)
-                                </button>
+                        <>
+                            {showDetail ? (
+                                <RequestDetailScreen
+                                    key={detailTx.id}
+                                    tx={detailTx}
+                                    approvedReturns={approvedReturns}
+                                    caps={requestCaps}
+                                    busy={approveRequestMutation.isPending && approveRequestMutation.variables?.id === detailTx.id}
+                                    processing={approveRequestMutation.isPending}
+                                    onApprove={approveRequest}
+                                    onDecline={declineRequest}
+                                    onEdit={setEditingTransaction}
+                                    onPrint={printRequest}
+                                    onDelete={deleteRequest}
+                                />
                             ) : null}
-                        </div>
+                            {/* The list stays mounted under the details screen so its scroll and loaded pages survive. */}
+                            <div hidden={showDetail}>
+                                <RequestsNative
+                                    transactions={transactions}
+                                    filtered={filteredTransactions}
+                                    metrics={requestMetrics}
+                                    sites={requestSites}
+                                    isLoading={isLoading}
+                                    loadFailed={loadFailed}
+                                    isFetching={isFetching}
+                                    onRetry={refetch}
+                                    filters={filters}
+                                    setFilters={setFilters}
+                                    caps={requestCaps}
+                                    processingId={approveRequestMutation.isPending ? approveRequestMutation.variables?.id : null}
+                                    processing={approveRequestMutation.isPending}
+                                    onOpen={openDetail}
+                                    onApprove={approveRequest}
+                                    onDecline={declineRequest}
+                                />
+                            </div>
+                        </>
+                    ) : (
+                        <RequestsWeb
+                            transactions={transactions}
+                            filtered={filteredTransactions}
+                            metrics={requestMetrics}
+                            sites={requestSites}
+                            approvedReturns={approvedReturns}
+                            isLoading={isLoading}
+                            loadFailed={loadFailed}
+                            isFetching={isFetching}
+                            onRetry={refetch}
+                            filters={filters}
+                            setFilters={setFilters}
+                            page={page}
+                            setPage={setPage}
+                            caps={requestCaps}
+                            processingId={approveRequestMutation.isPending ? approveRequestMutation.variables?.id : null}
+                            processing={approveRequestMutation.isPending}
+                            onApprove={approveRequest}
+                            onDecline={declineRequest}
+                            onEdit={setEditingTransaction}
+                            onPrint={printRequest}
+                            onDelete={deleteRequest}
+                            onExport={exportToExcel}
+                            onPrintSelected={printSelected}
+                            onOpenBulkPrint={() => setShowPrintDialog(true)}
+                            onDeleteAll={() => setShowDeleteDialog(true)}
+                        />
                     )}
                 </AnimatePresence>
             </div>
@@ -1464,7 +900,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                         tone: 'success',
                         label: 'Export to Excel',
                         hint: `${filteredTransactions.length} request${filteredTransactions.length === 1 ? '' : 's'} with current filters`,
-                        onSelect: exportToExcel,
+                        onSelect: () => exportToExcel(),
                     },
                     activeTab === 'transactions' && {
                         id: 'print',
@@ -1485,7 +921,7 @@ export default function AdminDashboard({ role = 'admin' }) {
                 ]}
             />
         )}
-        {!editingTransaction && native ? (
+        {!editingTransaction && !showDetail && native ? (
             <NativeBottomNav
                 items={[
                     { id: 'transactions', icon: ClipboardList, label: 'Inbox', badge: pendingCount > 0 ? (pendingCount > 99 ? '99+' : pendingCount) : undefined, active: activeTab === 'transactions', onClick: () => setActiveTab('transactions') },

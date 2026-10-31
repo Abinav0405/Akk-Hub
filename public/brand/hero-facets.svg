@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 320" preserveAspectRatio="xMaxYMid slice">
+  <!-- Faceted texture for the crimson sign-in header: translucent planes and fine lines, echoing the AKK triangle. Neutral (white / black) so it works on every portal tone. -->
+  <defs>
+    <linearGradient id="lt" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="dk" x1="1" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0.34"/>
+      <stop offset="1" stop-color="#000" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="ln" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#fff" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <!-- large planes -->
+  <polygon points="420,0 230,0 420,210" fill="url(#lt)"/>
+  <polygon points="420,40 300,320 420,320" fill="url(#dk)"/>
+  <polygon points="180,0 330,0 255,150" fill="#fff" fill-opacity="0.08"/>
+  <polygon points="255,150 420,110 360,320" fill="#000" fill-opacity="0.18"/>
+  <polygon points="255,150 360,320 170,320" fill="#fff" fill-opacity="0.06"/>
+  <polygon points="0,320 120,190 170,320" fill="#000" fill-opacity="0.15"/>
+  <polygon points="60,0 180,0 110,95" fill="#fff" fill-opacity="0.06"/>
+  <!-- triangle motif -->
+  <polygon points="335,40 410,190 260,190" fill="none" stroke="#fff" stroke-opacity="0.2" stroke-width="1.2"/>
+  <polygon points="335,85 383,175 287,175" fill="#fff" fill-opacity="0.045"/>
+  <!-- fine diagonal lines -->
+  <line x1="150" y1="320" x2="420" y2="20" stroke="url(#ln)" stroke-width="1"/>
+  <line x1="215" y1="320" x2="420" y2="95" stroke="url(#ln)" stroke-width="0.8"/>
+  <line x1="40" y1="0" x2="300" y2="300" stroke="#fff" stroke-opacity="0.06" stroke-width="0.8"/>
+</svg>

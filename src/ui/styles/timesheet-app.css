@@ -1896,9 +1896,18 @@ html.akk-native .akk-login--v2[data-tone='client'] { --login-hero: linear-gradie
 html.akk-native .akk-login--v2 .akk-login__hero {
     flex-shrink: 0;
     position: relative;
+    overflow: hidden;
     padding: calc(var(--akk-safe-top) + 6px) max(16px, var(--akk-safe-right)) 44px max(16px, var(--akk-safe-left));
     background: var(--login-hero);
     color: #fff;
+}
+/* Faceted texture (public/brand/hero-facets.svg): translucent planes + fine lines, painted once. */
+html.akk-native .akk-login--v2 .akk-login__hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('/brand/hero-facets.svg') right center / cover no-repeat;
+    pointer-events: none;
 }
 html.akk-native .akk-login--v2 .akk-login__hero::after {
     /* soft light, painted once */
@@ -1939,18 +1948,22 @@ html.akk-native .akk-login--v2 .akk-login__brand {
 }
 html.akk-native .akk-login--v2 .akk-login__badge {
     display: inline-flex;
-    width: 60px;
-    height: 60px;
+    width: 68px;
+    height: 68px;
     align-items: center;
     justify-content: center;
-    border-radius: 18px;
+    border-radius: 20px;
     background: #fff;
-    box-shadow: 0 10px 24px -12px rgb(0 0 0 / 0.45);
+    box-shadow: 0 12px 28px -12px rgb(0 0 0 / 0.5), inset 0 -1px 0 rgb(15 23 42 / 0.06);
 }
+/* The full mark, edge to edge in the tile (older rules gave the img its own frame + padding). */
 html.akk-native .akk-login--v2 .akk-login__logo {
-    width: 42px;
-    height: 42px;
+    width: 52px;
+    height: 52px;
+    padding: 0;
     border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     object-fit: contain;
 }
 html.akk-native .akk-login--v2 .akk-login__title {

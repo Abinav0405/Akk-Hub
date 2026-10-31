@@ -253,7 +253,8 @@ function NativeLoginScreen({
                 </div>
                 <div className="akk-login__brand">
                     <span className="akk-login__badge">
-                        <img src={logoUrl} alt="AKK Engineering" className="akk-login__logo" />
+                        {/* Tightly cropped mark so the logo fills the tile (the default file has wide margins). */}
+                        <img src={logoUrl === '/Akk-logo.png' ? '/brand/akk-logo-mark.png' : logoUrl} alt="AKK Engineering" className="akk-login__logo" />
                     </span>
                     <h1 className="akk-login__title">{title}</h1>
                     {description ? <p className="akk-login__subtitle">{description}</p> : null}

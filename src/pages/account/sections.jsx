@@ -117,7 +117,7 @@ export function AccountDetails({ identity, card, wide = false }) {
  */
 const SHORTCUTS = {
     admin: { title: 'Administration', hint: 'People, access and settings', ids: ['people', 'mmanagers', 'madmins', 'sites', 'tsites', 'pjsrperm', 'paccess', 'tvehicles', 'pbranding', 'tannounce', 'idscan', 'notifications'] },
-    manager: { title: 'Your team', hint: 'Approvals and workforce', ids: ['tshifts', 'tleave', 'mmanage', 'ppackages', 'deploy', 'ttimesheets', 'pworkers', 'tcforms', 'pjsr', 'idscan'] },
+    manager: { title: 'Your team', hint: 'Approvals and workforce', ids: ['tshifts', 'tleave', 'mmanage', 'mstock', 'ppackages', 'deploy', 'ttimesheets', 'pworkers', 'tcforms', 'pjsr', 'idscan'] },
     supervisor: { title: 'Your site', hint: 'Crew and site shifts', ids: ['shifts', 'crew', 'idscan'] },
     worker: { title: 'My work', hint: 'Your own records', ids: ['deploy', 'myinfo', 'shifts', 'leave', 'timesheets', 'psubs', 'mhist', 'cforms'] },
 };

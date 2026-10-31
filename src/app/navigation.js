@@ -180,7 +180,12 @@ export const NAV = {
                 label: 'Materials',
                 labelKey: 'hub.nav.materials',
                 tone: 'materials',
-                items: [{ id: 'mmanage', label: 'Requests', icon: Boxes, to: paths.materials.manage }],
+                // Same screens as admin: requests, the full material list (view / add / edit), history.
+                items: [
+                    { id: 'mmanage', label: 'Requests', icon: Boxes, ...sec(paths.materials.manage, 'transactions', true) },
+                    { id: 'mstock', label: 'Stock', icon: PackagePlus, ...sec(paths.materials.manage, 'materials') },
+                    { id: 'mlog', label: 'Full history', labelKey: 'hub.nav.fullHistory', icon: History, to: paths.materials.log },
+                ],
             },
             {
                 label: 'Site work',

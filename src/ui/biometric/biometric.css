@@ -277,6 +277,21 @@
     inset: 0;
 }
 
+/*
+ * Live camera window, inset to sit exactly under the dotted ring (RING: rx 118 / ry 152 in a
+ * 300 × 390 box). Showing the camera only here — instead of stretched over the whole tall
+ * screen — keeps the zoom natural, so a face at arm's length fits inside the ring.
+ */
+.akk-face__window {
+    position: absolute;
+    inset: 11.03% 10.67%;
+    border-radius: 50%;
+    clip-path: ellipse(50% 50% at 50% 50%);
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.06);
+    pointer-events: none;
+}
+
 .akk-face__video {
     position: absolute;
     inset: 0;

@@ -144,7 +144,7 @@ export const STAFF_AREAS = {
                 : (p === paths.timesheet.admin || p === paths.timesheet.manage) && (!s || s === 'time-tracker'),
     },
     leave: { match: (p, s) => (p === paths.timesheet.admin || p === paths.timesheet.manage) && s === 'leaves' },
-    materials: { match: (p, s) => (p === paths.materials.admin && (!s || s === 'transactions')) || p === paths.materials.manage },
+    materials: { match: (p, s) => (p === paths.materials.admin || p === paths.materials.manage) && (!s || s === 'transactions') },
     packages: { match: (p, s) => (p === paths.progress.admin || p === paths.progress.review) && (!s || s === 'packages') },
 };
 

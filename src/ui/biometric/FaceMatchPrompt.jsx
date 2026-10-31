@@ -71,7 +71,7 @@ function median(values) {
 // ---------------------------------------------------------------------------
 // Dotted ring: dim dashes all round, white dashes revealed clockwise from the top.
 // ---------------------------------------------------------------------------
-function DottedRing({ phase, progress, reduceMotion }) {
+function DottedRing({ phase, progress, reduceMotion, children }) {
     const tone = phase === 'success' ? 'success' : phase === 'failure' ? 'failure' : 'scan';
     const fill = tone === 'scan' ? progress : 1;
 
@@ -83,7 +83,8 @@ function DottedRing({ phase, progress, reduceMotion }) {
     }
 
     return (
-        <motion.div className="akk-face__frame" initial={false} animate={frameAnim} aria-hidden="true">
+        <motion.div className="akk-face__frame" initial={false} animate={frameAnim}>
+            {children}
             <RingSvg tone={tone} fill={fill} />
         </motion.div>
     );
@@ -294,7 +295,8 @@ export default function FaceMatchPrompt({
                 return;
             }
             const stream = await navigator.mediaDevices.getUserMedia({
-                video: { width: { ideal: 720 }, height: { ideal: 960 }, facingMode: 'user' },
+                // 4:3 at a sharper size; the preview is cropped to the oval, not the whole screen.
+                video: { width: { ideal: 1280 }, height: { ideal: 960 }, facingMode: 'user' },
             });
             if (runId !== runIdRef.current || !videoRef.current) {
                 stream.getTracks().forEach((t) => t.stop());
@@ -444,14 +446,6 @@ export default function FaceMatchPrompt({
     const cameraScreen = (
         <>
             <div className="akk-face__stage">
-                <video
-                    ref={videoRef}
-                    className={cameraLive ? 'akk-face__video is-live' : 'akk-face__video'}
-                    autoPlay
-                    playsInline
-                    muted
-                    onPlaying={() => setCameraLive(true)}
-                />
                 <div className="akk-face__shade" aria-hidden="true" />
             </div>
 
@@ -481,7 +475,19 @@ export default function FaceMatchPrompt({
                 </header>
 
                 <div className="akk-face__middle">
-                    <DottedRing phase={phase} progress={progress} reduceMotion={reduceMotion} />
+                    <DottedRing phase={phase} progress={progress} reduceMotion={reduceMotion}>
+                        {/* The live camera shows only inside the oval, so a face at arm's length fits the ring. */}
+                        <div className="akk-face__window" aria-hidden="true">
+                            <video
+                                ref={videoRef}
+                                className={cameraLive ? 'akk-face__video is-live' : 'akk-face__video'}
+                                autoPlay
+                                playsInline
+                                muted
+                                onPlaying={() => setCameraLive(true)}
+                            />
+                        </div>
+                    </DottedRing>
                 </div>
 
                 <footer className="akk-face__bottom">

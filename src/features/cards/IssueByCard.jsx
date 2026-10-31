@@ -30,6 +30,7 @@ export default function IssueByCard({ onIssued }) {
                         <MaterialForm
                             key={worker.scan_id}
                             type="take"
+                            asStaff
                             issueTo={worker}
                             onBack={() => setWorker(null)}
                             onSuccess={() => {

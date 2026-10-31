@@ -28,8 +28,13 @@ import {
 import { getWorkerSession } from '@/core/auth/materialsSession';
 import { isNativeApp } from '@/core/platform';
 
-/** issueTo: { employee_id, name, scan_id } — store staff issuing to a worker whose ID card was just scanned. */
-export default function MaterialForm({ type, onBack, onSuccess, editMode = false, existingTransaction = null, onDelete = null, issueTo = null }) {
+/**
+ * issueTo: { employee_id, name, scan_id } — store staff issuing to a worker whose ID card was just scanned.
+ * asStaff: opened from the admin / manager dashboard. Always the staff (signed-in) path, even when
+ * this browser still holds a Materials worker session from an earlier worker sign-in — otherwise
+ * a manager's edit went through the worker-only update and was refused.
+ */
+export default function MaterialForm({ type, onBack, onSuccess, editMode = false, existingTransaction = null, onDelete = null, issueTo = null, asStaff = false }) {
     const isReturn = type === 'return';
     const native = isNativeApp();
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,7 +67,7 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
         }
     );
 
-    const workerSession = getWorkerSession();
+    const workerSession = asStaff ? null : getWorkerSession();
     const workerFieldsLocked = !!workerSession || !!issueTo;
 
     const [sites, setSites] = useState([]);
@@ -163,7 +168,9 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
 
         if (referenceNumber.trim() && isReturn) {
             try {
-                const currentWorkerId = workerSession?.workerId || sessionStorage.getItem(storageKey('materials', 'workerId'));
+                const currentWorkerId = asStaff
+                    ? formData.worker_id
+                    : workerSession?.workerId || sessionStorage.getItem(storageKey('materials', 'workerId'));
 
                 if (!currentWorkerId) {
                     toast.error('User session expired. Please log in again.');
@@ -435,7 +442,8 @@ export default function MaterialForm({ type, onBack, onSuccess, editMode = false
             onSuccess();
         } catch (error) {
             console.error('Error submitting request:', error);
-            toast.error(issueTo ? error?.message || 'Could not issue the materials' : editMode ? 'Failed to update request' : 'Failed to submit request');
+            const base = issueTo ? 'Could not issue the materials' : editMode ? 'Failed to update request' : 'Failed to submit request';
+            toast.error(error?.message ? `${base}: ${error.message}` : base);
         } finally {
             setIsSubmitting(false);
         }
