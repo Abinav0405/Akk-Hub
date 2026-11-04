@@ -3,7 +3,7 @@
  * printed card, typed number, old code = screenshot), the card front, every check, and — for staff —
  * today's deployment, open shift and vehicle.
  */
-import { AlertTriangle, Car, CheckCircle2, Clock, Info, MapPin, ShieldAlert, ShieldCheck, Smartphone, XCircle } from 'lucide-react';
+import { AlertTriangle, Car, CheckCircle2, Clock, Info, MapPin, ShieldAlert, ShieldCheck, Smartphone, WifiOff, XCircle } from 'lucide-react';
 import { CardFront } from './CardFaces';
 import './cards.css';
 
@@ -22,6 +22,8 @@ const t = (iso) => (iso ? new Date(iso).toLocaleTimeString('en-SG', { hour: '2-d
 const hm = (s) => (s ? String(s).slice(0, 5) : '');
 
 export function methodLabel(r) {
+    if (r.offline) return { text: 'Checked offline against the saved card list — compare the photo-less details with the person', tone: 'text-amber-700', Icon: WifiOff };
+    if (r.method === 'live' && r.reused) return { text: 'Code already used by someone else — probably a forwarded screenshot', tone: 'text-red-700', Icon: ShieldAlert };
     if (r.method === 'live') return r.live ? { text: 'Live card on the phone', tone: 'text-emerald-700', Icon: Smartphone } : { text: 'Old code — probably a screenshot', tone: 'text-red-700', Icon: ShieldAlert };
     if (r.method === 'printed') return { text: 'Printed card — compare the photo with the person', tone: 'text-slate-700', Icon: Info };
     return { text: 'Card number or barcode — compare the photo with the person', tone: 'text-slate-700', Icon: Info };
@@ -33,7 +35,7 @@ export default function VerifyResult({ result, children }) {
         return (
             <div className="akc-verdict rounded-2xl bg-red-600 p-5 text-center text-white">
                 <XCircle className="mx-auto h-10 w-10" />
-                <p className="mt-2 text-lg font-bold">Not an AKK card</p>
+                <p className="mt-2 text-lg font-bold">{result.offline ? 'Can’t confirm offline' : 'Not an AKK card'}</p>
                 <p className="text-sm text-white/85">{result.message || 'This code is not a valid AKK ID card.'}</p>
                 {children}
             </div>

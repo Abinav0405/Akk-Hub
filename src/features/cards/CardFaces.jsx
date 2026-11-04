@@ -5,7 +5,7 @@
  * `card` is a payload from core._card_payload (my_card / admin_card_detail / card_verify).
  */
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, Lock } from 'lucide-react';
 import { initialsOf } from '@/ui/photo';
 import Barcode from './Barcode';
 import { STATE_LABEL, daysLeft, fmtDate, groupNumber, themeFor } from './cardModel';
@@ -184,7 +184,10 @@ export function CardFront({ card, live = false, onAddPhoto, className = '' }) {
  * number: { full, show, onToggle } — full number, whether it is shown, and the reveal toggle.
  */
 /**
- * qr: { src, stale, progress (0..1 of the refresh window) } — progress draws the countdown ring.
+ * qr: { src, stale, progress (0..1 of the refresh window), locked } — progress draws the countdown ring;
+ * locked shows a padlock until the holder confirms with fingerprint / face.
+ * The barcode (the card number) follows the number: on the holder's phone it shows only while the
+ * number is revealed; admin views pass show: true. The printed PVC card is drawn by pvcPrint, not here.
  */
 export function CardBack({ card, qr, number, onQrClick, className = '' }) {
     const boxRef = useRef(null);
@@ -256,9 +259,10 @@ export function CardBack({ card, qr, number, onQrClick, className = '' }) {
                         className="akc__qr"
                         data-stale={qr.stale ? 'true' : 'false'}
                         onClick={(e) => { e.stopPropagation(); onQrClick?.(); }}
-                        aria-label="Show the QR code large"
+                        aria-label={qr.locked ? 'Unlock to show the QR code' : 'Show the QR code large'}
                     >
                         {qr.src ? <img src={qr.src} alt="Card QR code" /> : null}
+                        {qr.locked ? <Lock className="akc__qrlock" aria-hidden /> : null}
                         {qr.progress != null ? (
                             <svg className="akc__qrring" viewBox="0 0 100 100" aria-hidden>
                                 <circle cx="50" cy="50" r={R} strokeDasharray={C} strokeDashoffset={C * Math.min(1, Math.max(0, qr.progress))} />
@@ -267,7 +271,7 @@ export function CardBack({ card, qr, number, onQrClick, className = '' }) {
                     </button>
                 ) : null}
             </div>
-            {full ? (
+            {full && shown ? (
                 <div className="akc__barcode">
                     <Barcode value={full} />
                     <Fit className="akc__barnum">{shown ? groupNumber(full) : masked}</Fit>

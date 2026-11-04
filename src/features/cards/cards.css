@@ -300,6 +300,7 @@
 }
 .akc__qr img { width: 100%; height: 100%; display: block; }
 .akc__qr[data-stale='true'] img { filter: blur(3px) grayscale(1); opacity: 0.5; }
+.akc__qrlock { position: absolute; inset: 0; margin: auto; width: 38%; height: 38%; color: #475569; }
 .akc__qrring { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 .akc__qrring circle { fill: none; stroke: #10b981; stroke-width: 1.6; stroke-linecap: round; transform: rotate(-90deg); transform-origin: 50% 50%; }
 .akc__barcode { display: flex; align-items: center; gap: 2.4cqw; margin: 2.2cqw 4.4cqw 0; padding: 1cqw 2cqw; height: 11%; border-radius: 1.6cqw; background: #fff; color: #0b1220; }

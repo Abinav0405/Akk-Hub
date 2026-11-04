@@ -9,6 +9,7 @@ import { initNativeShell, hideNativeCapacitorSplash } from '@/core/nativeShell';
 import { runNativeFirstLaunchPermissionsIfNeeded } from '@/core/permissions';
 import { isAppUI, isNativeApp } from '@/core/platform';
 import AppRoutes from '@/app/AppRoutes';
+import IdleSignOut from '@/core/auth/IdleSignOut';
 import ErrorBoundary from '@/app/ErrorBoundary';
 import LoginCurtain from '@/ui/LoginCurtain';
 import AppIntro from '@/ui/intro/AppIntro';
@@ -33,6 +34,7 @@ function App() {
                         while a lazy screen loads, instead of flashing a fallback). */}
                     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
                         <AppRoutes />
+                        <IdleSignOut />
                         <LoginCurtain />
                         {/* App only (native, or ?app=1 preview): brand intro over the first screen. */}
                         <AppIntro enabled={isAppUI()} />

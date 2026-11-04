@@ -26,6 +26,8 @@ export const cardsScan = {
     /** purpose: verify | site | clock | materials | vehicle; place: core.sites id for the site check */
     verify: (code, purpose = 'verify', place = null) => rpc('card_verify', { p_code: code, p_token: token(), p_purpose: purpose, p_place: place }),
     clockContext: (code) => rpc('card_clock_context', { p_code: code, p_token: token() }),
+    /** Who is clocked in now + who is deployed today but not in (supervisor: own site). */
+    headcount: () => rpc('site_headcount', { p_token: token() }),
 };
 
 export const cardsAdmin = {
@@ -39,4 +41,6 @@ export const cardsAdmin = {
     unlink: (login, employeeId) => rpc('admin_unlink_account', { p_login: login, p_employee_id: employeeId }),
     setPhysical: (employeeIds, issued) => rpc('admin_card_set_physical', { p_employee_ids: employeeIds, p_issued: issued }),
     scans: (limit = 200) => rpc('admin_card_scans', { p_limit: limit }),
+    /** Card alerts, sign-ins, lockouts and security alerts (migration 107). */
+    securityFeed: (limit = 200) => rpc('admin_security_feed', { p_limit: limit }),
 };

@@ -193,5 +193,12 @@ export async function signOutEverywhere() {
     local.remove('hub', 'role');
     local.remove('hub', 'id');
     local.remove('hub', 'lastAdminId');
+    // Personal data / attribution tied to this account: the offline ID card list, its unsent scans,
+    // and the idle sign-out clock.
+    try {
+        ['akk.cards.offlinePack', 'akk.cards.offlineQueue', 'akk.hub.lastActivity', 'akk.hub.lastActivity.account'].forEach((k) => localStorage.removeItem(k));
+    } catch {
+        /* ignore */
+    }
     notifyIdentity();
 }

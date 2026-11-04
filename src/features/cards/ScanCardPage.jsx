@@ -2,9 +2,11 @@
  * Staff: "Scan ID card" (/card/scan) — supervisors, managers, admins.
  *   Check card: verify + site access check (supervisor → their site; admin may pick a site)
  *   Clock in / out: scan a worker's card and record entry / break / exit with the normal shift rules
+ *   On site: who is clocked in now, and who is deployed today but not in yet
+ * With no signal, "Check card" falls back to the saved card list (offline.js).
  */
 import { useEffect, useState } from 'react';
-import { Car, Coffee, Loader2, LogIn, LogOut, ScanLine, ShieldCheck } from 'lucide-react';
+import { Car, Coffee, Loader2, LogIn, LogOut, ScanLine, ShieldCheck, Users, WifiOff } from 'lucide-react';
 import VehicleByCard from './VehicleByCard';
 import { toast } from 'sonner';
 import { HubPage } from '@/ui/PortalShell';
@@ -16,6 +18,8 @@ import CardScanner from './CardScanner';
 import VerifyResult from './VerifyResult';
 import { clockIn, clockOut, openShiftOf, toggleBreak } from './cardClock';
 import { CardFront } from './CardFaces';
+import SiteHeadcount from './SiteHeadcount';
+import { flushOfflineScans, getOfflinePack, isNetworkError, offlineVerify, refreshOfflinePack } from './offline';
 
 export default function ScanCardPage() {
     const identity = useIdentity();
@@ -26,6 +30,19 @@ export default function ScanCardPage() {
     const [result, setResult] = useState(null);
     const [places, setPlaces] = useState([]);
     const [place, setPlace] = useState('');
+    const [packAt, setPackAt] = useState(() => getOfflinePack()?.saved_at || 0);
+
+    // Keep the offline card list fresh and upload scans made without signal.
+    useEffect(() => {
+        if (!UNIFIED) return undefined;
+        const sync = () => {
+            refreshOfflinePack().then((p) => p && setPackAt(p.saved_at)).catch(() => {});
+            flushOfflineScans().catch(() => {});
+        };
+        sync();
+        window.addEventListener('online', sync);
+        return () => window.removeEventListener('online', sync);
+    }, []);
 
     useEffect(() => {
         if (role !== 'admin' || !UNIFIED) return;
@@ -42,8 +59,14 @@ export default function ScanCardPage() {
         try {
             setResult(await cardsScan.verify(code, 'site', place || null));
         } catch (e) {
-            toast.error(e.message);
-            next();
+            if (isNetworkError(e)) {
+                const r = await offlineVerify(code);
+                if (r.found || r.message) setResult(r);
+                else next();
+            } else {
+                toast.error(e.message);
+                next();
+            }
         } finally {
             setBusy(false);
         }
@@ -51,11 +74,12 @@ export default function ScanCardPage() {
 
     return (
         <HubPage title="Scan ID card" eyebrow="AKK ID" narrow>
-            <div className="mb-4 grid grid-cols-3 gap-1.5 rounded-2xl bg-slate-100 p-1" role="tablist">
+            <div className="mb-4 grid grid-cols-2 gap-1.5 rounded-2xl bg-slate-100 p-1 sm:grid-cols-4" role="tablist">
                 {[
                     ['verify', 'Check card', ShieldCheck],
                     ['clock', 'Clock in / out', LogIn],
                     ['vehicle', 'Vehicle', Car],
+                    ['onsite', 'On site', Users],
                 ].map(([k, l, Icon]) => (
                     <button
                         key={k}
@@ -88,6 +112,12 @@ export default function ScanCardPage() {
                             </select>
                         </label>
                     ) : null}
+                    {result?.offline ? (
+                        <p className="flex items-center gap-2 rounded-xl bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
+                            <WifiOff className="h-4 w-4 shrink-0" /> No signal — checked against the card list saved{' '}
+                            {result.pack_saved_at ? new Date(result.pack_saved_at).toLocaleString('en-SG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'earlier'}.
+                        </p>
+                    ) : null}
                     {result ? (
                         <VerifyResult result={result}>
                             <Button type="button" className="mt-2 h-12 w-full" onClick={next}>
@@ -95,9 +125,18 @@ export default function ScanCardPage() {
                             </Button>
                         </VerifyResult>
                     ) : (
-                        <CardScanner key={nonce} onCode={onVerify} busy={busy} />
+                        <>
+                            <CardScanner key={nonce} onCode={onVerify} busy={busy} />
+                            <p className="text-center text-xs text-slate-400">
+                                {packAt
+                                    ? `Offline card list saved ${new Date(packAt).toLocaleString('en-SG', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} — cards can be checked without signal.`
+                                    : 'Saving the card list for offline checks…'}
+                            </p>
+                        </>
                     )}
                 </div>
+            ) : mode === 'onsite' ? (
+                <SiteHeadcount />
             ) : mode === 'vehicle' ? (
                 <VehicleByCard key={nonce} onNext={next} />
             ) : (

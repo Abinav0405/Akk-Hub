@@ -137,7 +137,7 @@ export default function VehicleByCard({ onNext }) {
             </div>
             {invalid ? (
                 <p className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-800">
-                    {stale ? 'Old code — ask the driver for the live card in the app.' : driver.checks?.[0]?.text || 'This card is not valid.'}
+                    {driver.reused ? 'Code already used by someone else — ask the driver for the live card again.' : stale ? 'Old code — ask the driver for the live card in the app.' : driver.checks?.[0]?.text || 'This card is not valid.'}
                 </p>
             ) : null}
             {otherVehicle ? (

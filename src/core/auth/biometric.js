@@ -371,6 +371,27 @@ export function biometricHaptic(kind) {
     }).catch(() => {});
 }
 
+/**
+ * Ask the phone's owner for a live fingerprint / face before showing something sensitive (the ID card
+ * QR). Resolves true when confirmed — and on the website or a phone with no biometrics enrolled, where
+ * there is nothing to ask. Resolves false when the person cancels or does not match.
+ */
+export async function confirmDeviceOwner({ title = 'Confirm it’s you', reason = 'Show your ID card' } = {}) {
+    if (!isNativeApp()) return true;
+    try {
+        const r = await NativeBiometric.isAvailable({ useFallback: true });
+        if (!r?.isAvailable) return true;
+    } catch {
+        return true;
+    }
+    try {
+        await NativeBiometric.verifyIdentity({ title, reason, subtitle: reason, negativeButtonText: 'Cancel', useFallback: true, maxAttempts: MAX_BIOMETRIC_ATTEMPTS });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Remembered phone for one-tap Face ID (camera face check, no password)
 // The server-issued key lives in the platform secure store (Keychain / Keystore-encrypted);

@@ -6,6 +6,8 @@
  *   - ticking clock + moving holographic band on the front (a screenshot is obviously still)
  *   - "Details" sheet (Singpass-style), number reveal for 10 s, QR full screen
  *   - no photo yet → "Add passport photo" (crop dialog) right on the card
+ *   - phone app: the QR / full number (and its barcode) need a fingerprint or face first, so a borrowed
+ *     unlocked phone cannot simply show someone else's card. The printed PVC card is not affected.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -17,6 +19,7 @@ import { getRoleSessionToken } from '@/core/auth/timesheetSession';
 import PhotoCropDialog from '@/ui/PhotoCropDialog';
 import { isNativeApp } from '@/core/platform';
 import { registerNativeBackHandler } from '@/core/nativeShell';
+import { confirmDeviceOwner } from '@/core/auth/biometric';
 import { cardsMe } from './api';
 import { CardBack, CardFront, cardStatus } from './CardFaces';
 import FlipCard from './FlipCard';
@@ -25,20 +28,27 @@ import { qrDataUrlWithLogo } from './qrWithLogo';
 
 const REFRESH_MS = 30_000;
 const STALE_MS = 115_000;
+// In the phone app the QR and full number need a fingerprint / face first; one check lasts this long.
+const UNLOCK_MS = 5 * 60_000;
 
 function useLiveCode(enabled, employeeId) {
     const [code, setCode] = useState(null);
     const [at, setAt] = useState(0);
     const [src, setSrc] = useState(null);
     const busy = useRef(false);
+    // Bumped when the ID changes, so a reply for the previous ID is dropped and never shown.
+    const gen = useRef(0);
     const refresh = useCallback(async () => {
         if (busy.current) return;
         busy.current = true;
+        const mine = gen.current;
         try {
             const r = await cardsMe.liveCode(employeeId);
+            const img = await qrDataUrlWithLogo(qrPayload(r.code), { margin: 1, width: 420 });
+            if (mine !== gen.current) return;
             setCode(r.code);
             setAt(Date.now());
-            setSrc(await qrDataUrlWithLogo(qrPayload(r.code), { margin: 1, width: 420 }));
+            setSrc(img);
         } catch {
             /* offline: keep the last code; it is marked old after 2 minutes */
         } finally {
@@ -46,6 +56,8 @@ function useLiveCode(enabled, employeeId) {
         }
     }, [employeeId]);
     useEffect(() => {
+        gen.current += 1;
+        busy.current = false;
         setCode(null);
         setAt(0);
         setSrc(null);
@@ -107,6 +119,8 @@ export default function DigitalCard({ canEditPhoto = false }) {
     const hideTimer = useRef(0);
     const qrCloseRef = useRef(null);
     const qrOpenerRef = useRef(null);
+    const [unlockedAt, setUnlockedAt] = useState(0);
+    const asking = useRef(null);
 
     useEffect(() => {
         if (!UNIFIED) return;
@@ -151,16 +165,36 @@ export default function DigitalCard({ canEditPhoto = false }) {
         };
     }, [zoom]);
 
+    const unlocked = !isNativeApp() || Date.now() - unlockedAt < UNLOCK_MS;
+    /** Fingerprint / face before the QR or number is shown (phone app only); one prompt at a time. */
+    const ensureUnlocked = async () => {
+        if (!isNativeApp() || Date.now() - unlockedAt < UNLOCK_MS) return true;
+        asking.current ||= confirmDeviceOwner({ title: 'Show your ID card', reason: 'Confirm it’s you to show the card QR' }).finally(() => {
+            asking.current = null;
+        });
+        const ok = await asking.current;
+        if (ok) setUnlockedAt(Date.now());
+        return ok;
+    };
+
     const flip = (next) => {
         void tapFeedback();
         setFlipped(next);
+        if (next) {
+            ensureUnlocked().then((ok) => {
+                if (!ok) setFlipped(false);
+            });
+        }
     };
-    const toggleNumber = () => {
+    const showQr = async () => {
+        void tapFeedback();
+        if (await ensureUnlocked()) setZoom(true);
+    };
+    const toggleNumber = async () => {
         window.clearTimeout(hideTimer.current);
-        setShowNumber((v) => {
-            if (!v) hideTimer.current = window.setTimeout(() => setShowNumber(false), 10_000);
-            return !v;
-        });
+        if (!showNumber && !(await ensureUnlocked())) return;
+        setShowNumber((v) => !v);
+        if (!showNumber) hideTimer.current = window.setTimeout(() => setShowNumber(false), 10_000);
     };
 
     const reportLost = async () => {
@@ -201,7 +235,7 @@ export default function DigitalCard({ canEditPhoto = false }) {
 
     const status = cardStatus(card);
     const progress = live.at ? Math.min(1, (Date.now() - live.at) / REFRESH_MS) : null;
-    const qr = valid ? { src: live.src, stale, progress: stale ? null : progress } : null;
+    const qr = !valid ? null : unlocked ? { src: live.src, stale, progress: stale ? null : progress } : { src: null, locked: true, stale: false, progress: null };
     const theme = themeFor(card.role);
     const needsPhoto = !card.photo && canEditPhoto;
     const copyNumber = async () => {
@@ -263,7 +297,7 @@ export default function DigitalCard({ canEditPhoto = false }) {
                     onFlip={flip}
                     label={`${theme.label.toLowerCase()} ID card`}
                     front={<CardFront card={card} live={valid} onAddPhoto={needsPhoto ? pickPhoto : undefined} />}
-                    back={<CardBack card={card} qr={qr} number={{ full: card.card_number, show: showNumber, onToggle: toggleNumber }} onQrClick={() => setZoom(true)} />}
+                    back={<CardBack card={card} qr={qr} number={{ full: card.card_number, show: showNumber, onToggle: toggleNumber }} onQrClick={showQr} />}
                 />
             </div>
 
@@ -275,10 +309,7 @@ export default function DigitalCard({ canEditPhoto = false }) {
                     <button
                         type="button"
                         className="akc-action akc-action--primary"
-                        onClick={() => {
-                            void tapFeedback();
-                            setZoom(true);
-                        }}
+                        onClick={showQr}
                         disabled={!live.src}
                     >
                         {live.src ? <QrCode aria-hidden /> : <Loader2 className="animate-spin" aria-hidden />} Show QR
@@ -359,7 +390,7 @@ export default function DigitalCard({ canEditPhoto = false }) {
                 </DialogContent>
             </Dialog>
 
-            {zoom && qr?.src ? createPortal(
+            {zoom && unlocked && qr?.src ? createPortal(
                 <div className="akc-qrzoom" role="dialog" aria-modal="true" aria-label="Your card QR code" onClick={() => setZoom(false)}>
                     {/* White, high-contrast, generous quiet zone: readable by every scanner. Backdrop click closes. */}
                     <div className="akc-qrzoom__box text-center" onClick={(e) => e.stopPropagation()}>

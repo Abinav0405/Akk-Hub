@@ -138,6 +138,8 @@ export default function FlipCard({ front, back, flipped = false, onFlip, tilt = 
             ref={rootRef}
             className={`akc-flip ${className}`}
             data-flipped={flipped ? 'true' : 'false'}
+            // Sideways drags turn the card — keep the phone's swipe-between-tabs off it.
+            data-no-swipe={onFlip ? '' : undefined}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={endDrag}

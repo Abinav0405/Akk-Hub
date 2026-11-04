@@ -1,9 +1,9 @@
 /**
  * Admin → Employees → "ID cards": every card at a glance, filters (expiring, no photo, role, state),
- * batch print to PVC (admin only), and the scan log.
+ * batch print to PVC (admin only), the scan log, and the security feed (card alerts, sign-ins, lockouts).
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { BadgeCheck, CreditCard, Loader2, Printer, ScanLine, Search } from 'lucide-react';
+import { BadgeCheck, CreditCard, Loader2, Printer, ScanLine, Search, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/ui/button';
 import { cn } from '@/ui/utils';
@@ -11,6 +11,7 @@ import { UNIFIED } from '@/core/supabase';
 import { openWorkerProfile } from '@/features/workerInfo/WorkerProfile';
 import { cardsAdmin } from './api';
 import { downloadPvcCards } from './pvcPrint';
+import SecurityFeed from './SecurityFeed';
 import { STATE_LABEL, daysLeft, fmtDate, themeFor } from './cardModel';
 
 const ROLE_DOT = { employee: 'bg-red-600', supervisor: 'bg-blue-600', manager: 'bg-emerald-600', admin: 'bg-white ring-2 ring-red-600' };
@@ -130,6 +131,7 @@ export default function CardsAdminPanel() {
                     {[
                         ['cards', 'Cards', CreditCard],
                         ['scans', 'Scan log', ScanLine],
+                        ['security', 'Security', ShieldAlert],
                     ].map(([k, l, Icon]) => (
                         <button
                             key={k}
@@ -312,6 +314,8 @@ export default function CardsAdminPanel() {
                         ) : null}
                     </div>
                 </>
+            ) : tab === 'security' ? (
+                <SecurityFeed />
             ) : (
                 <>
                     <ul className="mt-3 divide-y divide-[var(--g-hairline)] overflow-hidden rounded-xl border border-[var(--g-hairline)] text-sm">

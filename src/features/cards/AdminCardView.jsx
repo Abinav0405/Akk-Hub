@@ -48,8 +48,16 @@ export default function AdminCardView({ employeeId, actions = true, onChanged })
 
     const card = d?.card ? { ...d.card, role: d.role } : null;
     useEffect(() => {
-        if (!card?.qr_token) return;
-        qrDataUrlWithLogo(qrPayload(`AKK1P.${card.qr_token}`), { margin: 1, width: 360 }).then(setQrSrc).catch(() => setQrSrc(null));
+        // Never leave the previous person's QR on this card while (or instead of) drawing the new one.
+        setQrSrc(null);
+        if (!card?.qr_token) return undefined;
+        let live = true;
+        qrDataUrlWithLogo(qrPayload(`AKK1P.${card.qr_token}`), { margin: 1, width: 360 })
+            .then((src) => live && setQrSrc(src))
+            .catch(() => live && setQrSrc(null));
+        return () => {
+            live = false;
+        };
     }, [card?.qr_token]);
 
     useEffect(() => {

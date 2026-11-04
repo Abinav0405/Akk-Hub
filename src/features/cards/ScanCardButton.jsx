@@ -27,7 +27,7 @@ export default function ScanCardButton({ onPick, purpose = 'materials', label = 
             const state = r.card?.state;
             const stale = r.method === 'live' && r.live === false;
             if (state !== 'valid' || stale) {
-                setBad({ card: r.card, why: stale ? 'Old code — ask for the live card in the app.' : r.checks?.[0]?.text || 'This card is not valid.' });
+                setBad({ card: r.card, why: r.reused ? 'Code already used by someone else — ask for the live card again in the app.' : stale ? 'Old code — ask for the live card in the app.' : r.checks?.[0]?.text || 'This card is not valid.' });
                 return;
             }
             onPick({ employee_id: r.card.employee_id, name: r.card.name, scan_id: r.scan_id });
