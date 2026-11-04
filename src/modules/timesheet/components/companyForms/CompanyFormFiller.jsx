@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, ChevronLeft, ChevronRight, Send, CheckCheck, RotateCcw } from 'lucide-react';
 import { Button } from '@/ui/button';
 import { Badge } from '@/ui/badge';
-import { FieldBlock, ChecklistItemButtons } from '@/modules/timesheet/components/companyForms/FormFieldControls';
+import { FieldBlock, ChecklistItemButtons, fieldApplies, formatFieldValue } from '@/modules/timesheet/components/companyForms/FormFieldControls';
+import useTransmittalAssist from '@/modules/timesheet/components/companyForms/useTransmittalAssist';
 import FormTableEditor, { buildInitialTableRows } from '@/modules/timesheet/components/companyForms/FormTableEditor';
 import { evaluateFormFlags, LAYOUT } from '@/modules/timesheet/lib/companyForms';
 import { getTodaySingapore } from '@/modules/timesheet/lib/timeUtils';
@@ -18,6 +19,8 @@ function buildInitialFields(def, workerName) {
             fields[field.key] = workerName || '';
         } else if (field.type === 'date') {
             fields[field.key] = getTodaySingapore();
+        } else if (field.type === 'multi_check') {
+            fields[field.key] = [];
         } else {
             fields[field.key] = '';
         }
@@ -47,7 +50,7 @@ export function clearFormDraft(key) {
 
 function validateFields(fieldDefs, values) {
     for (const field of fieldDefs) {
-        if (field.required === false) continue;
+        if (field.required === false || !fieldApplies(field, values)) continue;
         const v = values[field.key];
         if (v == null || String(v).trim() === '') {
             return `${field.label} is required`;
@@ -101,8 +104,10 @@ export default function CompanyFormFiller({
 
     const reviewStepIndex = totalSteps - 1;
 
+    const assist = useTransmittalAssist({ definition, fields, setFields, initialPayload });
+
     const setField = (key, value) => {
-        setFields((prev) => ({ ...prev, [key]: value }));
+        setFields((prev) => assist.applyChange(prev, key, value));
     };
 
     const payload = useMemo(
@@ -183,6 +188,7 @@ export default function CompanyFormFiller({
                 }
                 for (let i = 0; i < tableRows.length; i += 1) {
                     for (const col of definition.table.columns) {
+                        if (col.required === false) continue;
                         const v = tableRows[i][col.key];
                         if (v == null || String(v).trim() === '') {
                             toast.error(`Row ${i + 1}: ${col.label} is required`);
@@ -209,6 +215,8 @@ export default function CompanyFormFiller({
             }
         }
 
+        if (!(await assist.checkBeforeSubmit(fields))) return;
+
         await onSubmit(payload);
         clearFormDraft(draftKey);
     };
@@ -224,14 +232,32 @@ export default function CompanyFormFiller({
     const allItems = sections.flatMap((sec) => sec.items.map((item) => ({ ...item, section: sec.title })));
     const badItems = allItems.filter((item) => checklist[item.key] === badValue);
 
+    const renderHint = (key) => {
+        const h = assist.hints[key];
+        if (!h) return null;
+        return (
+            <span className={cn('flex flex-wrap items-center gap-x-2', h.tone === 'bad' && 'text-red-600')}>
+                {h.text}
+                {h.fix ? (
+                    <button type="button" className="font-semibold text-[var(--g-brand)] underline-offset-2 hover:underline" onClick={() => assist.applyNumber(h.fix)}>
+                        Use {h.fix}
+                    </button>
+                ) : null}
+            </span>
+        );
+    };
+
     const renderHeaderFields = () => (
         <div className="grid gap-4 sm:grid-cols-2">
-            {(definition.fields || []).map((field) => (
+            {(definition.fields || []).filter((field) => fieldApplies(field, fields)).map((field) => (
                 <FieldBlock
                     key={field.key}
                     field={field}
                     value={fields[field.key]}
                     onChange={(v) => setField(field.key, v)}
+                    suggestions={field.suggest ? assist.suggestions[field.key] : null}
+                    hint={renderHint(field.key)}
+                    className={field.wide ? 'sm:col-span-2' : undefined}
                 />
             ))}
         </div>
@@ -300,16 +326,10 @@ export default function CompanyFormFiller({
                 </div>
             )}
             <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-3 text-sm text-slate-700 space-y-1">
-                {(definition.fields || []).map((field) => (
+                {[...(definition.fields || []), ...(definition.extraFields || [])].filter((field) => fieldApplies(field, fields)).map((field) => (
                     <p key={field.key}>
                         <span className="text-slate-500">{field.label}: </span>
-                        {String(fields[field.key] || '—')}
-                    </p>
-                ))}
-                {(definition.extraFields || []).map((field) => (
-                    <p key={field.key}>
-                        <span className="text-slate-500">{field.label}: </span>
-                        {String(fields[field.key] || '—')}
+                        {formatFieldValue(fields[field.key])}
                     </p>
                 ))}
             </div>

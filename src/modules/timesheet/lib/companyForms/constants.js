@@ -34,6 +34,19 @@ export const VENDOR_EVAL_CRITERIA = [
     'Workmanship',
 ];
 
+export const TRANSMITTAL_VIA = ['Hand Delivery', 'Courier', 'Email / Soft Copy', 'Registered Mail', 'Others'];
+
+export const TRANSMITTAL_PURPOSE = [
+    'For Approval',
+    'For Record',
+    'For Information',
+    'As Requested',
+    'For Action',
+    'For Signature',
+    'For Comments',
+    'For Payment',
+];
+
 /** Default recommended results for reviewers after a form is submitted. */
 export const DEFAULT_RECOMMENDED_RESULTS = [
     'Cleared to proceed',

@@ -22,7 +22,8 @@ import {
 /** Last answers → a starting point for today's form (dates go back to today, names stay). */
 function reusablePayload(definition, payload) {
     if (!payload) return null;
-    const dateKeys = new Set([...(definition.fields || []), ...(definition.extraFields || [])].filter((x) => x.type === 'date').map((x) => x.key));
+    // Dates go back to today and running numbers (e.g. transmittal no.) are issued fresh.
+    const dateKeys = new Set([...(definition.fields || []), ...(definition.extraFields || [])].filter((x) => x.type === 'date' || x.numbering).map((x) => x.key));
     const fields = Object.fromEntries(Object.entries(payload.fields || {}).filter(([k]) => !dateKeys.has(k)));
     return { fields, checklist: { ...(payload.checklist || {}) }, tableRows: Array.isArray(payload.tableRows) ? payload.tableRows.map((r) => ({ ...r })) : [] };
 }

@@ -1,4 +1,4 @@
-import { LAYOUT, VENDOR_EVAL_CRITERIA } from './constants';
+import { LAYOUT, TRANSMITTAL_PURPOSE, TRANSMITTAL_VIA, VENDOR_EVAL_CRITERIA } from './constants';
 
 const f = (key, label, type = 'text', opts = {}) => ({
     key,
@@ -8,6 +8,14 @@ const f = (key, label, type = 'text', opts = {}) => ({
     auto: opts.auto || null,
     options: opts.options || null,
     placeholder: opts.placeholder || null,
+    // Pre-filled but editable (e.g. 'transmittal' = next transmittal number).
+    numbering: opts.numbering || null,
+    // Offer earlier answers for this field as suggestions.
+    suggest: opts.suggest || false,
+    // Full width in the two-column layout.
+    wide: opts.wide || false,
+    // Only shown when another field holds a value: { field, has }.
+    when: opts.when || null,
 });
 
 const section = (key, title, items) => ({
@@ -826,6 +834,48 @@ export const FORM_CATALOG = {
             f('method_sequence', 'Method / Sequence of Work', 'textarea'),
         ],
     }),
+
+    transmittal: {
+        ...tableForm({
+            key: 'transmittal',
+            title: 'Transmittal Form',
+            department: 'engineering',
+            fields: [
+                f('company_name', 'Company Name', 'text', { suggest: true }),
+                f('transmittal_no', 'Transmittal No.', 'text', { numbering: 'transmittal' }),
+                f('attn', 'Attn', 'text', { required: false, suggest: true }),
+                DATE(),
+                f('address', 'Address', 'textarea', { required: false }),
+                f('project_ref', 'Project Ref.', 'text', { required: false, suggest: true }),
+                f('project', 'Project', 'text', { suggest: true }),
+                f('our_ref', 'Our Ref.', 'text', { required: false }),
+                f('tel_email', 'Tel / Email', 'text', { required: false }),
+                f('no_of_pages', 'No. of Pages', 'number', { required: false }),
+                f('transmitted_via', 'Transmitted Via', 'multi_check', { options: TRANSMITTAL_VIA, wide: true }),
+                f('via_others', 'Others (please state)', 'text', { required: false, wide: true, when: { field: 'transmitted_via', has: 'Others' } }),
+                f('purpose', 'Purpose of Transmittal', 'multi_check', { options: TRANSMITTAL_PURPOSE, wide: true }),
+                f('remarks', 'Remarks / Special Instructions', 'textarea', { required: false, wide: true }),
+                f('transmitted_by', 'Transmitted By', 'text', { auto: 'worker_name' }),
+                f('designation', 'Designation', 'text', { required: false }),
+            ],
+            table: {
+                key: 'documents',
+                label: 'Documents / drawings',
+                minRows: 1,
+                columns: [
+                    { key: 'description', label: 'Description of Document / Drawing', type: 'text' },
+                    { key: 'doc_no', label: 'Document / Drawing No.', type: 'text', required: false },
+                    { key: 'rev', label: 'Rev', type: 'text', required: false },
+                    { key: 'doc_date', label: 'Date', type: 'date', required: false },
+                    { key: 'copies', label: 'No. of Copies', type: 'number' },
+                    { key: 'hard_soft', label: 'Hard / Soft', type: 'select', options: ['Hard', 'Soft', 'Hard & Soft'] },
+                    { key: 'doc_remarks', label: 'Remarks', type: 'text', required: false },
+                ],
+            },
+        }),
+        // Printed in the company transmittal layout (see document.js), not the generic one.
+        printLayout: 'transmittal',
+    },
 
     // ── Contract ────────────────────────────────────────────
     tender_checklist: checklistForm({

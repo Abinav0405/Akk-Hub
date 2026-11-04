@@ -8,6 +8,7 @@ import {
     riskBand,
 } from '@/modules/timesheet/lib/companyForms';
 import { glassPanel } from '@/ui/glass';
+import { formatFieldValue } from '@/modules/timesheet/components/companyForms/FormFieldControls';
 import { cn } from '@/modules/timesheet/lib/utils';
 
 function StatusBadge({ status }) {
@@ -71,13 +72,13 @@ export default function CompanyFormSubmissionView({ submission }) {
                 {(def?.fields || Object.keys(fields).map((k) => ({ key: k, label: k }))).map((field) => (
                     <p key={field.key} className="text-sm text-slate-700">
                         <span className="text-slate-500">{field.label}: </span>
-                        {String(fields[field.key] ?? '—')}
+                        {formatFieldValue(fields[field.key])}
                     </p>
                 ))}
                 {(def?.extraFields || []).map((field) => (
                     <p key={field.key} className="text-sm text-slate-700">
                         <span className="text-slate-500">{field.label}: </span>
-                        {String(fields[field.key] ?? '—')}
+                        {formatFieldValue(fields[field.key])}
                     </p>
                 ))}
             </div>

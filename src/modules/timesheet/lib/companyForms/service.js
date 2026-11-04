@@ -20,6 +20,14 @@ import {
 const SUBMISSION_LIST_COLUMNS =
     'id, form_key, department, worker_id, worker_type, worker_name, status, is_flagged, flag_reasons, payload, reviewed_by, reviewed_by_role, reviewed_at, review_note, recommended_result, definition_snapshot, created_at, updated_at';
 
+/** The database refuses a transmittal number that is already in use (migration 108). */
+function friendlyError(error) {
+    if (error?.code === '23505' && /transmittal/i.test(String(error?.message || ''))) {
+        return new Error('This transmittal number is already used. Change the number and send again.');
+    }
+    return error;
+}
+
 function missingColumn(error, column) {
     return new RegExp(column, 'i').test(String(error?.message || ''));
 }
@@ -225,7 +233,7 @@ export async function submitCompanyForm({
             .select()
             .single());
     }
-    if (error) throw error;
+    if (error) throw friendlyError(error);
     return data;
 }
 
@@ -379,7 +387,7 @@ export async function updatePendingSubmission({ id, payload }) {
             .maybeSingle());
     }
 
-    if (error) throw error;
+    if (error) throw friendlyError(error);
     if (!data) {
         const latest = await getSubmission(id);
         if (latest && latest.status !== SUBMISSION_STATUS.PENDING) {

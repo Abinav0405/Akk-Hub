@@ -1,4 +1,5 @@
 import React from 'react';
+import { Check } from 'lucide-react';
 import { Input } from '@/ui/input';
 import { Textarea } from '@/ui/textarea';
 import {
@@ -11,8 +12,23 @@ import {
 import { cn } from '@/modules/timesheet/lib/utils';
 import { glassInput } from '@/ui/glass';
 
-export function FormFieldControl({ field, value, onChange, disabled = false }) {
+/** Tick-box answers are stored as an array of the ticked options. */
+export function formatFieldValue(value) {
+    if (Array.isArray(value)) return value.length ? value.join(', ') : '—';
+    if (value === null || value === undefined || String(value).trim() === '') return '—';
+    return String(value);
+}
+
+/** `when: { field, has }` — the field only applies when that other answer holds the value. */
+export function fieldApplies(field, values) {
+    if (!field?.when) return true;
+    const v = values?.[field.when.field];
+    return Array.isArray(v) ? v.includes(field.when.has) : v === field.when.has;
+}
+
+export function FormFieldControl({ field, value, onChange, disabled = false, suggestions = null }) {
     const id = `cf-${field.key}`;
+    const listId = suggestions?.length ? `${id}-list` : undefined;
     const common = {
         id,
         disabled,
@@ -48,6 +64,46 @@ export function FormFieldControl({ field, value, onChange, disabled = false }) {
                     ))}
                 </SelectContent>
             </Select>
+        );
+    }
+
+    if (field.type === 'multi_check') {
+        const picked = Array.isArray(value) ? value : [];
+        const toggle = (opt) =>
+            onChange(picked.includes(opt) ? picked.filter((x) => x !== opt) : (field.options || []).filter((o) => o === opt || picked.includes(o)));
+        return (
+            <div id={id} role="group" aria-label={field.label} className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
+                {(field.options || []).map((opt) => {
+                    const active = picked.includes(opt);
+                    return (
+                        <button
+                            key={opt}
+                            type="button"
+                            role="checkbox"
+                            aria-checked={active}
+                            disabled={disabled}
+                            onClick={() => toggle(opt)}
+                            className={cn(
+                                'flex h-11 items-center gap-2.5 rounded-xl border px-3 text-left text-sm font-medium transition-colors',
+                                active
+                                    ? 'border-[var(--g-brand)] bg-[var(--g-brand-soft)] text-slate-900'
+                                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
+                            )}
+                        >
+                            <span
+                                aria-hidden="true"
+                                className={cn(
+                                    'flex h-5 w-5 shrink-0 items-center justify-center rounded-md border',
+                                    active ? 'border-[var(--g-brand)] bg-[var(--g-brand)] text-white' : 'border-slate-300 bg-white'
+                                )}
+                            >
+                                {active ? <Check className="h-3.5 w-3.5" strokeWidth={3} /> : null}
+                            </span>
+                            {opt}
+                        </button>
+                    );
+                })}
+            </div>
         );
     }
 
@@ -91,20 +147,31 @@ export function FormFieldControl({ field, value, onChange, disabled = false }) {
                   : 'text';
 
     return (
-        <Input
-            {...common}
-            type={inputType}
-            value={value ?? ''}
-            placeholder={field.placeholder || ''}
-            onChange={(e) => onChange(e.target.value)}
-            readOnly={Boolean(field.auto) && disabled !== true && field.autoLocked}
-        />
+        <>
+            <Input
+                {...common}
+                type={inputType}
+                value={value ?? ''}
+                placeholder={field.placeholder || ''}
+                onChange={(e) => onChange(e.target.value)}
+                readOnly={Boolean(field.auto) && disabled !== true && field.autoLocked}
+                list={listId}
+                autoComplete={listId ? 'off' : undefined}
+            />
+            {listId ? (
+                <datalist id={listId}>
+                    {suggestions.map((s) => (
+                        <option key={s} value={s} />
+                    ))}
+                </datalist>
+            ) : null}
+        </>
     );
 }
 
-export function FieldBlock({ field, value, onChange, disabled }) {
+export function FieldBlock({ field, value, onChange, disabled, suggestions, hint, className }) {
     return (
-        <div className="space-y-1.5">
+        <div className={cn('space-y-1.5', className)}>
             <label htmlFor={`cf-${field.key}`} className="text-xs font-medium uppercase tracking-wide text-slate-500">
                 {field.label}
                 {field.required !== false ? <span className="text-red-500"> *</span> : null}
@@ -114,7 +181,9 @@ export function FieldBlock({ field, value, onChange, disabled }) {
                 value={value}
                 onChange={onChange}
                 disabled={disabled || Boolean(field.auto)}
+                suggestions={suggestions}
             />
+            {hint ? <p className="text-xs text-slate-500">{hint}</p> : null}
         </div>
     );
 }
