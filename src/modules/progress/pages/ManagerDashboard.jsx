@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Loader2, ClipboardList, Users, Palette, FileText, MapPin } from 'lucide-react';
+import { Loader2, ClipboardList, Users, FileText, MapPin } from 'lucide-react';
 import ProgressPortalShell from '@/modules/progress/components/ProgressPortalShell';
 import PackageReviewBoard from '@/modules/progress/components/PackageReviewBoard';
 import WorkerAccountsPanel from '@/modules/progress/components/WorkerAccountsPanel';
@@ -13,9 +13,9 @@ import AuthChecking from '@/ui/AuthChecking';
 import { prefetchStaffRoutesIdle } from '@/modules/progress/lib/prefetchRoutes';
 import { useHubSection } from '@/app/useHubSection';
 
-const MANAGER_SECTIONS = ['packages', 'workers', 'jsr', 'sites', 'branding'];
+// Photo branding is admin-only; managers no longer get a Branding page.
+const MANAGER_SECTIONS = ['packages', 'workers', 'jsr', 'sites'];
 
-const BrandingPanel = lazy(() => import('@/modules/progress/components/BrandingPanel'));
 const ProgressSitesPanel = lazy(() => import('@/modules/progress/components/ProgressSitesPanel'));
 const CommercialHub = lazy(() => import('@/modules/progress/components/jsr/CommercialHub'));
 
@@ -23,7 +23,6 @@ const SECTION_LABELS = {
   packages: 'Packages',
   workers: 'Employees',
   sites: 'Sites',
-  branding: 'Branding',
   jsr: 'JSR & billing',
 };
 
@@ -63,7 +62,6 @@ export default function ManagerDashboard() {
         label: 'People & admin',
         items: [
           { id: 'workers', label: 'Employees', icon: Users },
-          { id: 'branding', label: 'Branding', icon: Palette },
         ],
       },
     ],
@@ -100,17 +98,6 @@ export default function ManagerDashboard() {
             <ProgressSitesPanel />
           </Suspense>
         ) : null}
-        {tab === 'branding' ? (
-          <Suspense
-            fallback={
-              <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
-                <Loader2 className="h-5 w-5 animate-spin" /> Loading branding…
-              </div>
-            }
-          >
-            <BrandingPanel />
-          </Suspense>
-        ) : null}
         {tab === 'jsr' ? (
           <Suspense
             fallback={
@@ -130,7 +117,6 @@ export default function ManagerDashboard() {
             { id: 'sites', icon: MapPin, label: 'Sites', active: tab === 'sites', onClick: () => setTab('sites') },
             { id: 'workers', icon: Users, label: 'Employees', active: tab === 'workers', onClick: () => setTab('workers') },
             { id: 'jsr', icon: FileText, label: 'JSR', active: tab === 'jsr', onClick: () => setTab('jsr') },
-            { id: 'branding', icon: Palette, label: 'Brand', active: tab === 'branding', onClick: () => setTab('branding') },
           ]}
         />
       ) : null}

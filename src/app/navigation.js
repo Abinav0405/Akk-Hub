@@ -200,7 +200,6 @@ export const NAV = {
             {
                 label: 'Settings',
                 items: [
-                    { id: 'pbranding', label: 'Branding', icon: Palette, ...sec(PR_REVIEW, 'branding') },
                     ...scanCardItems,
                     verifyItem,
                     accountItem,
