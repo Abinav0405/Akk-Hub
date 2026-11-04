@@ -50,6 +50,17 @@ export function CertifiedMoney({ submitted, certified, className }) {
   );
 }
 
+/** "−$ 234.50" in red / "+$ 25.00" in green / "No change" — certified versus original. */
+export function CertifiedChange({ original, certified, suffix, className }) {
+  const change = clientAdjustment(original, certified);
+  return (
+    <span className={cn('tabular-nums', change.delta > 0 && 'text-emerald-700', change.delta < 0 && 'text-red-700', !change.delta && 'text-muted-foreground', className)}>
+      {change.delta ? `$ ${fmtSignedMoney(change.delta)}` : 'No change'}
+      {suffix ? <span className="text-muted-foreground"> · {suffix}</span> : null}
+    </span>
+  );
+}
+
 export function LineCertificationTable({ rows, showRate = false }) {
   const list = rows || [];
   const hasLines = list.some((row) => hasCertifiedAmount(row.certifiedAmount));

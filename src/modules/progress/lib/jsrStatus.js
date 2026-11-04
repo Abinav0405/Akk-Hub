@@ -43,6 +43,8 @@ export const CLIENT_VISIBLE_STATUSES = [
   'invoicesubmitted',
   'paymentpending',
   'paid',
+  // A JSR on a claim stays with the client, so its Export Only set can still change.
+  'claimed',
 ];
 
 const BADGE_CLASS = {

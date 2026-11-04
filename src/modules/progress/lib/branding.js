@@ -150,7 +150,7 @@ function normalizeBranding(row) {
     logo_position: logoCell,
     overlay_position: overlayCell,
     overlay_lines: overlayLines,
-    // GPS (±accuracy) stays in the details box — ignore legacy separate-chip coords.
+    // GPS coordinates stay in the details box — ignore legacy separate-chip coords.
     gps_position: null,
     logo_x_pct: logoX,
     logo_y_pct: logoY,

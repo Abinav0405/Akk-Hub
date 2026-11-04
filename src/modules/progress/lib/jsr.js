@@ -462,6 +462,45 @@ export async function getClaim(id) {
   return rpc('staff_get_claim', { p_claim_id: id, p_manager_token: managerToken() }, 'Could not load that claim');
 }
 
+/** Claim statuses from "Payment cert received" on — the claim's certified line prices are approved. */
+export const CLAIM_PAYMENT_CERT_STATUSES = ['paymentcert', 'invoiceprepared', 'invoicesubmitted', 'paymentpending', 'paid'];
+
+/** [jsrId, { claim_no, original, certified }] for each JSR line the claim's payment cert approved. */
+function claimCertifiedEntries(claim) {
+  if (!claim || !CLAIM_PAYMENT_CERT_STATUSES.includes(claim.status)) return [];
+  return (claim.jsrs || [])
+    .filter((j) => j?.id && hasCertifiedAmount(j.certified_amount))
+    .map((j) => [j.id, {
+      claim_id: claim.id,
+      claim_no: claim.claim_no,
+      original: roundMoney(j.total),
+      certified: roundMoney(j.certified_amount),
+    }]);
+}
+
+/**
+ * JSR id → the price approved for it on its claim's payment certificate (same stored figures as
+ * the claim's "Certified line prices"). Empty when the viewer cannot read claims.
+ */
+export async function listClaimCertifiedPrices() {
+  let claims = [];
+  try {
+    claims = await listClaims();
+  } catch {
+    return new Map();
+  }
+  const certified = claims.filter((c) => CLAIM_PAYMENT_CERT_STATUSES.includes(c.status));
+  const details = await runPool(certified, 4, (c) => getClaim(c.id).catch(() => null));
+  return new Map(details.flatMap(claimCertifiedEntries));
+}
+
+/** The payment-cert price for one JSR, or null while its claim has no payment cert yet. */
+export async function getClaimCertifiedPrice(jsr) {
+  if (!jsr?.id || !jsr.claim_id) return null;
+  const claim = await getClaim(jsr.claim_id).catch(() => null);
+  return new Map(claimCertifiedEntries(claim)).get(jsr.id) || null;
+}
+
 /**
  * Saves the "submitted by / checked by" details a claim PDF prints. Called right before
  * passing a claim to the client, so what staff typed is what the client's copy shows.

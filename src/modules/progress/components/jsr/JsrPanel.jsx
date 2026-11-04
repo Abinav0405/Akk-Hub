@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { ChevronRight, Download, Eye, FileText, Link2, Pencil, Plus, Sheet, Trash2 } from 'lucide-react';
 import MoreMenu from '@/modules/progress/components/MoreMenu';
@@ -21,6 +21,7 @@ import {
   commercialWorkflow,
   deleteJsr,
   formatContractOption,
+  getClaimCertifiedPrice,
   getJsr,
   hasCertifiedAmount,
   jsrDeleteConfirmText,
@@ -29,6 +30,7 @@ import {
   jsrHasExporters,
   jsrLinkedPackageChipLabel,
   jsrPackagePickerName,
+  listClaimCertifiedPrices,
   listJsrs,
   listJsrPackages,
   JSR_NUMBER_EDITABLE_STATUSES,
@@ -41,7 +43,7 @@ import {
 import { CLIENT_VISIBLE_STATUSES, clientAdjustment, fmtMoney, monthName } from '@/modules/progress/lib/jsrStatus';
 import { jsrCan } from '@/modules/progress/lib/jsrPermissions';
 import { packageHeading } from '@/modules/progress/lib/sectionLabel';
-import { StatusBadge, Money, CertifiedMoney, HistoryTable, LineCertificationTable, exportRecord, exportInvoice } from '@/modules/progress/components/jsr/shared';
+import { StatusBadge, Money, CertifiedMoney, CertifiedChange, HistoryTable, LineCertificationTable, exportRecord, exportInvoice } from '@/modules/progress/components/jsr/shared';
 import DocumentAuditTrail from '@/modules/progress/components/DocumentAuditTrail';
 import WorkflowBar from '@/modules/progress/components/jsr/WorkflowBar';
 import InvoicePrepareDialog from '@/modules/progress/components/jsr/InvoicePrepareDialog';
@@ -83,9 +85,20 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
   const [passOpen, setPassOpen] = useState(false);
   const [passAction, setPassAction] = useState('pass_to_client');
 
+  const refreshSeq = useRef(0);
   const refresh = () => {
+    const seq = ++refreshSeq.current;
+    const claimCerts = listClaimCertifiedPrices().catch(() => new Map());
     listJsrs()
-      .then(setRows)
+      .then((list) => {
+        if (seq !== refreshSeq.current) return undefined;
+        setRows(list);
+        // Payment-cert prices arrive after the list so it never waits on every claim.
+        return claimCerts.then((certs) => {
+          if (seq !== refreshSeq.current || !certs.size) return;
+          setRows(list.map((r) => (certs.has(r.id) ? { ...r, claim_cert: certs.get(r.id) } : r)));
+        });
+      })
       .catch((e) => {
         toast.error(e.message || 'Could not load JSRs');
         setRows([]);
@@ -119,7 +132,7 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
     );
   }, [monthRows, stage, siteF, scheduleF, search]);
   const filteredTotal = useMemo(
-    () => filtered.reduce((sum, r) => sum + (Number(r.client_certified_amount ?? r.total) || 0), 0),
+    () => filtered.reduce((sum, r) => sum + (Number(jsrPriceBasis(r).certified ?? jsrPriceBasis(r).submitted) || 0), 0),
     [filtered]
   );
 
@@ -129,7 +142,7 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
     const header = ['JSR no', 'Description', 'Site', 'Schedule', 'SC work', 'Date', 'Amount', 'Certified', 'Status', 'Claim'];
     const lines = filtered.map((r) => [
       r.jsr_no, r.summary || r.location || '', r.site_name, r.contract_code, r.sc_work,
-      r.jsr_date, Number(r.total) || 0, r.client_certified_amount ?? '', r.status, r.claim_no || '',
+      r.jsr_date, Number(r.total) || 0, jsrPriceBasis(r).certified ?? '', r.status, r.claim_no || '',
     ].map(cell).join(','));
     const blob = new Blob([`\uFEFF${[header.map(cell).join(','), ...lines].join('\r\n')}`], { type: 'text/csv;charset=utf-8' });
     savePdfBlob(blob, `JSR-list-${todayIso()}.csv`);
@@ -198,6 +211,9 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
         commercialWorkflow('jsr', id, 'ack', {}).catch(() => {});
       }
       setDetail(rec);
+      getClaimCertifiedPrice(rec).then((cert) => {
+        if (cert) setDetail((d) => (d?.id === rec.id ? { ...d, claim_cert: cert } : d));
+      });
     } catch (e) {
       toast.error(e.message || 'Could not open JSR');
     }
@@ -381,7 +397,10 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
                     </td>
                     <td className="whitespace-nowrap py-3 pr-3 tabular-nums">{formatDate(r.jsr_date)}</td>
                     <td className="whitespace-nowrap py-3 pr-3 text-right font-semibold tabular-nums">
-                      <CertifiedMoney submitted={r.total} certified={r.client_certified_amount} />
+                      <CertifiedMoney submitted={jsrPriceBasis(r).submitted} certified={jsrPriceBasis(r).certified} />
+                      {r.claim_cert ? (
+                        <CertifiedChange className="mt-0.5 block text-[11px]" original={r.claim_cert.original} certified={r.claim_cert.certified} suffix={r.claim_cert.claim_no} />
+                      ) : null}
                     </td>
                     <td className="py-3 pl-3 pr-3">
                       <StatusBadge kind="jsr" status={r.status} />
@@ -532,8 +551,12 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
                 </TableBody>
               </Table>
               <div className="text-right font-semibold">
-                TOTAL: <CertifiedMoney className="font-semibold" submitted={detail.total} certified={detail.client_certified_amount} />
-                {hasCertifiedAmount(detail.client_certified_amount) && Math.abs(roundMoney(detail.total) - roundMoney(detail.client_certified_amount)) >= 0.005 ? (
+                TOTAL: <CertifiedMoney className="font-semibold" submitted={jsrPriceBasis(detail).submitted} certified={jsrPriceBasis(detail).certified} />
+                {detail.claim_cert ? (
+                  <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                    Payment cert {detail.claim_cert.claim_no ? `(${detail.claim_cert.claim_no}) ` : ''}· original <Money value={detail.claim_cert.original} /> · certified <Money value={detail.claim_cert.certified} /> · <CertifiedChange original={detail.claim_cert.original} certified={detail.claim_cert.certified} />
+                  </span>
+                ) : hasCertifiedAmount(detail.client_certified_amount) && Math.abs(roundMoney(detail.total) - roundMoney(detail.client_certified_amount)) >= 0.005 ? (
                   <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
                     After client certification · {clientAdjustment(detail.total, detail.client_certified_amount).label.toLowerCase()} <Money value={clientAdjustment(detail.total, detail.client_certified_amount).amount} />
                   </span>
@@ -640,6 +663,15 @@ export default function JsrPanel({ role, lookups, perms = {}, onAddToClaim }) {
       />
     </div>
   );
+}
+
+/**
+ * The amounts a JSR row shows: once its claim's payment cert is received, the price certified on
+ * that claim (vs the amount it was claimed at); before then, the JSR's own client certification.
+ */
+function jsrPriceBasis(r) {
+  if (r?.claim_cert) return { submitted: r.claim_cert.original, certified: r.claim_cert.certified };
+  return { submitted: r?.total, certified: hasCertifiedAmount(r?.client_certified_amount) ? r.client_certified_amount : null };
 }
 
 function ExportOnlyLabel({ row }) {

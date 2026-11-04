@@ -124,7 +124,6 @@ export default function BrandingPanel() {
     date: new Date('2026-09-18T10:42:15+08:00'),
     lat: 1.35208,
     lng: 103.81984,
-    accuracy: 8,
     address: companyAddress || DEFAULT_BRANDING.company_address,
     lcbId: '001',
     sectionLabel: 'LCB',
@@ -346,7 +345,7 @@ export default function BrandingPanel() {
         <div>
           <h3 className="text-sm font-semibold text-slate-900">Overlay wording</h3>
           <p className="mt-1 text-xs text-muted-foreground">
-            Timestamp, site, section, status, address, and GPS (±accuracy) share one dark details box. Toggle a line or move it up or down. Drag the block on the preview to place it.
+            Timestamp, site, section, status, address, and GPS coordinates share one dark details box. Toggle a line or move it up or down. Drag the block on the preview to place it.
           </p>
         </div>
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">

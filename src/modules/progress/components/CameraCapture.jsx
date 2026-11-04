@@ -11,6 +11,7 @@ import { generateVerificationCode } from '@/modules/progress/lib/verificationCod
 import { sha256Hex, dHashFromCanvas } from '@/modules/progress/lib/photoHash';
 import { getCompanyBranding, brandingLogoUrl, DEFAULT_BRANDING } from '@/modules/progress/lib/branding';
 import { reverseGeocode } from '@/modules/progress/lib/geocode';
+import { getPreciseFix, isBetterFix } from '@/core/preciseLocation';
 import { setStatusBarDark, setStatusBarLight } from '@/core/nativeBootstrap';
 import { pushNativeBackHandler } from '@/core/nativeBack';
 import {
@@ -78,23 +79,14 @@ function touchDistance(a, b) {
 }
 
 async function readFreshGps() {
-    const pos = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0,
-    });
-    const lat = pos.coords.latitude;
-    const lng = pos.coords.longitude;
-    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        throw new Error('GPS coordinates unavailable');
-    }
+    const { lat, lng, accuracy } = await getPreciseFix({ windowMs: 6000, targetAccuracyM: 5, timeoutMs: 20000 });
     let address = null;
     try {
         address = await reverseGeocode(lat, lng);
     } catch {
         address = null;
     }
-    return { lat, lng, accuracy: pos.coords.accuracy, address };
+    return { lat, lng, accuracy, address };
 }
 
 /**
@@ -268,17 +260,20 @@ export default function CameraCapture({
         };
     }, [active]);
 
-    // One high-accuracy lock when the viewfinder opens, then cheap refreshes.
-    // A continuous high-accuracy GPS watch keeps the radio hot and overheats phones.
+    // Best-of high-accuracy lock when the viewfinder opens (shutter waits for it),
+    // then short high-accuracy bursts. A continuous watch keeps the GPS radio hot and
+    // overheats phones; low-accuracy refreshes used to swap in coarse network fixes.
     useEffect(() => {
         if (!active || !foreground) return undefined;
 
         let cancelled = false;
         let refreshTimer = null;
+        let burstAbort = null;
         let lastGeocodeAt = 0;
         let lastGeocodeLat = null;
         let lastGeocodeLng = null;
         let geocodeSeq = 0;
+        let current = null;
 
         const maybeGeocode = (lat, lng) => {
             const ts = Date.now();
@@ -298,26 +293,17 @@ export default function CameraCapture({
                 .catch(() => {});
         };
 
-        const applyFix = (pos) => {
-            const lat = pos?.coords?.latitude;
-            const lng = pos?.coords?.longitude;
-            if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-                setLocating(false);
-                return false;
-            }
-            setPosition({ lat, lng, accuracy: Number.isFinite(pos.coords?.accuracy) ? pos.coords.accuracy : null });
-            setLocating(false);
-            maybeGeocode(lat, lng);
-            return true;
+        const applyFix = (fix) => {
+            if (cancelled || !isBetterFix(current, fix)) return;
+            current = fix;
+            setPosition({ lat: fix.lat, lng: fix.lng, accuracy: fix.accuracy });
+            maybeGeocode(fix.lat, fix.lng);
         };
 
-        const readPosition = async ({ highAccuracy, maximumAge, timeout }) => {
-            const pos = await Geolocation.getCurrentPosition({
-                enableHighAccuracy: highAccuracy,
-                timeout,
-                maximumAge,
-            });
-            if (!cancelled) applyFix(pos);
+        const burst = (opts) => {
+            burstAbort?.abort();
+            burstAbort = new AbortController();
+            return getPreciseFix({ ...opts, signal: burstAbort.signal }).then(applyFix);
         };
 
         (async () => {
@@ -325,20 +311,21 @@ export default function CameraCapture({
                 if (Capacitor.isNativePlatform()) {
                     await Geolocation.requestPermissions();
                 }
-                await readPosition({ highAccuracy: true, maximumAge: 5000, timeout: 15000 });
+                await burst({ windowMs: 6000, targetAccuracyM: 5, timeoutMs: 20000 });
             } catch (e) {
-                console.warn('[CameraCapture] location unavailable:', e);
-                if (!cancelled) setLocating(false);
+                if (!cancelled) console.warn('[CameraCapture] location unavailable:', e);
             }
             if (cancelled) return;
+            setLocating(false);
             refreshTimer = setInterval(() => {
                 if (typeof document !== 'undefined' && document.hidden) return;
-                readPosition({ highAccuracy: false, maximumAge: 20000, timeout: 8000 }).catch(() => {});
-            }, 20000);
+                burst({ windowMs: 4000, targetAccuracyM: 5, timeoutMs: 8000 }).catch(() => {});
+            }, 12000);
         })();
 
         return () => {
             cancelled = true;
+            burstAbort?.abort();
             if (refreshTimer) clearInterval(refreshTimer);
         };
     }, [active, foreground]);
@@ -752,7 +739,6 @@ export default function CameraCapture({
                 date: shotAt,
                 lat,
                 lng,
-                accuracy,
                 address: captureAddress,
                 lcbId,
                 sectionLabel,

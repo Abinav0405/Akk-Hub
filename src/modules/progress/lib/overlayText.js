@@ -9,7 +9,7 @@ export const OVERLAY_LINE_LABELS = {
   section: 'Section / LCB',
   status: 'Status',
   address: 'Address',
-  gps: 'GPS (±accuracy)',
+  gps: 'GPS coordinates',
 };
 
 export const OVERLAY_POSITIONS = [
@@ -50,22 +50,18 @@ export function overlayEditorLines(saved) {
   ];
 }
 
-export function formatGpsLine(lat, lng, { locating = false, accuracy } = {}) {
+/** Coordinates only — the (±Nm) accuracy estimate is kept in photo metadata, never stamped. */
+export function formatGpsLine(lat, lng, { locating = false } = {}) {
   if (lat == null || lng == null) {
     return locating ? 'Locating GPS…' : 'GPS unavailable';
   }
-  const coords = `${Math.abs(lat).toFixed(6)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(6)}°${lng >= 0 ? 'E' : 'W'}`;
-  if (Number.isFinite(Number(accuracy)) && Number(accuracy) >= 0) {
-    return `${coords} (±${Math.round(Number(accuracy))}m)`;
-  }
-  return coords;
+  return `${Math.abs(lat).toFixed(6)}°${lat >= 0 ? 'N' : 'S'}, ${Math.abs(lng).toFixed(6)}°${lng >= 0 ? 'E' : 'W'}`;
 }
 
 export function overlayFieldValues({
   date,
   lat,
   lng,
-  accuracy,
   address,
   lcbId,
   sectionLabel,
@@ -80,13 +76,13 @@ export function overlayFieldValues({
     section: hasSection ? `${normalizeSectionLabel(sectionLabel)}- ${lcbId}` : '',
     status: `Status- ${(stage || '').toUpperCase()}`,
     address: address || (locating ? 'Locating address…' : 'Address unavailable'),
-    gps: formatGpsLine(lat, lng, { locating, accuracy }),
+    gps: formatGpsLine(lat, lng, { locating }),
   };
 }
 
 /**
  * Visible overlay lines after admin show/hide + order.
- * GPS (±accuracy) always sits in the same details stack as date/address.
+ * GPS coordinates always sit in the same details stack as date/address.
  * Stack x/y are % of frame (top-left of the block).
  */
 export function buildOverlayLayout(opts = {}) {
@@ -116,7 +112,7 @@ export function buildOverlayLayout(opts = {}) {
 /**
  * The overlay lines burned into every captured photo (and shown live in the
  * viewfinder before capture) — date/time, then Site/LCB/Status each on their
- * own row, then address, then GPS (±accuracy when the fix reports it).
+ * own row, then address, then GPS coordinates.
  */
 export function formatOverlayLines(opts) {
   const layout = buildOverlayLayout(opts);
